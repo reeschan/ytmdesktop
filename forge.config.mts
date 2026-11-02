@@ -112,6 +112,11 @@ const config: ForgeConfig = {
           target: "preload"
         },
         {
+          entry: "src/renderer/windows/background-video/preload.ts",
+          config: "config/vite/preload/background_video.ts",
+          target: "preload"
+        },
+        {
           entry: "src/renderer/ytmview/preload.ts",
           config: "config/vite/preload/ytmview.ts",
           target: "preload"
