@@ -47,8 +47,12 @@ const YTM_PAGE_TRANSPARENT_SELECTORS = [
   "body:is(body)",
   "ytmusic-app:is(ytmusic-app)",
   "ytmusic-app-layout:is(ytmusic-app-layout)",
-  "ytmusic-browse-response:is(ytmusic-browse-response)"
+  "ytmusic-browse-response:is(ytmusic-browse-response)",
+  // The dark gradient over the top of the home and browse pages
+  ".background-gradient.background-gradient"
 ];
+// Pictures YouTube Music draws over the page background (the full-bleed header image at the top of the home and browse pages)
+const YTM_PAGE_HIDDEN_SELECTORS = [".immersive-background.immersive-background"];
 // The surfaces drawn over the page (for example the nav bar, the side bar and the player bar)
 const YTM_SURFACE_TRANSPARENT_SELECTORS = [
   "#nav-bar-background#nav-bar-background",
@@ -60,12 +64,14 @@ const YTM_SURFACE_TRANSPARENT_SELECTORS = [
 const YTM_TRANSPARENT_VARIABLE_SELECTORS = ["html:root", "ytmusic-app:is(ytmusic-app)"];
 
 /**
- * Builds the CSS that makes the backgrounds of the background selectors and the --ytmusic-background variable of the variable selectors transparent
+ * Builds the CSS that makes the backgrounds of the background selectors and the --ytmusic-background variable of the variable selectors transparent,
+ * and hides the pictures drawn over the page background
  */
 function buildTransparentCss(backgroundSelectors: string[], variableSelectors: string[]): string {
   return [
     `${backgroundSelectors.join(", ")} { background: transparent !important; }`,
-    `${variableSelectors.join(", ")} { --ytmusic-background: transparent !important; }`
+    `${variableSelectors.join(", ")} { --ytmusic-background: transparent !important; }`,
+    `${YTM_PAGE_HIDDEN_SELECTORS.join(", ")} { visibility: hidden !important; }`
   ].join("\n");
 }
 
