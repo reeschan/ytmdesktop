@@ -1,6 +1,7 @@
 import Conf from "conf";
 import { app, ipcMain } from "electron";
 import log from "electron-log";
+import { BackgroundVideoSource } from "~shared/background-video";
 import { DEFAULT_PRESENCE_DISPLAY_SETTINGS } from "~shared/discord-presence/activity";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
 import { DependencyConstructor, Paths, ValueAtPath } from "~shared/types";
@@ -44,6 +45,7 @@ export default class ConfigStore extends Service {
           theme: ThemeSelection.Default,
           themeFilePath: null,
           backgroundVideoEnabled: false,
+          backgroundVideoSource: BackgroundVideoSource.Playing,
           backgroundVideoPath: null,
           backgroundVideoMaskOpacity: 60,
           backgroundVideoMaskBlur: 0
@@ -173,6 +175,10 @@ export default class ConfigStore extends Service {
 
           if (!store.has("appearance.backgroundVideoEnabled")) {
             store.set("appearance.backgroundVideoEnabled", false);
+          }
+
+          if (!store.has("appearance.backgroundVideoSource")) {
+            store.set("appearance.backgroundVideoSource", BackgroundVideoSource.Playing);
           }
 
           if (!store.has("appearance.backgroundVideoPath")) {

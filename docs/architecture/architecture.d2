@@ -49,11 +49,11 @@ app: "YTMDesktop (Electron)" {
     icon: https://icons.terrastruct.com/essentials%2F220-layers.svg
     direction: down
 
-    ytm: "YouTube Music view\ntransparent while the video plays" {
+    ytm: "YouTube Music view\nplaying video drawn behind the page" {
       class: svc
       icon: https://cdn.simpleicons.org/youtubemusic
     }
-    bg: "Background video view\nvideo + mask (below YTM)" {
+    bg: "Background video view\nvideo file + mask (below YTM)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F002-video%20player.svg
     }
@@ -72,11 +72,11 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F204-settings.svg
     }
-    theme: "ThemeManager\ninjects theme colors" {
+    theme: "ThemeManager\ntheme colors + frosted glass" {
       class: svc
       icon: https://cdn.simpleicons.org/tailwindcss
     }
-    video: "BackgroundVideoManager\nplay / pause / hide" {
+    video: "BackgroundVideoManager\nsource · play / pause / hide" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F002-video%20player.svg
     }
@@ -126,7 +126,8 @@ app.main.config -> app.main.theme: theme
 app.main.config -> app.main.video: video settings
 app.main.theme -> app.window.ytm: theme CSS
 app.main.theme -> app.screens: CSS variables
-app.main.video -> app.window.bg: state + mask
+app.main.video <-> app.window.ytm: state + mask / has video
+app.main.video -> app.window.bg: video file + mask
 app.window.bg -> app.main.protocol: video stream
 app.main.protocol -> file: reads
 app.window.ytm -> app.main.player: player state

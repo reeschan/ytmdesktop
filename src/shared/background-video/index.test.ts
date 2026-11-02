@@ -2,15 +2,21 @@ import { describe, expect, it } from "vitest";
 import {
   BackgroundVideoDecision,
   BackgroundVideoInput,
+  BackgroundVideoMotion,
   BackgroundVideoPlayback,
+  BackgroundVideoSource,
   decideBackgroundVideo,
   WindowVisibility,
   YtmBackground
 } from "~shared/background-video";
 
-const NOT_SHOWN: BackgroundVideoDecision = { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme };
+type FileInput = Pick<BackgroundVideoInput, "enabled" | "fileFound" | "window">;
+type FileDecision = Pick<BackgroundVideoDecision, "video" | "ytmBackground">;
 
-const CASES: [BackgroundVideoInput, BackgroundVideoDecision][] = [
+const NOT_SHOWN: FileDecision = { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme };
+
+// Expectations for a video file with normal motion
+const FILE_CASES: [FileInput, FileDecision][] = [
   [{ enabled: false, fileFound: false, window: WindowVisibility.Visible }, NOT_SHOWN],
   [{ enabled: false, fileFound: false, window: WindowVisibility.Hidden }, NOT_SHOWN],
   [{ enabled: false, fileFound: false, window: WindowVisibility.Fullscreen }, NOT_SHOWN],
@@ -34,52 +40,126 @@ const CASES: [BackgroundVideoInput, BackgroundVideoDecision][] = [
   ]
 ];
 
-const ALL_INPUTS: BackgroundVideoInput[] = [false, true].flatMap(enabled =>
+const ALL_FILE_INPUTS: FileInput[] = [false, true].flatMap(enabled =>
   [false, true].flatMap(fileFound => Object.values(WindowVisibility).map(window => ({ enabled, fileFound, window })))
 );
 
+const BOOLEANS = [false, true];
+
+const ALL_INPUTS: BackgroundVideoInput[] = BOOLEANS.flatMap(enabled =>
+  Object.values(BackgroundVideoSource).flatMap(source =>
+    BOOLEANS.flatMap(videoAvailable =>
+      BOOLEANS.flatMap(fileFound =>
+        Object.values(WindowVisibility).flatMap(window =>
+          BOOLEANS.map(reducedMotion => ({ enabled, source, videoAvailable, fileFound, window, reducedMotion }))
+        )
+      )
+    )
+  )
+);
+
+function hasPicture(input: BackgroundVideoInput): boolean {
+  return input.source === BackgroundVideoSource.Playing ? input.videoAvailable : input.fileFound;
+}
+
+function isShown(decision: BackgroundVideoDecision): boolean {
+  return decision.video !== BackgroundVideoPlayback.NotShown;
+}
+
+/**
+ * Checks the rule against every combination of the inputs, naming the input that breaks it
+ */
+function expectForAll(rule: (input: BackgroundVideoInput, decision: BackgroundVideoDecision) => boolean) {
+  for (const input of ALL_INPUTS) {
+    const decision = decideBackgroundVideo(input);
+    expect(rule(input, decision), `${JSON.stringify(input)} -> ${JSON.stringify(decision)}`).toBe(true);
+  }
+}
+
 describe("decideBackgroundVideo", () => {
   it("covers every combination of the inputs", () => {
-    expect(ALL_INPUTS).toHaveLength(12);
-    expect(CASES.map(([input]) => input)).toEqual(expect.arrayContaining(ALL_INPUTS));
-    expect(CASES).toHaveLength(12);
+    expect(ALL_FILE_INPUTS).toHaveLength(12);
+    expect(FILE_CASES.map(([input]) => input)).toEqual(expect.arrayContaining(ALL_FILE_INPUTS));
+    expect(FILE_CASES).toHaveLength(12);
+    expect(ALL_INPUTS).toHaveLength(96);
+    expect(new Set(ALL_INPUTS.map(input => JSON.stringify(input))).size).toBe(96);
   });
 
-  it.each(CASES)("returns the expected decision for %o", (input, expected) => {
-    expect(decideBackgroundVideo(input)).toEqual(expected);
+  it.each(FILE_CASES)("returns the expected decision for a video file with normal motion for %o", (input, expected) => {
+    const decision = decideBackgroundVideo({ ...input, source: BackgroundVideoSource.File, videoAvailable: false, reducedMotion: false });
+    expect(decision).toEqual({ ...expected, motion: BackgroundVideoMotion.Continuous });
   });
 
-  describe.each(ALL_INPUTS)("rules for %o", input => {
-    const decision = decideBackgroundVideo(input);
+  describe("rules for every combination of the inputs", () => {
+    it("is not shown and keeps the theme background while disabled", () => {
+      expectForAll((input, decision) => input.enabled || (!isShown(decision) && decision.ytmBackground === YtmBackground.Theme));
+    });
 
-    it("is not playing while the window is hidden", () => {
-      if (input.window === WindowVisibility.Hidden) {
-        expect(decision.video).not.toBe(BackgroundVideoPlayback.Playing);
-      }
+    it("is not shown and keeps the theme background while the source has no picture", () => {
+      expectForAll((input, decision) => hasPicture(input) || (!isShown(decision) && decision.ytmBackground === YtmBackground.Theme));
+    });
+
+    it("is not drawing while the window is hidden", () => {
+      expectForAll((input, decision) => input.window !== WindowVisibility.Hidden || decision.video !== BackgroundVideoPlayback.Playing);
     });
 
     it("is not visible while fullscreen", () => {
-      if (input.window === WindowVisibility.Fullscreen) {
-        expect([BackgroundVideoPlayback.Playing, BackgroundVideoPlayback.Paused]).not.toContain(decision.video);
+      expectForAll(
+        (input, decision) =>
+          input.window !== WindowVisibility.Fullscreen ||
+          ![BackgroundVideoPlayback.Playing, BackgroundVideoPlayback.Paused].some(playback => playback === decision.video)
+      );
+    });
+
+    it("is not moving while motion is reduced", () => {
+      expectForAll(
+        (input, decision) =>
+          !input.reducedMotion || decision.video !== BackgroundVideoPlayback.Playing || decision.motion !== BackgroundVideoMotion.Continuous
+      );
+    });
+
+    it("is not left paused while the window is visible", () => {
+      expectForAll((input, decision) => input.window !== WindowVisibility.Visible || decision.video !== BackgroundVideoPlayback.Paused);
+    });
+
+    it("is not left still while the window is visible with normal motion", () => {
+      expectForAll(
+        (input, decision) =>
+          input.window !== WindowVisibility.Visible ||
+          input.reducedMotion ||
+          decision.video !== BackgroundVideoPlayback.Playing ||
+          decision.motion !== BackgroundVideoMotion.Still
+      );
+    });
+
+    it("is shown while enabled, the source has a picture and the window is visible", () => {
+      expectForAll((input, decision) => !(input.enabled && hasPicture(input) && input.window === WindowVisibility.Visible) || isShown(decision));
+    });
+  });
+
+  describe("source", () => {
+    it("decides from whether the playing video is available, whatever the file, when the source is the playing video", () => {
+      for (const input of ALL_INPUTS.filter(input => input.source === BackgroundVideoSource.Playing)) {
+        const decision = decideBackgroundVideo(input);
+        const message = JSON.stringify(input);
+        expect(isShown(decision), message).toBe(input.enabled && input.videoAvailable);
+        expect(decideBackgroundVideo({ ...input, fileFound: !input.fileFound }), message).toEqual(decision);
       }
     });
 
-    it("is not shown and keeps the theme background while disabled", () => {
-      if (!input.enabled) {
-        expect(decision).toEqual(NOT_SHOWN);
+    it("decides from whether the file is found, whatever the playing video, when the source is the video file", () => {
+      for (const input of ALL_INPUTS.filter(input => input.source === BackgroundVideoSource.File)) {
+        const decision = decideBackgroundVideo(input);
+        const message = JSON.stringify(input);
+        expect(isShown(decision), message).toBe(input.enabled && input.fileFound);
+        expect(decideBackgroundVideo({ ...input, videoAvailable: !input.videoAvailable }), message).toEqual(decision);
       }
     });
+  });
 
-    it("is not shown and keeps the theme background while the file is not found", () => {
-      if (!input.fileFound) {
-        expect(decision).toEqual(NOT_SHOWN);
-      }
-    });
-
-    it("is playing while the window is visible, enabled and the file is found", () => {
-      if (input.window === WindowVisibility.Visible && input.enabled && input.fileFound) {
-        expect(decision.video).toBe(BackgroundVideoPlayback.Playing);
-      }
-    });
+  it("is still while motion is reduced and continuous otherwise", () => {
+    expectForAll(
+      (input, decision) => decision.motion === (input.reducedMotion ? BackgroundVideoMotion.Still : BackgroundVideoMotion.Continuous)
+    );
   });
 });

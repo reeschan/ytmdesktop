@@ -1,4 +1,4 @@
-import { app, BaseWindow, WebContentsView } from "electron";
+import { app, BaseWindow, IpcMainEvent, WebContentsView } from "electron";
 import fs from "node:fs";
 import path from "node:path";
 import log from "electron-log";
@@ -6,11 +6,16 @@ import { DependencyConstructor } from "~shared/types";
 import { MemoryStoreSchema } from "~shared/store/schema";
 import {
   BackgroundVideoDecision,
+  BackgroundVideoIpc,
+  BackgroundVideoMotion,
   BackgroundVideoPlayback,
+  BackgroundVideoSource,
   BackgroundVideoViewState,
   decideBackgroundVideo,
   WindowVisibility,
-  YtmBackground
+  YtmBackground,
+  YtmBackgroundReport,
+  YtmBackgroundState
 } from "~shared/background-video";
 import { ColorItem } from "~shared/theme";
 import Service from "../service";
@@ -36,23 +41,46 @@ const YTM_HOST = "music.youtube.com";
 // Elements of YouTube Music that paint their own background (checked on music.youtube.com on 2026-11-02,
 // #mini-guide-background and #player-bar-background were found while signed in)
 // Each selector repeats itself so it is more specific than the !important theme rules and wins whichever is inserted last
-const YTM_TRANSPARENT_SELECTORS = [
+// The page background behind everything
+const YTM_PAGE_TRANSPARENT_SELECTORS = [
   "html:root",
   "body:is(body)",
   "ytmusic-app:is(ytmusic-app)",
   "ytmusic-app-layout:is(ytmusic-app-layout)",
+  "ytmusic-browse-response:is(ytmusic-browse-response)",
+  // The dark gradient over the top of the home and browse pages
+  ".background-gradient.background-gradient"
+];
+// Pictures YouTube Music draws over the page background (the full-bleed header image at the top of the home and browse pages)
+const YTM_PAGE_HIDDEN_SELECTORS = [".immersive-background.immersive-background"];
+// The surfaces drawn over the page (for example the nav bar, the side bar and the player bar)
+const YTM_SURFACE_TRANSPARENT_SELECTORS = [
   "#nav-bar-background#nav-bar-background",
   "#guide-wrapper#guide-wrapper",
   "#mini-guide-background#mini-guide-background",
   "#player-bar-background#player-bar-background",
-  "ytmusic-player-bar:is(ytmusic-player-bar)",
-  "ytmusic-browse-response:is(ytmusic-browse-response)"
+  "ytmusic-player-bar:is(ytmusic-player-bar)"
 ];
 const YTM_TRANSPARENT_VARIABLE_SELECTORS = ["html:root", "ytmusic-app:is(ytmusic-app)"];
-const YTM_TRANSPARENT_CSS = [
-  `${YTM_TRANSPARENT_SELECTORS.join(", ")} { background: transparent !important; }`,
-  `${YTM_TRANSPARENT_VARIABLE_SELECTORS.join(", ")} { --ytmusic-background: transparent !important; }`
-].join("\n");
+
+/**
+ * Builds the CSS that makes the backgrounds of the background selectors and the --ytmusic-background variable of the variable selectors transparent,
+ * and hides the pictures drawn over the page background
+ */
+function buildTransparentCss(backgroundSelectors: string[], variableSelectors: string[]): string {
+  return [
+    `${backgroundSelectors.join(", ")} { background: transparent !important; }`,
+    `${variableSelectors.join(", ")} { --ytmusic-background: transparent !important; }`,
+    `${YTM_PAGE_HIDDEN_SELECTORS.join(", ")} { visibility: hidden !important; }`
+  ].join("\n");
+}
+
+// Surfaces keep the theme's blurred background when it has one, so only the page is made transparent
+const YTM_PAGE_TRANSPARENT_CSS = buildTransparentCss(YTM_PAGE_TRANSPARENT_SELECTORS, YTM_TRANSPARENT_VARIABLE_SELECTORS);
+const YTM_PAGE_AND_SURFACES_TRANSPARENT_CSS = buildTransparentCss(
+  [...YTM_PAGE_TRANSPARENT_SELECTORS, ...YTM_SURFACE_TRANSPARENT_SELECTORS],
+  YTM_TRANSPARENT_VARIABLE_SELECTORS
+);
 
 type YTMBackgroundUpdate = {
   // Whether a new document was loaded, which drops any CSS inserted into the previous one
@@ -98,8 +126,12 @@ export default class BackgroundVideoManager extends Service {
   private electronWindow: BaseWindow | null = null;
   private ytmView: AppView | null = null;
 
-  private decision: BackgroundVideoDecision = { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme };
+  private decision: BackgroundVideoDecision = { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme, motion: BackgroundVideoMotion.Continuous };
+  private source: BackgroundVideoSource = BackgroundVideoSource.Playing;
   private fullscreen = false;
+  // Last report of the YTM view, the video is unavailable until a loaded document reports it
+  private ytmVideoAvailable = false;
+  private ytmReducedMotion = false;
   private fileFound = false;
   private fileMissing: boolean | null = null;
   // Changes whenever the view has to load the video again (for example another file was chosen)
@@ -109,6 +141,8 @@ export default class BackgroundVideoManager extends Service {
   private configListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
 
   private ytmCssKey: string | null = null;
+  // CSS inserted with ytmCssKey, so it is inserted again when the CSS to apply changes
+  private ytmCss: string | null = null;
   private ytmBackgroundTransparent = false;
   // YTM background changes run one after another so an inserted CSS key is never lost
   private ytmQueue: Promise<void> = Promise.resolve();
@@ -145,6 +179,7 @@ export default class BackgroundVideoManager extends Service {
     }
 
     this.fullscreen = false;
+    this.ytmVideoAvailable = false;
     // The recreated view has a new webContents with the default background and no inserted CSS
     this.ytmBackgroundTransparent = false;
     this.applyYTMBackground({ documentLoaded: true, reinsert: false, colorsChanged: false });
@@ -152,7 +187,22 @@ export default class BackgroundVideoManager extends Service {
   };
 
   private ytmViewReadyListener = () => {
+    // A new document reports its video again, pages that never report (for example the sign-in) have none
+    this.ytmVideoAvailable = false;
     this.applyYTMBackground({ documentLoaded: true, reinsert: false, colorsChanged: false });
+    // The state is also sent again to the new document
+    this.update();
+  };
+
+  // Receives the report of the YTM view ("backgroundVideo:ytmReport")
+  private ytmReportListener = (_event: IpcMainEvent, report: YtmBackgroundReport) => {
+    const available = report?.available === true;
+    const reducedMotion = report?.reducedMotion === true;
+    if (available === this.ytmVideoAvailable && reducedMotion === this.ytmReducedMotion) return;
+
+    this.ytmVideoAvailable = available;
+    this.ytmReducedMotion = reducedMotion;
+    this.update();
   };
 
   private ytmEnterFullscreenListener = () => {
@@ -181,13 +231,19 @@ export default class BackgroundVideoManager extends Service {
     this.configListener = configStore.onDidChange("appearance", (newState, oldState) => {
       if (
         newState?.backgroundVideoEnabled === oldState?.backgroundVideoEnabled &&
+        newState?.backgroundVideoSource === oldState?.backgroundVideoSource &&
         newState?.backgroundVideoPath === oldState?.backgroundVideoPath &&
         newState?.backgroundVideoMaskOpacity === oldState?.backgroundVideoMaskOpacity &&
         newState?.backgroundVideoMaskBlur === oldState?.backgroundVideoMaskBlur
       )
         return;
 
-      if (newState?.backgroundVideoEnabled !== oldState?.backgroundVideoEnabled || newState?.backgroundVideoPath !== oldState?.backgroundVideoPath) {
+      // The file may have changed while it was not watched (for example while another source was shown)
+      if (
+        newState?.backgroundVideoEnabled !== oldState?.backgroundVideoEnabled ||
+        newState?.backgroundVideoSource !== oldState?.backgroundVideoSource ||
+        newState?.backgroundVideoPath !== oldState?.backgroundVideoPath
+      ) {
         this.sourceToken = Date.now();
       }
       this.updateVideoFileWatch();
@@ -301,7 +357,16 @@ export default class BackgroundVideoManager extends Service {
 
     const enabled = configStore.get("appearance.backgroundVideoEnabled");
     const previousYTMBackground = this.decision.ytmBackground;
-    this.decision = decideBackgroundVideo({ enabled, fileFound: this.fileFound, window: this.getWindowVisibility() });
+    const previousSource = this.source;
+    this.source = configStore.get("appearance.backgroundVideoSource");
+    this.decision = decideBackgroundVideo({
+      enabled,
+      source: this.source,
+      videoAvailable: this.ytmVideoAvailable,
+      fileFound: this.fileFound,
+      window: this.getWindowVisibility(),
+      reducedMotion: this.ytmReducedMotion
+    });
 
     // The path is kept when the file is missing so the video comes back once the file does
     const fileMissing = this.watchedFilePath !== null && !this.fileFound;
@@ -310,33 +375,63 @@ export default class BackgroundVideoManager extends Service {
       memoryStore.set("backgroundVideoFileMissing", fileMissing);
     }
 
-    if (this.decision.ytmBackground !== previousYTMBackground) this.applyYTMBackground(PLAIN_UPDATE);
+    // The source decides whether the YTM view itself is made transparent
+    if (this.decision.ytmBackground !== previousYTMBackground || this.source !== previousSource) this.applyYTMBackground(PLAIN_UPDATE);
     this.sendState();
   }
 
-  private getState(): BackgroundVideoViewState {
+  private getMask(): Pick<BackgroundVideoViewState, "maskOpacity" | "maskBlur" | "maskColor"> {
     const configStore = this.getDependency(ConfigStore);
     const themeManager = this.getDependency(ThemeManager);
 
     return {
-      playback: this.decision.video,
-      src: this.decision.video === BackgroundVideoPlayback.NotShown ? null : `ytmd-app://${BACKGROUND_VIDEO_FILE_HOST}/${this.sourceToken}`,
       maskOpacity: configStore.get("appearance.backgroundVideoMaskOpacity"),
       maskBlur: configStore.get("appearance.backgroundVideoMaskBlur"),
       maskColor: themeManager.getColors()[ColorItem.Background]
     };
   }
 
-  private sendState() {
-    const contents = this.view?.webContents;
-    if (!contents || contents.isDestroyed()) return;
+  /**
+   * State of the background video view, which shows only the video file
+   */
+  private getViewState(): BackgroundVideoViewState {
+    const playback = this.source === BackgroundVideoSource.File ? this.decision.video : BackgroundVideoPlayback.NotShown;
 
-    contents.send(STATE_CHANNEL, this.getState());
+    return {
+      playback,
+      motion: this.decision.motion,
+      src: playback === BackgroundVideoPlayback.NotShown ? null : `ytmd-app://${BACKGROUND_VIDEO_FILE_HOST}/${this.sourceToken}`,
+      ...this.getMask()
+    };
+  }
+
+  /**
+   * State of the background drawn inside the YTM view, which shows only the playing video
+   */
+  private getYTMState(): YtmBackgroundState {
+    return {
+      show: this.source === BackgroundVideoSource.Playing && this.decision.video !== BackgroundVideoPlayback.NotShown,
+      playback: this.decision.video,
+      motion: this.decision.motion,
+      ...this.getMask()
+    };
+  }
+
+  private sendState() {
+    const viewContents = this.view?.webContents;
+    if (viewContents && !viewContents.isDestroyed()) viewContents.send(STATE_CHANNEL, this.getViewState());
+
+    // Sent to the YTM view preload ("backgroundVideo:ytmState"), which hands it to the page
+    const ytmContents = this.getYTMElectronView()?.webContents;
+    if (ytmContents && !ytmContents.isDestroyed()) ytmContents.send(BackgroundVideoIpc.State, this.getYTMState());
   }
 
   private updateVideoFileWatch() {
     const configStore = this.getDependency(ConfigStore);
-    const filePath = configStore.get("appearance.backgroundVideoEnabled") ? configStore.get("appearance.backgroundVideoPath") || null : null;
+    // The file is only watched while it is the source, so it is never reported missing while another source is shown
+    const watched =
+      configStore.get("appearance.backgroundVideoEnabled") && configStore.get("appearance.backgroundVideoSource") === BackgroundVideoSource.File;
+    const filePath = watched ? configStore.get("appearance.backgroundVideoPath") || null : null;
 
     if (filePath !== this.watchedFilePath) {
       if (this.watchedFilePath !== null) fs.unwatchFile(this.watchedFilePath, this.videoFileListener);
@@ -357,16 +452,21 @@ export default class BackgroundVideoManager extends Service {
     this.ytmView?.on("ready", this.ytmViewReadyListener);
     this.ytmView?.on("webcontents-enter-html-full-screen", this.ytmEnterFullscreenListener);
     this.ytmView?.on("webcontents-leave-html-full-screen", this.ytmLeaveFullscreenListener);
+    this.ytmView?.ipcOn(BackgroundVideoIpc.Report, this.ytmReportListener);
 
     this.ytmCssKey = null;
+    this.ytmCss = null;
     this.ytmBackgroundTransparent = false;
     this.fullscreen = false;
+    this.ytmVideoAvailable = false;
     this.applyYTMBackground(PLAIN_UPDATE);
+    this.update();
   }
 
   private detachYTMView() {
     if (!this.ytmView) return;
 
+    this.ytmView.ipcOff(BackgroundVideoIpc.Report, this.ytmReportListener);
     this.ytmView.off("ready", this.ytmViewReadyListener);
     this.ytmView.off("webcontents-enter-html-full-screen", this.ytmEnterFullscreenListener);
     this.ytmView.off("webcontents-leave-html-full-screen", this.ytmLeaveFullscreenListener);
@@ -385,34 +485,42 @@ export default class BackgroundVideoManager extends Service {
   private applyYTMBackground(options: YTMBackgroundUpdate) {
     this.ytmQueue = this.ytmQueue
       .then(async () => {
-        if (options.documentLoaded) this.ytmCssKey = null;
+        if (options.documentLoaded) {
+          this.ytmCssKey = null;
+          this.ytmCss = null;
+        }
 
         const electronView = this.getYTMElectronView();
         const contents = electronView?.webContents;
         if (!electronView || !contents || contents.isDestroyed()) return;
 
         // Pages the view navigates to outside YouTube Music (for example the sign-in) keep their own opaque background
-        const transparent = this.decision.ytmBackground === YtmBackground.Transparent && hasHost(contents.getURL(), YTM_HOST);
-        if (transparent) {
-          if (!this.ytmBackgroundTransparent) {
-            electronView.setBackgroundColor(TRANSPARENT_BACKGROUND_COLOR);
-            this.ytmBackgroundTransparent = true;
-          }
-          if (this.ytmCssKey !== null && !options.reinsert) return;
+        const pageTransparent = this.decision.ytmBackground === YtmBackground.Transparent && hasHost(contents.getURL(), YTM_HOST);
+        // The playing video is drawn inside the page, so the view itself stays opaque; the video file is shown by the view below it
+        const viewTransparent = pageTransparent && this.source === BackgroundVideoSource.File;
 
-          // The new CSS is inserted before the old one is removed so the background never shows in between
-          const previousKey = this.ytmCssKey;
-          this.ytmCssKey = await contents.insertCSS(YTM_TRANSPARENT_CSS);
-          if (previousKey !== null) await this.removeYTMCss(previousKey);
-          return;
+        if (viewTransparent && !this.ytmBackgroundTransparent) {
+          electronView.setBackgroundColor(TRANSPARENT_BACKGROUND_COLOR);
+          this.ytmBackgroundTransparent = true;
         }
 
-        if (this.ytmCssKey !== null) {
+        if (pageTransparent) {
+          const css = this.getDependency(ThemeManager).getSurfaceBlur() > 0 ? YTM_PAGE_TRANSPARENT_CSS : YTM_PAGE_AND_SURFACES_TRANSPARENT_CSS;
+          if (this.ytmCssKey === null || options.reinsert || css !== this.ytmCss) {
+            // The new CSS is inserted before the old one is removed so the background never shows in between
+            const previousKey = this.ytmCssKey;
+            this.ytmCssKey = await contents.insertCSS(css);
+            this.ytmCss = css;
+            if (previousKey !== null) await this.removeYTMCss(previousKey);
+          }
+        } else if (this.ytmCssKey !== null) {
           const key = this.ytmCssKey;
           this.ytmCssKey = null;
+          this.ytmCss = null;
           await this.removeYTMCss(key);
         }
-        if (this.ytmBackgroundTransparent || options.colorsChanged) {
+
+        if (!viewTransparent && (this.ytmBackgroundTransparent || options.colorsChanged)) {
           // A view created without a background color is opaque, so the theme background stands in for it
           electronView.setBackgroundColor(this.getDependency(ThemeManager).getNativeColors()[ColorItem.Background]);
           this.ytmBackgroundTransparent = false;

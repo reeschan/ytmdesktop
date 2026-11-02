@@ -16,10 +16,22 @@ if (window.location.hostname !== "music.youtube.com") {
 import { ipcRenderer, webFrame } from "electron";
 import Store from "../store-ipc/store";
 import { StoreSchema } from "~shared/store/schema";
+import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBackgroundState } from "~shared/background-video";
 
 import scriptsRaw from "./scripts?raw";
 
 const store = new Store<StoreSchema>();
+
+let backgroundVideoState: YtmBackgroundState | null = null;
+let backgroundVideoPageListening = false;
+function postBackgroundVideoState() {
+  if (backgroundVideoState) window.postMessage({ op: BackgroundVideoMessage.State, state: backgroundVideoState }, "*");
+}
+
+ipcRenderer.on(BackgroundVideoIpc.State, (_event, state: YtmBackgroundState) => {
+  backgroundVideoState = state;
+  postBackgroundVideoState();
+});
 
 let protectedApiBound = false;
 window.addEventListener("message", async event => {
@@ -90,6 +102,20 @@ window.addEventListener("message", async event => {
 
   if (event.data.op && event.data.op === "ytmd-errored") {
     ipcRenderer.send("ytmView:errored", event.data.error);
+  }
+
+  if (event.data.op && event.data.op === BackgroundVideoMessage.Report) {
+    const report: YtmBackgroundReport = {
+      available: event.data.available === true,
+      reducedMotion: event.data.reducedMotion === true
+    };
+    ipcRenderer.send(BackgroundVideoIpc.Report, report);
+
+    // A state that arrived before the page scripts were listening is sent again once they first report
+    if (!backgroundVideoPageListening) {
+      backgroundVideoPageListening = true;
+      postBackgroundVideoState();
+    }
   }
 });
 

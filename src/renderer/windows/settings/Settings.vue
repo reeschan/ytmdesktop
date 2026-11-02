@@ -3,7 +3,8 @@ import { computed, onBeforeUnmount, ref } from "vue";
 import KeybindInput from "../../components/KeybindInput.vue";
 import YTMDSetting from "../../components/YTMDSetting.vue";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
-import { ColorItem } from "~shared/theme";
+import { ThemeItem } from "~shared/theme";
+import { BackgroundVideoSource } from "~shared/background-video";
 import { AuthToken } from "~shared/integrations/companion-server/types";
 import { buildActivity, DiscordActivityStatusDisplayType, TemplateField } from "~shared/discord-presence/activity";
 import { LikeStatus, PlayerState, VideoDetails, VideoState, VideoType } from "~shared/playerstatestore/types";
@@ -55,6 +56,7 @@ const trayIconStyle = ref<number>(appearance.trayIconStyle);
 const theme = ref<ThemeSelection>(appearance.theme);
 const themeFilePath = ref<string | null>(appearance.themeFilePath);
 const backgroundVideoEnabled = ref<boolean>(appearance.backgroundVideoEnabled);
+const backgroundVideoSource = ref<BackgroundVideoSource>(appearance.backgroundVideoSource);
 const backgroundVideoPath = ref<string | null>(appearance.backgroundVideoPath);
 const backgroundVideoMaskOpacity = ref<number>(appearance.backgroundVideoMaskOpacity);
 const backgroundVideoMaskBlur = ref<number>(appearance.backgroundVideoMaskBlur);
@@ -63,16 +65,23 @@ const themeOptions: Record<ThemeSelection, string> = {
   [ThemeSelection.Default]: "Default",
   [ThemeSelection.Midnight]: "Midnight",
   [ThemeSelection.Forest]: "Forest",
+  [ThemeSelection.Glass]: "Glass",
   [ThemeSelection.File]: "Theme file"
 };
 
-const colorItemNames: Record<ColorItem, string> = {
-  [ColorItem.Background]: "Background",
-  [ColorItem.Surface]: "Surface",
-  [ColorItem.Text]: "Text",
-  [ColorItem.TextMuted]: "Muted text",
-  [ColorItem.Accent]: "Accent",
-  [ColorItem.Border]: "Border"
+const themeItemNames: Record<ThemeItem, string> = {
+  [ThemeItem.Background]: "Background",
+  [ThemeItem.Surface]: "Surface",
+  [ThemeItem.Text]: "Text",
+  [ThemeItem.TextMuted]: "Muted text",
+  [ThemeItem.Accent]: "Accent",
+  [ThemeItem.Border]: "Border",
+  [ThemeItem.SurfaceBlur]: "Surface blur"
+};
+
+const backgroundVideoSourceOptions: Record<BackgroundVideoSource, string> = {
+  [BackgroundVideoSource.Playing]: "Playing video",
+  [BackgroundVideoSource.File]: "Video file"
 };
 
 const continueWhereYouLeftOff = ref<boolean>(playback.continueWhereYouLeftOff);
@@ -124,6 +133,7 @@ store.onDidAnyChange(async newState => {
   theme.value = newState.appearance.theme;
   themeFilePath.value = newState.appearance.themeFilePath;
   backgroundVideoEnabled.value = newState.appearance.backgroundVideoEnabled;
+  backgroundVideoSource.value = newState.appearance.backgroundVideoSource;
   backgroundVideoPath.value = newState.appearance.backgroundVideoPath;
   backgroundVideoMaskOpacity.value = newState.appearance.backgroundVideoMaskOpacity;
   backgroundVideoMaskBlur.value = newState.appearance.backgroundVideoMaskBlur;
@@ -184,7 +194,7 @@ const themeUnreadableItems = ref<string[]>((await memoryStore.get("themeUnreadab
 const backgroundVideoFileMissing = ref<boolean>(await memoryStore.get("backgroundVideoFileMissing"));
 
 const themeUnreadableItemNames = computed(() =>
-  themeUnreadableItems.value.map(item => colorItemNames[item as ColorItem] ?? item).join(", ")
+  themeUnreadableItems.value.map(item => themeItemNames[item as ThemeItem] ?? item).join(", ")
 );
 
 memoryStore.onStateChanged(newState => {
@@ -287,6 +297,7 @@ async function settingsChanged() {
   store.set("appearance.trayIconStyle", trayIconStyle.value);
   store.set("appearance.theme", theme.value);
   store.set("appearance.backgroundVideoEnabled", backgroundVideoEnabled.value);
+  store.set("appearance.backgroundVideoSource", backgroundVideoSource.value);
   store.set("appearance.backgroundVideoMaskOpacity", Number(backgroundVideoMaskOpacity.value));
   store.set("appearance.backgroundVideoMaskBlur", Number(backgroundVideoMaskBlur.value));
 
@@ -552,7 +563,7 @@ window.ytmd.handleUpdateDownloaded(() => {
           >
             <select
               v-model="theme"
-              class="theme-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              class="setting-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
               @change="settingsChanged"
             >
               <option
@@ -588,7 +599,7 @@ window.ytmd.handleUpdateDownloaded(() => {
             class="setting indented"
           >
             <p class="appearance-warning tw:text-ytmd-text-muted">
-              Could not read: {{ themeUnreadableItemNames }}. Using the Default colors for them.
+              Could not read: {{ themeUnreadableItemNames }}. Using the defaults for them.
             </p>
           </div>
           <YTMDSetting
@@ -599,6 +610,26 @@ window.ytmd.handleUpdateDownloaded(() => {
           />
           <YTMDSetting
             v-if="backgroundVideoEnabled"
+            type="custom"
+            indented
+            name="Source"
+          >
+            <select
+              v-model="backgroundVideoSource"
+              class="setting-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              @change="settingsChanged"
+            >
+              <option
+                v-for="(optionName, optionValue) of backgroundVideoSourceOptions"
+                :key="optionValue"
+                :value="optionValue"
+              >
+                {{ optionName }}
+              </option>
+            </select>
+          </YTMDSetting>
+          <YTMDSetting
+            v-if="backgroundVideoEnabled && backgroundVideoSource === BackgroundVideoSource.File"
             v-model="backgroundVideoPath"
             type="file"
             indented
@@ -609,7 +640,7 @@ window.ytmd.handleUpdateDownloaded(() => {
             @clear="removeBackgroundVideoPath"
           />
           <div
-            v-if="backgroundVideoFileMissing"
+            v-if="backgroundVideoFileMissing && backgroundVideoSource === BackgroundVideoSource.File"
             class="setting indented"
           >
             <p class="appearance-warning tw:text-ytmd-text-muted">
@@ -1508,7 +1539,7 @@ window.ytmd.handleUpdateDownloaded(() => {
   margin: 0;
 }
 
-.theme-select {
+.setting-select {
   width: 216px;
   padding: 8px;
   border-radius: 4px;
