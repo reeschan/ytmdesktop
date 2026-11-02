@@ -32,9 +32,12 @@ export const YTMViewSetupCompletionFlagsNames = Object.keys(YTMViewSetupCompleti
   keyof typeof YTMViewSetupCompletionFlags
 >;
 
-export type Paths<T> = T extends object
-  ? { [K in keyof T]: Exclude<K, symbol> extends string ? `${Exclude<K, symbol>}${"" | `.${Paths<T[K]>}`}` : never }[keyof T]
-  : never;
+// Arrays end a path: the key holding an array is a path, but its elements and members are not
+export type Paths<T> = T extends readonly unknown[]
+  ? never
+  : T extends object
+    ? { [K in keyof T]: Exclude<K, symbol> extends string ? `${Exclude<K, symbol>}${"" | `.${Paths<T[K]>}`}` : never }[keyof T]
+    : never;
 export type ValueAtPath<T, P extends string> = P extends `${infer K}.${infer Rest}`
   ? K extends keyof T
     ? ValueAtPath<T[K], Rest>
