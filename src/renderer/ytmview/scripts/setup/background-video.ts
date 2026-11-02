@@ -23,6 +23,23 @@ const VISIBLE_PLAYBACKS: BackgroundVideoPlayback[] = [BackgroundVideoPlayback.Pl
 const PLAYBACKS: unknown[] = Object.values(BackgroundVideoPlayback);
 const MOTIONS: unknown[] = Object.values(BackgroundVideoMotion);
 
+type Thumbnail = { url: string; width: number; height: number };
+
+/**
+ * Returns the video id and the largest thumbnail of the song loaded in the player, or null when no song is loaded
+ */
+function getLoadedSong(): { videoId: string; artworkUrl: string | null } | null {
+  const videoDetails = window.__YTMD_HOOK__?.ytmPlayerController?.playerApi?.getPlayerResponse?.()?.videoDetails;
+  if (typeof videoDetails?.videoId !== "string") return null;
+
+  const thumbnails: Thumbnail[] = (videoDetails.thumbnail?.thumbnails ?? []).filter((thumbnail: Thumbnail) => typeof thumbnail?.url === "string");
+  const largest = thumbnails.reduce<Thumbnail | null>(
+    (best, thumbnail) => (best && best.width * best.height >= thumbnail.width * thumbnail.height ? best : thumbnail),
+    null
+  );
+  return { videoId: videoDetails.videoId, artworkUrl: largest?.url ?? null };
+}
+
 // Nothing is shown until the first state arrives
 const INITIAL_STATE: YtmBackgroundState = {
   show: false,
@@ -92,21 +109,64 @@ export function initBackgroundVideo() {
   let lastReport: YtmBackgroundReport | null = null;
   let unavailableTimer: ReturnType<typeof setTimeout> | null = null;
   let lookupTimer: ReturnType<typeof setTimeout> | null = null;
+  // The artwork of the loaded song, drawn instead of the video when the song has no video track (for example an audio only track)
+  let artwork: { videoId: string; image: HTMLImageElement; ready: boolean } | null = null;
 
   const isVisible = () => state.show && VISIBLE_PLAYBACKS.includes(state.playback);
   const isDrawing = () => isVisible() && state.playback === BackgroundVideoPlayback.Playing;
   // Every frame is drawn only in continuous motion, a still frame is drawn on loading and pause events
   const isDrawingEveryFrame = () => isDrawing() && state.motion === BackgroundVideoMotion.Continuous;
 
-  function drawFrame(element: HTMLVideoElement) {
-    if (element.readyState < HTMLMediaElement.HAVE_CURRENT_DATA || element.videoWidth === 0 || element.videoHeight === 0) return;
+  // Covers the canvas like object-fit: cover
+  function drawCover(source: CanvasImageSource, sourceWidth: number, sourceHeight: number) {
+    const scale = Math.max(canvas.width / sourceWidth, canvas.height / sourceHeight);
+    const width = sourceWidth * scale;
+    const height = sourceHeight * scale;
+    context.drawImage(source, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+  }
 
-    // Covers the canvas like object-fit: cover
-    const scale = Math.max(canvas.width / element.videoWidth, canvas.height / element.videoHeight);
-    const width = element.videoWidth * scale;
-    const height = element.videoHeight * scale;
-    context.drawImage(element, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+  const hasVideoPicture = (element: HTMLVideoElement | null) => element !== null && element.videoWidth > 0 && element.videoHeight > 0;
+
+  function drawFrame(element: HTMLVideoElement) {
+    if (!hasVideoPicture(element)) {
+      // A song without a video track shows its artwork instead
+      if (artwork?.ready) {
+        drawCover(artwork.image, artwork.image.naturalWidth, artwork.image.naturalHeight);
+        framePending = false;
+      }
+      return;
+    }
+    if (element.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+
+    drawCover(element, element.videoWidth, element.videoHeight);
     framePending = false;
+  }
+
+  /**
+   * Loads the artwork of the loaded song when it has no video track, and draws it once loaded.
+   * The artwork comes from another origin, which taints the canvas; its pixels are never read.
+   */
+  function updateArtwork() {
+    const song = hasVideoPicture(video) ? null : getLoadedSong();
+    if (!song?.artworkUrl) {
+      artwork = null;
+      return;
+    }
+    if (artwork?.videoId === song.videoId) return;
+
+    const image = new Image();
+    const loading = { videoId: song.videoId, image, ready: false };
+    artwork = loading;
+    image.onload = () => {
+      if (artwork !== loading) return;
+      loading.ready = true;
+      sendReport();
+      if (video && isVisible()) drawFrame(video);
+    };
+    image.onerror = () => {
+      if (artwork === loading) artwork = null;
+    };
+    image.src = song.artworkUrl;
   }
 
   function onVideoFrame() {
@@ -154,7 +214,7 @@ export function initBackgroundVideo() {
 
   function currentReport(): YtmBackgroundReport {
     return {
-      available: video !== null && video.videoWidth > 0,
+      available: hasVideoPicture(video) || (video !== null && artwork?.ready === true),
       reducedMotion: reducedMotionQuery.matches
     };
   }
@@ -176,6 +236,7 @@ export function initBackgroundVideo() {
    * only when it has not come back within UNAVAILABLE_REPORT_DELAY_MS, so loading the next song does not flash the background.
    */
   function sendReport() {
+    updateArtwork();
     const report = currentReport();
     if (report.available || !lastReport?.available) {
       clearUnavailableTimer();
