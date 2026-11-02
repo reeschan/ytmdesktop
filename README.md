@@ -28,6 +28,8 @@
 |---|---|
 | ![Midnight](.github/images/fork/theme-midnight.png) | ![Forest](.github/images/fork/theme-forest.png) |
 
+![Glass (再生中の動画の上のすりガラス)](.github/images/fork/theme-glass.png)
+
 ![テーマの設定](.github/images/fork/settings-theme.png)
 
 テーマファイルには、6 つの色項目を CSS 変数で書きます。
@@ -133,6 +135,8 @@ Pick a color theme in **Appearance → Theme**. The same colors apply to the app
 | Midnight | Forest |
 |---|---|
 | ![Midnight](.github/images/fork/theme-midnight.png) | ![Forest](.github/images/fork/theme-forest.png) |
+
+![Glass (frosted surfaces over the playing video)](.github/images/fork/theme-glass.png)
 
 ![Theme settings](.github/images/fork/settings-theme.png)
 
