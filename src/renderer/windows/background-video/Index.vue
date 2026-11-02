@@ -1,32 +1,36 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from "vue";
-import { BackgroundVideoPlayback } from "~shared/background-video";
+import { BackgroundVideoMotion, BackgroundVideoPlayback } from "~shared/background-video";
 import type { BackgroundVideoState } from "./preload";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 // How many blur radii the video extends past each edge of the window
 const BLUR_EDGE_BLEED_RATIO = 3;
 const VISIBLE_PLAYBACKS: BackgroundVideoPlayback[] = [BackgroundVideoPlayback.Playing, BackgroundVideoPlayback.Paused];
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 const video = useTemplateRef<HTMLVideoElement>("video");
+
+// Read here too, since the state only carries what other views reported (for example nothing before their first report)
+const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
+const systemReducedMotion = ref(reducedMotionQuery.matches);
+function onReducedMotionChange(event: MediaQueryListEvent) {
+  systemReducedMotion.value = event.matches;
+}
 
 // Nothing is shown until the first state arrives
 const state = ref<BackgroundVideoState>({
   playback: BackgroundVideoPlayback.NotShown,
+  motion: BackgroundVideoMotion.Continuous,
   src: null,
   maskOpacity: 0,
   maskBlur: 0,
   maskColor: "transparent"
 });
 
-const reducedMotionQuery = window.matchMedia(REDUCED_MOTION_QUERY);
-const reducedMotion = ref(reducedMotionQuery.matches);
-const onReducedMotionChanged = (event: MediaQueryListEvent) => {
-  reducedMotion.value = event.matches;
-};
-
 const visible = computed(() => state.value.src !== null && VISIBLE_PLAYBACKS.includes(state.value.playback));
-const shouldPlay = computed(() => visible.value && state.value.playback === BackgroundVideoPlayback.Playing && !reducedMotion.value);
+const still = computed(() => state.value.motion === BackgroundVideoMotion.Still || systemReducedMotion.value);
+// A still video stays paused on its current frame
+const shouldPlay = computed(() => visible.value && state.value.playback === BackgroundVideoPlayback.Playing && !still.value);
 
 const videoStyle = computed(() => {
   const blur = Math.max(state.value.maskBlur, 0);
@@ -79,7 +83,7 @@ watch(
 watch(shouldPlay, () => applyPlayback(), { flush: "post" });
 
 onMounted(() => {
-  reducedMotionQuery.addEventListener("change", onReducedMotionChanged);
+  reducedMotionQuery.addEventListener("change", onReducedMotionChange);
   window.ytmd.onBackgroundVideoState?.((newState: BackgroundVideoState) => {
     state.value = newState;
   });
@@ -87,7 +91,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
-  reducedMotionQuery.removeEventListener("change", onReducedMotionChanged);
+  reducedMotionQuery.removeEventListener("change", onReducedMotionChange);
   video.value?.pause();
 });
 </script>

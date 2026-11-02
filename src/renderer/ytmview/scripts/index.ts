@@ -5,6 +5,7 @@ import protectedapimanager from "./protectedapimanager";
 import { createMaterialSymbolsLink, createStyleSheet } from "./setup/styles";
 import { createNavigationMenuArrows } from "./setup/navigation";
 import initRemote from "./setup/remote";
+import { initBackgroundVideo } from "./setup/background-video";
 import { addTimedLyrics, createAdditionalPlayerBarControls, hideChromecastButton, overrideHistoryButtonDisplay } from "./setup/extras";
 
 protectedapimanager.init();
@@ -55,6 +56,15 @@ window.addEventListener("load", async () => {
       initPlayerStateStore();
 
       setupCompletions |= YTMViewSetupCompletionFlags.Hooks;
+    }
+
+    {
+      // The background video is optional, so its failure does not stop the rest of the setup
+      try {
+        initBackgroundVideo();
+      } catch (error) {
+        console.error("Failed to set up the background video", error);
+      }
     }
 
     {
