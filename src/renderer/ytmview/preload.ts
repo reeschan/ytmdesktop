@@ -17,6 +17,7 @@ import { ipcRenderer, webFrame } from "electron";
 import Store from "../store-ipc/store";
 import { StoreSchema } from "~shared/store/schema";
 import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBackgroundState } from "~shared/background-video";
+import { SongRecognitionIpc, SongRecognitionMessageOp, SongRecognitionViewState } from "~shared/song-recognition";
 
 import scriptsRaw from "./scripts?raw";
 
@@ -31,6 +32,20 @@ function postBackgroundVideoState() {
 ipcRenderer.on(BackgroundVideoIpc.State, (_event, state: YtmBackgroundState) => {
   backgroundVideoState = state;
   postBackgroundVideoState();
+});
+
+let songRecognitionState: SongRecognitionViewState | null = null;
+function postSongRecognitionState() {
+  if (songRecognitionState) window.postMessage({ op: SongRecognitionMessageOp.State, state: songRecognitionState }, "*");
+}
+
+ipcRenderer.on(SongRecognitionIpc.State, (_event, state: SongRecognitionViewState) => {
+  songRecognitionState = state;
+  postSongRecognitionState();
+});
+
+ipcRenderer.on(SongRecognitionIpc.Search, (_event, query: string) => {
+  window.postMessage({ op: SongRecognitionMessageOp.Search, query }, "*");
 });
 
 let protectedApiBound = false;
@@ -116,6 +131,16 @@ window.addEventListener("message", async event => {
       backgroundVideoPageListening = true;
       postBackgroundVideoState();
     }
+  }
+
+  // Only the page's own main world may press; other frames (ads, embeds) are ignored
+  if (event.source === window && event.data.op && event.data.op === SongRecognitionMessageOp.Press) {
+    ipcRenderer.send(SongRecognitionIpc.Press);
+  }
+
+  // The page started listening, so the last state is sent again
+  if (event.data.op && event.data.op === SongRecognitionMessageOp.Listening) {
+    postSongRecognitionState();
   }
 });
 
