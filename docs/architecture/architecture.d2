@@ -1,0 +1,135 @@
+# YouTube Music Desktop App (reeschan fork) のアーキテクチャ図
+# __MONO__ は単色ロゴの色。render.py がライト用 (000000) とダーク用 (ffffff) に置き換えて 2 枚描く
+# 生成: python ~/.claude/skills/arch-diagram/versions/v1.1/scripts/render.py docs/architecture/architecture.d2
+direction: right
+
+vars: {
+  d2-config: {
+    layout-engine: elk
+    pad: 40
+  }
+}
+
+classes: {
+  svc: {
+    shape: rectangle
+    style: {
+      border-radius: 12
+      font-size: 15
+    }
+  }
+  ext: {
+    shape: image
+    width: 64
+    height: 64
+    label.near: outside-bottom-center
+  }
+  zone: {
+    style.border-radius: 16
+  }
+  saas: {
+    style: {
+      border-radius: 16
+      stroke-dash: 3
+    }
+  }
+}
+
+user: User {
+  class: ext
+  icon: https://icons.terrastruct.com/essentials%2F359-users.svg
+}
+
+app: "YTMDesktop (Electron)" {
+  class: zone
+  icon: https://cdn.simpleicons.org/electron
+
+  window: "Main window" {
+    class: zone
+    icon: https://icons.terrastruct.com/essentials%2F220-layers.svg
+    direction: down
+
+    ytm: "YouTube Music view\ntransparent while the video plays" {
+      class: svc
+      icon: https://cdn.simpleicons.org/youtubemusic
+    }
+    bg: "Background video view\nvideo + mask (below YTM)" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F002-video%20player.svg
+    }
+  }
+
+  screens: "Title bar · Settings · Miniplayer\nVue 3 + Tailwind (tw:)" {
+    class: svc
+    icon: https://cdn.simpleicons.org/vuedotjs
+  }
+
+  main: "Main process" {
+    class: zone
+    icon: https://cdn.simpleicons.org/nodedotjs
+
+    config: "ConfigStore\nsettings" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F204-settings.svg
+    }
+    theme: "ThemeManager\ninjects theme colors" {
+      class: svc
+      icon: https://cdn.simpleicons.org/tailwindcss
+    }
+    video: "BackgroundVideoManager\nplay / pause / hide" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F002-video%20player.svg
+    }
+    protocol: "ytmd-app:// protocol\napp screens + video file" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F006-window.svg
+    }
+    player: "PlayerStateStore\nnow playing" {
+      class: svc
+      icon: https://cdn.simpleicons.org/youtubemusic
+    }
+    integrations: "Integrations\nDiscord · Custom CSS · Companion · Last.fm" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F143-windows.svg
+    }
+  }
+}
+
+file: "Local video file\nmp4 / webm" {
+  class: ext
+  icon: https://icons.terrastruct.com/essentials%2F257-file.svg
+}
+
+external: External {
+  class: saas
+  direction: down
+
+  ytmusic: "music.youtube.com" {
+    class: ext
+    icon: https://cdn.simpleicons.org/youtubemusic
+  }
+  discord: "Discord\nRich Presence (IPC)" {
+    class: ext
+    icon: https://cdn.simpleicons.org/discord
+  }
+  lastfm: "Last.fm" {
+    class: ext
+    icon: https://cdn.simpleicons.org/lastdotfm
+  }
+}
+
+user -> app.window.ytm: listens
+user -> app.screens: settings
+app.window.ytm <-> external.ytmusic
+app.screens <-> app.main.config: settings (IPC)
+app.main.config -> app.main.theme: theme
+app.main.config -> app.main.video: video settings
+app.main.theme -> app.window.ytm: theme CSS
+app.main.theme -> app.screens: CSS variables
+app.main.video -> app.window.bg: state + mask
+app.window.bg -> app.main.protocol: video stream
+app.main.protocol -> file: reads
+app.window.ytm -> app.main.player: player state
+app.main.player -> app.main.integrations
+app.main.integrations -> external.discord: activity from templates
+app.main.integrations -> external.lastfm: scrobble {style.stroke-dash: 4}

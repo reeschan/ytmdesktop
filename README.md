@@ -73,6 +73,15 @@
 - 「Play on YTMDesktop」ボタンを出すかどうかと、Discord のメンバー一覧に何を出すか (アプリ名・1 行目・2 行目) を選べます。
 - 設定画面で、再生中の曲を使ったプレビューを見ながら書けます。
 
+### 構成
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager が YouTube Music のビューの下にある背景動画のビューを動かす。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。">
+</picture>
+
+図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
+
 ### 開発 (この fork で変わったところ)
 
 ```sh
@@ -151,6 +160,15 @@ In **Integrations → Discord rich presence**, change what Discord shows.
 - Empty lines are left out, except the first line, which falls back to the title.
 - Choose whether to show the "Play on YTMDesktop" button, and what the Discord member list shows (app name, first line or second line).
 - A preview built from the playing song shows the result while you type.
+
+### Architecture
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager drives the background video view placed below the YouTube Music view. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm.">
+</picture>
+
+The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.
 
 ### Development (what changed in this fork)
 
