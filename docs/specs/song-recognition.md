@@ -72,13 +72,14 @@ PC で流れている曲 (ほかのアプリの動画、配信、ゲームなど
   - `kind` は定数オブジェクト `SongRecognitionSourceKind` (PcAudio: "pc-audio" / DefaultMic: "default-mic" / Device: "device")。
   - `deviceId` と `label` は `kind` が Device のときだけ入る。`label` は、デバイスがつながっていないときに設定画面で名前を出すために持つ。
   - 既定は `{ kind: PcAudio, deviceId: null, label: null }`。
-- 既存の利用者にも、版の移行で既定値を入れる。
+- 既存の利用者にも、版の移行で既定値を入れる。ただし移行のキーはアプリの版で、2.2.0 の移行を済ませた設定ファイルには新しいキーが入らない。そのため、読む側 (連携・設定画面・音の元の決定) は、値が無いときに既定値として扱う。
 - 有効にできる条件は「`shazamEnabled` が true、API Key が入っている、`safeStorage` が使える」のすべて。満たさないときアイコンを出さない。
 
 ### 設定画面 (Integrations タブの Shazam の欄)
 - 項目は英語: `Shazam` のトグル、`API key` (password の入力欄。横に `Get an API key` のリンクで https://rapidapi.com/apidojo/api/shazam を外部のブラウザで開く)、`Audio source` の選択。
 - 入力された API Key は、保存のときに safeStorage で暗号化する。表示は伏せたまま。
-- `Audio source` の選択肢は、`PC audio` (Linux では出さない)・`System default microphone`・`enumerateDevices` の `audioinput` の 1 台ずつ (`default` と `communications` の仮の ID は除く)。
+- `Audio source` の選択肢は、`PC audio` (Linux では出さない)・`System default microphone`・入力デバイスの 1 台ずつ (`default` と `communications` の仮の ID は除く)。
+  - デバイスの一覧は、設定画面では取らない。録音するアプリ画面が `enumerateDevices` の `audioinput` を取り (つながりが変わるたび、`devicechange` で取り直す)、メインの MemoryStore を通して設定画面に渡す。Chromium の deviceId は origin ごとに違う値になるので、録る画面と同じところで取った ID を保存するため。
 - 選んでいるデバイスが一覧に無いときは、そのデバイスの `label` に `(not connected)` を付けて選択肢に残し、「録るときはシステムの既定のマイクを使う」と添える。
 - safeStorage が使えないときは、トグルを押せなくし、理由を出す (companion サーバーの欄と同じ扱い)。
 
@@ -107,8 +108,10 @@ PC で流れている曲 (ほかのアプリの動画、配信、ゲームなど
   - PC の音: `getDisplayMedia` を呼び、メインの `setDisplayMediaRequestHandler` が、このアプリ画面からの要求にだけ、画面の 1 つと `audio: 'loopback'` を返す。映像のトラックはすぐ止める。
   - マイク・デバイス: `getUserMedia({ audio: { deviceId, echoCancellation: false, noiseSuppression: false, autoGainControl: false } })`。音楽の聞き取りの精度を落とさないため、3 つの補正を切る。
 - 5 秒分の音を集め、音の変換 (共有モジュール) で base64 にして返す。取り消しの合図が来たら、集めるのをやめてトラックを止める。
-- 既定のセッションの権限: 今は既定のセッションに権限の扱いが無く、すべて許されている。音声 (`media` の audio) と画面の取り込みは、`ytmd-app://` のアプリ画面からの要求だけを許すようにする。それ以外の権限の扱いは今のまま変えない。
-- macOS: パッケージの `Info.plist` に `NSAudioCaptureUsageDescription` を足す (PC の音を取り込む理由の説明)。
+- 既定のセッションの権限: 今は既定のセッションに権限の扱いが無く、すべて許されている。音声 (`media` の audio) と画面の取り込みは、アプリ画面 (メインウィンドウの下のビュー) からの要求だけを許すようにする。見分けは origin ではなく webContents で行う (開発版では origin が `http://localhost` になり、ほかの `ytmd-app://` の画面も同じセッションにあるため)。それ以外の権限の扱いは今のまま変えない。
+- 隠れた画面からの録音: アプリ画面は YTM 画面の準備ができると `setVisible(false)` で隠れ、タイマーが絞られうる。録音の 5 秒はタイマーではなく、集めたサンプルの数で数える。`getDisplayMedia` が利用者の操作を求める場合に備え、メインは録音を `executeJavaScript` の userGesture で始める。
+- macOS: パッケージの `Info.plist` に `NSAudioCaptureUsageDescription` (PC の音を取り込む理由) と `NSMicrophoneUsageDescription` (マイクで録る理由) を足す。
+- 設定画面の外部リンク: 設定画面は決まった URL しか外部のブラウザで開かないので、RapidAPI の Shazam のページをその許可に足す。
 
 ### YTM 画面
 - 検索欄 (`ytmusic-search-box`) のすぐ右に、Material Symbols のアイコン (`graphic_eq`) を足す。`title` は `Search with Shazam`。新しい YTM の UI (ナビバーに検索欄がある) だけに足し、検索欄が見つからなければ何もしない。
