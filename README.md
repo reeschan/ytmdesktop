@@ -92,6 +92,18 @@ pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定
 
 設計の文書は [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md)、[docs/adr/](docs/adr/)、[GLOSSARY.md](GLOSSARY.md) にあります。
 
+PR と `development` への push では、GitHub Actions がテスト・型チェック・lint を回します (`.github/workflows/build.yml`)。
+
+### リリース
+
+Windows x64 のインストーラー (exe) を、タグから GitHub Release に上げます (`.github/workflows/publish.yml`)。
+
+1. `package.json` の `version` を上げて、`development` にマージする
+2. 同じ版のタグを付けて push する (例えば `git tag v2.2.0` と `git push origin v2.2.0`)。タグと `package.json` の版が違うと、ワークフローは止まる
+3. Actions が exe を作り、この fork の **下書き** の Release に付ける。中身を確かめて公開する
+
+アプリの自動更新は、この fork の公開済みの Release を見ます (リポジトリ変数 `YTMD_UPDATE_FEED_OWNER` と `YTMD_UPDATE_FEED_REPOSITORY`)。
+
 ---
 
 ## English
@@ -179,6 +191,18 @@ pnpm test    # Vitest (theme resolution, background video decision, Discord acti
 ```
 
 Design documents: [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md), [docs/adr/](docs/adr/) and [GLOSSARY.md](GLOSSARY.md).
+
+On pull requests and pushes to `development`, GitHub Actions runs the tests, the type check and lint (`.github/workflows/build.yml`).
+
+### Releases
+
+A tag builds the Windows x64 installer (exe) and attaches it to a GitHub Release (`.github/workflows/publish.yml`).
+
+1. Bump `version` in `package.json` and merge it into `development`
+2. Push a tag for the same version (for example `git tag v2.2.0` and `git push origin v2.2.0`). The workflow stops when the tag and `package.json` disagree
+3. Actions builds the exe and attaches it to a **draft** Release of this fork. Check it and publish it
+
+The app's auto updater follows the published Releases of this fork (repository variables `YTMD_UPDATE_FEED_OWNER` and `YTMD_UPDATE_FEED_REPOSITORY`).
 
 ---
 
