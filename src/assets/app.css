@@ -1,3 +1,5 @@
+@import "./theme.css";
+
 @font-face {
   font-family: 'Open Sans';
   src: url("./fonts/OpenSans-VariableFont_wdth,wght.ttf") format('truetype');
@@ -11,7 +13,7 @@
 html, body, #app {
   margin: 0;
   height: 100%;
-  color: #EEEEEE;
+  color: var(--ytmd-color-text);
   font-family: 'Work Sans', sans-serif;
   overflow: hidden;
 }

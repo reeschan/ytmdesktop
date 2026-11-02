@@ -74,25 +74,25 @@ function refreshYtm() {
       >
         <div
           v-if="ytmViewLoadingStatus != YTMViewStatus.Ready"
-          class="ytmview-loading"
+          class="ytmview-loading tw:bg-ytmd-background"
         >
           <img
             class="logo"
             :src="logo"
           >
           <div class="music-loader">
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
-            <div class="loader-line" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
+            <div class="loader-line tw:bg-ytmd-text" />
           </div>
           <p
             v-if="!ytmViewLoadError"
-            class="ytmview-loading-status"
+            class="ytmview-loading-status tw:text-ytmd-text-muted"
           >
             {{ ytmViewLoadingStatusMessage }}
           </p>
@@ -100,11 +100,11 @@ function refreshYtm() {
             v-else
             class="load-error-container"
           >
-            <p class="ytmview-loading-status error">
+            <p class="ytmview-loading-status error tw:text-ytmd-accent">
               Failed to load YouTube Music: {{ ytmViewLoadError.description }} ({{ ytmViewLoadError.code }})
             </p>
             <button
-              class="refresh-ytm-button"
+              class="refresh-ytm-button tw:bg-ytmd-surface"
               @click="refreshYtm"
             >
               Refresh YouTube Music
@@ -112,7 +112,7 @@ function refreshYtm() {
           </div>
           <div
             v-if="ytmViewLoadTimedOut && !ytmViewLoadError"
-            class="ytmview-loading-timeout"
+            class="ytmview-loading-timeout tw:text-ytmd-accent"
           >
             <span>YouTube Music is taking longer than usual to load</span>
           </div>
@@ -124,7 +124,7 @@ function refreshYtm() {
       >
         <div
           v-if="unresponsive"
-          class="ytmview-unresponsive"
+          class="ytmview-unresponsive tw:bg-ytmd-text/25"
         />
       </Transition>
     </div>
@@ -144,19 +144,13 @@ function refreshYtm() {
   align-items: center;
   height: 100%;
   user-select: none;
-  background-color: #000000;
 }
 
 .ytmview-unresponsive {
   display: flex;
   width: 100%;
   height: 100%;
-  background-color: rgba(127, 127, 127, 0.5);
   cursor: wait;
-}
-
-.ytmview-loading-status {
-  color: #969696;
 }
 
 .load-error-container {
@@ -165,22 +159,16 @@ function refreshYtm() {
   align-items: center;
 }
 
-.ytmview-loading-status.error {
-  color: #f44336;
-}
-
 .refresh-ytm-button {
   border-radius: 4px;
   padding: 8px;
   display: flex;
   align-items: center;
-  background-color: #212121;
   cursor: pointer;
   border: none;
 }
 
 .ytmview-loading-timeout {
-  color: #f44336;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -214,7 +202,6 @@ function refreshYtm() {
   width: 12px;
   height: 4px;
   border-radius: 10px;
-  background-color: #ffffff;
   animation: musicloader 1.5s ease-in-out infinite;
 }
 

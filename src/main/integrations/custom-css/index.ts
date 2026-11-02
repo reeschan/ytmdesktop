@@ -1,8 +1,10 @@
 import fs from "fs";
+import log from "electron-log";
 
 import Integration from "../integration";
 import YTMViewManager from "../../services/ytmviewmanager";
 import ConfigStore from "../../services/configstore";
+import ThemeManager from "../../services/thememanager";
 
 export default class CustomCSS extends Integration {
   public override name = "CustomCSS";
@@ -16,8 +18,18 @@ export default class CustomCSS extends Integration {
 
   private currentWatcher: fs.FSWatcher | null = null;
 
+  // Injections and removals run one after another so a key is never lost
+  private cssQueue: Promise<void> = Promise.resolve();
+
   private ytmViewRecreatedListener = () => {
-    this.injected = false;
+    this.enqueue(async () => {
+      this.injected = false;
+      await this.injectCSSNow();
+    });
+  };
+
+  // Custom CSS is inserted again after the theme so it keeps winning over it
+  private ytmThemeAppliedListener = () => {
     this.updateCSS();
   };
 
@@ -28,6 +40,7 @@ export default class CustomCSS extends Integration {
     const configStore = this.getService(ConfigStore);
 
     ytmViewManager.on("view-recreated", this.ytmViewRecreatedListener);
+    this.getService(ThemeManager).on("ytm-theme-applied", this.ytmThemeAppliedListener);
     this.storeListener = configStore.onDidChange("appearance", (newState, oldState) => {
       if (newState === undefined || oldState === undefined) {
         this.updateCSS();
@@ -45,6 +58,7 @@ export default class CustomCSS extends Integration {
     const ytmViewManager = this.getService(YTMViewManager);
 
     ytmViewManager.off("view-recreated", this.ytmViewRecreatedListener);
+    this.getService(ThemeManager).off("ytm-theme-applied", this.ytmThemeAppliedListener);
     if (this.currentWatcher) {
       this.currentWatcher.close();
       this.currentWatcher = null;
@@ -58,11 +72,28 @@ export default class CustomCSS extends Integration {
   }
 
   public async updateCSS() {
-    await this.removeCSS();
-    await this.injectCSS();
+    await this.enqueue(async () => {
+      await this.removeCSSNow();
+      await this.injectCSSNow();
+    });
   }
 
-  private async injectCSS() {
+  private enqueue(task: () => Promise<void>): Promise<void> {
+    this.cssQueue = this.cssQueue.then(task).catch(error => {
+      log.error("CustomCSS failed to update the custom CSS", error);
+    });
+    return this.cssQueue;
+  }
+
+  private injectCSS() {
+    return this.enqueue(() => this.injectCSSNow());
+  }
+
+  private removeCSS() {
+    return this.enqueue(() => this.removeCSSNow());
+  }
+
+  private async injectCSSNow() {
     if (this.injected) return;
 
     const ytmViewManager = this.getService(YTMViewManager);
@@ -80,13 +111,18 @@ export default class CustomCSS extends Integration {
     }
   }
 
-  private async removeCSS() {
+  private async removeCSSNow() {
     if (this.customCSSKey === null || !this.injected) return;
 
     const ytmViewManager = this.getService(YTMViewManager);
 
     await ytmViewManager.ready();
-    await ytmViewManager.getView()?.webContents?.removeInsertedCSS(this.customCSSKey);
+    try {
+      await ytmViewManager.getView()?.webContents?.removeInsertedCSS(this.customCSSKey);
+    } catch (error) {
+      // A reloaded document no longer has the CSS of the previous key, so it is inserted again without removing it
+      log.debug("CustomCSS could not remove the previous custom CSS", error);
+    }
 
     this.customCSSKey = null;
     this.injected = false;

@@ -166,15 +166,15 @@ window.addEventListener("resize", reconcileMarquee);
         @mouseleave="hideSeekHandle"
         @mousedown="startDrag"
       >
-        <div class="seekbar">
+        <div class="seekbar tw:bg-ytmd-text/20">
           <div
-            class="progress"
+            class="progress tw:bg-ytmd-accent"
             :style="{ width: `${(videoProgress / videoLength) * 100}%` }"
           />
           <div
             v-if="seekHandleVisible"
             id="handle"
-            class="handle"
+            class="handle tw:bg-ytmd-accent"
             :style="{ left: `${(videoProgress / videoLength) * 100}%` }"
           />
         </div>
@@ -390,7 +390,6 @@ window.addEventListener("resize", reconcileMarquee);
 .seekbar {
   width: 100%;
   height: 4px;
-  background-color: #323232;
   position: relative;
   user-select: none;
   pointer-events: none;
@@ -398,14 +397,12 @@ window.addEventListener("resize", reconcileMarquee);
 
 .seekbar .progress {
   height: 100%;
-  background-color: #ff0000;
   pointer-events: none;
 }
 
 .seekbar .handle {
   width: 16px;
   height: 16px;
-  background-color: #ff0000;
   border-radius: 50%;
   position: absolute;
   top: 50%;

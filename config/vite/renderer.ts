@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
+import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { execSync } from "node:child_process";
 
@@ -46,6 +47,10 @@ export default defineConfig({
           root,
           "src/renderer/windows/changelog/index.html",
         ),
+        background_video_window: path.resolve(
+          root,
+          "src/renderer/windows/background-video/index.html",
+        ),
       },
       output: {
         codeSplitting: {
@@ -69,6 +74,7 @@ export default defineConfig({
         optionsAPI: false,
       },
     }),
+    tailwindcss(),
   ],
   resolve: {
     alias: {

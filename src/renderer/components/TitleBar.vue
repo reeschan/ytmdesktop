@@ -77,7 +77,7 @@ if (props.isMainWindow) {
 <template>
   <div
     v-if="!windowFullscreen"
-    class="titlebar"
+    class="titlebar tw:bg-ytmd-background"
   >
     <div class="left">
       <div class="title">
@@ -146,7 +146,7 @@ if (props.isMainWindow) {
       >
         <button
           v-if="hasMinimizeButton"
-          class="action-button window-minimize"
+          class="action-button window-minimize tw:bg-transparent tw:text-ytmd-text-muted tw:hover:bg-ytmd-surface"
           tabindex="4"
           @click="minimizeWindow"
         >
@@ -154,7 +154,7 @@ if (props.isMainWindow) {
         </button>
         <button
           v-if="hasMaximizeButton && !windowMaximized"
-          class="action-button window-maximize"
+          class="action-button window-maximize tw:bg-transparent tw:text-ytmd-text-muted tw:hover:bg-ytmd-surface"
           tabindex="5"
           @click="maximizeWindow"
         >
@@ -162,14 +162,14 @@ if (props.isMainWindow) {
         </button>
         <button
           v-if="hasMinimizeButton && windowMaximized"
-          class="action-button window-restore"
+          class="action-button window-restore tw:bg-transparent tw:text-ytmd-text-muted tw:hover:bg-ytmd-surface"
           tabindex="6"
           @click="restoreWindow"
         >
           <span class="material-symbols-outlined">filter_none</span>
         </button>
         <button
-          class="action-button window-close"
+          class="action-button window-close tw:bg-transparent tw:text-ytmd-text-muted"
           tabindex="7"
           @click="closeWindow"
         >
@@ -187,7 +187,6 @@ if (props.isMainWindow) {
   height: 36px;
   user-select: none;
   -webkit-app-region: drag;
-  background-color: #000000;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -250,7 +249,7 @@ if (props.isMainWindow) {
   height: 28px;
   width: 28px;
   background: none;
-  color: #bbbbbb;
+  color: var(--ytmd-color-text-muted);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -266,12 +265,12 @@ if (props.isMainWindow) {
 }
 
 :deep(.app-button:hover) {
-  background-color: #222222;
+  background-color: var(--ytmd-color-surface);
 }
 
 :deep(.app-button) > .material-symbols-outlined {
   font-size: 20px;
-  color: #b4b4b4;
+  color: var(--ytmd-color-text-muted);
 }
 
 .app-buttons .divider {
@@ -287,7 +286,7 @@ if (props.isMainWindow) {
 .app-buttons .divider:after {
   content: "";
   position: absolute;
-  border-left: 1px solid #666666;
+  border-left: 1px solid color-mix(in srgb, var(--ytmd-color-text-muted) 60%, transparent);
   right: 0;
   height: 100%;
 }
@@ -295,8 +294,6 @@ if (props.isMainWindow) {
 .action-button {
   width: 40px;
   height: 36px;
-  background: none;
-  color: #bbbbbb;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -307,10 +304,6 @@ if (props.isMainWindow) {
     "wght" 100,
     "GRAD" 0,
     "opsz" 24;
-}
-
-.action-button:hover {
-  background-color: #222222;
 }
 
 .action-button > .material-symbols-outlined {
@@ -331,7 +324,7 @@ if (props.isMainWindow) {
 }
 
 .update-button {
-  color: #f44336;
+  color: var(--ytmd-color-accent);
   margin-right: 24px;
 }
 </style>

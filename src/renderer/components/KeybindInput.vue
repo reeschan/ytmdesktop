@@ -113,31 +113,34 @@ function keybindInputKeyDown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div :class="{ 'keybind': true, 'is-editing': isEditing }">
+  <div
+    class="tw:border-ytmd-accent"
+    :class="{ 'keybind': true, 'is-editing': isEditing }"
+  >
     <p
       v-if="!currentKeybind"
-      class="keybind-text"
+      class="keybind-text tw:bg-ytmd-surface"
       @click="startEditing"
     >
       None
     </p>
     <p
       v-else
-      class="keybind-text"
+      class="keybind-text tw:bg-ytmd-surface"
       @click="startEditing"
     >
       {{ currentKeybind }}
     </p>
     <input
       ref="keybindInput"
-      class="keybind-input"
+      class="keybind-input tw:bg-transparent"
       type="text"
       @focus="keybindInputFocused"
       @blur="keybindInputBlurred"
       @keydown="keybindInputKeyDown"
     >
     <button
-      class="remove"
+      class="remove tw:bg-ytmd-surface tw:border-ytmd-text/10"
       :disabled="!currentKeybind"
       @click="currentKeybind = ''"
     >
@@ -155,11 +158,11 @@ function keybindInputKeyDown(event: KeyboardEvent) {
 }
 
 .keybind.is-editing {
-  border: 2px solid #f44336;
+  border-width: 2px;
+  border-style: solid;
 }
 
 .keybind-text {
-  background-color: #212121;
   border: none;
   padding: 8px;
   border-radius: 4px;
@@ -172,7 +175,6 @@ function keybindInputKeyDown(event: KeyboardEvent) {
   width: 0;
   height: 0;
   position: absolute;
-  background: none;
   border: none;
   outline: none;
 }
@@ -181,8 +183,6 @@ function keybindInputKeyDown(event: KeyboardEvent) {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #212121;
-  border-color: #323232;
   border-style: solid;
   border-width: 0 0 0 1px;
   border-radius: 0 4px 4px 0;
@@ -190,7 +190,6 @@ function keybindInputKeyDown(event: KeyboardEvent) {
 }
 
 .remove:disabled {
-  border-color: #323232;
   border-style: solid;
   border-width: 0 0 0 1px;
   cursor: not-allowed;
