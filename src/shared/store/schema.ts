@@ -1,3 +1,4 @@
+import { BackgroundVideoSource } from "~shared/background-video";
 import { BundledTheme } from "~shared/theme";
 
 export enum TrayIconStyle {
@@ -34,6 +35,7 @@ export type StoreSchema = {
     theme: ThemeSelection;
     themeFilePath: string | null;
     backgroundVideoEnabled: boolean;
+    backgroundVideoSource: BackgroundVideoSource;
     backgroundVideoPath: string | null;
     backgroundVideoMaskOpacity: number; // 0-100 (%)
     backgroundVideoMaskBlur: number; // 0-20 (px)

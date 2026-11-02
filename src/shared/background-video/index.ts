@@ -20,19 +20,75 @@ export const YtmBackground = {
 } as const;
 export type YtmBackground = (typeof YtmBackground)[keyof typeof YtmBackground];
 
+export const BackgroundVideoSource = {
+  // The video the YouTube Music player is playing
+  Playing: "playing",
+  // The video file at appearance.backgroundVideoPath
+  File: "file"
+} as const;
+export type BackgroundVideoSource = (typeof BackgroundVideoSource)[keyof typeof BackgroundVideoSource];
+
+export const BackgroundVideoMotion = {
+  // Every frame is drawn
+  Continuous: "continuous",
+  // A single frame is drawn, again only when the content changes (for example another song or a pause)
+  Still: "still"
+} as const;
+export type BackgroundVideoMotion = (typeof BackgroundVideoMotion)[keyof typeof BackgroundVideoMotion];
+
+// IPC channels between the main process and the YTM view
+export const BackgroundVideoIpc = {
+  // Main process to the YTM view, carries a YtmBackgroundState
+  State: "backgroundVideo:ytmState",
+  // YTM view to the main process, carries a YtmBackgroundReport
+  Report: "backgroundVideo:ytmReport"
+} as const;
+export type BackgroundVideoIpc = (typeof BackgroundVideoIpc)[keyof typeof BackgroundVideoIpc];
+
+// window.postMessage ops between the YTM view preload and the YTM page scripts
+export const BackgroundVideoMessage = {
+  // Preload to the page scripts, carries a YtmBackgroundState
+  State: "ytmd-background-video-state",
+  // Page scripts to the preload, carries a YtmBackgroundReport
+  Report: "ytmd-background-video-report"
+} as const;
+export type BackgroundVideoMessage = (typeof BackgroundVideoMessage)[keyof typeof BackgroundVideoMessage];
+
 export type BackgroundVideoInput = {
   enabled: boolean;
+  source: BackgroundVideoSource;
+  // Whether the playing video has a picture to show
+  videoAvailable: boolean;
   fileFound: boolean;
   window: WindowVisibility;
+  reducedMotion: boolean;
 };
 
 export type BackgroundVideoDecision = {
   video: BackgroundVideoPlayback;
   ytmBackground: YtmBackground;
+  motion: BackgroundVideoMotion;
+};
+
+// State of the background drawn inside the YTM view
+export type YtmBackgroundState = {
+  show: boolean;
+  playback: BackgroundVideoPlayback;
+  motion: BackgroundVideoMotion;
+  maskOpacity: number;
+  maskBlur: number;
+  maskColor: string;
+};
+
+// What the YTM view reports about the video it plays
+export type YtmBackgroundReport = {
+  available: boolean;
+  reducedMotion: boolean;
 };
 
 export type BackgroundVideoViewState = {
   playback: BackgroundVideoPlayback;
+  motion: BackgroundVideoMotion;
   src: string | null;
   maskOpacity: number;
   maskBlur: number;
@@ -46,13 +102,16 @@ const WINDOW_PLAYBACK: Record<WindowVisibility, BackgroundVideoPlayback> = {
 };
 
 /**
- * Decides how the background video is shown and whether the YTM view background is transparent.
- * The video is shown only when it is enabled and its file is found; otherwise the YTM view keeps the theme background.
+ * Decides how the background video is shown, whether the YTM view background is transparent and whether the video moves.
+ * The video is shown only when it is enabled and its source has a picture (the playing video is available, or the file is found);
+ * otherwise the YTM view keeps the theme background. The video is still while motion is reduced.
  */
 export function decideBackgroundVideo(input: BackgroundVideoInput): BackgroundVideoDecision {
-  if (!input.enabled || !input.fileFound) {
-    return { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme };
+  const motion = input.reducedMotion ? BackgroundVideoMotion.Still : BackgroundVideoMotion.Continuous;
+  const pictureFound = input.source === BackgroundVideoSource.Playing ? input.videoAvailable : input.fileFound;
+  if (!input.enabled || !pictureFound) {
+    return { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme, motion };
   }
 
-  return { video: WINDOW_PLAYBACK[input.window], ytmBackground: YtmBackground.Transparent };
+  return { video: WINDOW_PLAYBACK[input.window], ytmBackground: YtmBackground.Transparent, motion };
 }
