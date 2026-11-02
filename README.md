@@ -20,7 +20,8 @@
 
 設定の **Appearance → Theme** で、アプリ全体の配色を選べます。アプリの画面 (タイトルバー・設定・ミニプレイヤーなど) と YouTube Music の画面の両方に、同じ色が当たります。切り替えは再起動なしで、すぐ反映されます。
 
-- 同梱のテーマ: **Default** (元の見た目)、**Midnight** (紺)、**Forest** (深緑)
+- 同梱のテーマ: **Default** (元の見た目)、**Midnight** (紺)、**Forest** (深緑)、**Glass** (すりガラス)
+- **Glass** は、ナビバー・サイドバー・プレイヤーバー・メニューの後ろをぼかし、背景動画が面の後ろにうっすら透けます
 - **Theme file** を選ぶと、自分で書いたテーマファイル (CSS) を使えます
 
 | Midnight | Forest |
@@ -43,6 +44,7 @@
 ```
 
 - 色は、16 進・`rgb()`・`hsl()`・`oklch()` などの関数・名前付きの色で書けます (Tailwind v4 の `oklch` の色もそのまま使えます)。
+- 面のぼかしは `--ytmd-surface-blur: 20px;` のように書けます (0〜40px、書かなければ 0 でぼかさない)。
 - 書いていない項目や読めない値には、Default の色を使います。どの項目が読めなかったかは、設定画面に出ます。
 - ファイルを保存し直すと、すぐ反映されます。
 - カスタム CSS は、テーマの後に当たります。テーマの一部を上書きできます。
@@ -51,7 +53,10 @@
 
 ### 2. 背景動画
 
-設定の **Appearance → Background video** で、手元の動画ファイル (mp4 / webm) をメインウィンドウの背景全体に流せます。動画は無音でループ再生します。
+設定の **Appearance → Background video** で、メインウィンドウの背景全体に映像を流せます。**Source** で、何を流すかを選びます。
+
+- **Playing video** (既定): YouTube Music で今再生している曲の映像 (MV など) を、背景に大きく描きます。映像の無い曲では、その曲のジャケットで埋めます。一時停止の間は最後の場面で止まります。サインインの画面などでは出しません。
+- **Video file**: 手元の動画ファイル (mp4 / webm) を、無音でループ再生します。
 
 ![背景動画](.github/images/fork/background-video.png)
 
@@ -59,7 +64,8 @@
 
 - **Mask opacity** (0〜100%): 動画の上に重ねる層の濃さ。層の色はテーマの背景色です。
 - **Blur** (0〜20px): 動画のぼかし。
-- 最小化・トレイに隠す・全画面表示の間は、動画を止めます。曲の一時停止とは連動しません。
+- 最小化・トレイに隠す・全画面表示の間は、動画を止めます。Video file の動画は、曲の一時停止とは連動しません。
+- OS の「アニメーションを減らす」がオンのときは、動かさずに 1 枚の絵だけを出します (Playing video では曲が変わったときと一時停止したときに描き直す)。
 - 動画ファイルが見つからないときは、動画なしで表示し、設定画面で知らせます。パスは残るので、ファイルを戻せば再び流れます。
 
 ### 3. Discord の表示テンプレート
@@ -77,7 +83,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager が YouTube Music のビューの下にある背景動画のビューを動かす。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。">
 </picture>
 
 図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
@@ -120,7 +126,8 @@ This fork adds the following three features.
 
 Pick a color theme in **Appearance → Theme**. The same colors apply to the app screens (title bar, settings, miniplayer and so on) and to YouTube Music itself, right away and without a restart.
 
-- Bundled themes: **Default** (the original look), **Midnight** (navy) and **Forest** (dark green)
+- Bundled themes: **Default** (the original look), **Midnight** (navy), **Forest** (dark green) and **Glass** (frosted)
+- **Glass** blurs what is behind the nav bar, the side bar, the player bar and the menus, so the background video shows faintly through them
 - **Theme file** lets you use your own theme file (CSS)
 
 | Midnight | Forest |
@@ -143,7 +150,8 @@ A theme file declares the six color items as CSS variables.
 ```
 
 - Colors can be hex, `rgb()`, `hsl()`, `oklch()` and the other color functions, or named colors (Tailwind v4 `oklch` colors work as they are).
-- Missing or unreadable items fall back to the Default colors, and the settings screen lists them.
+- Write the surface blur as `--ytmd-surface-blur: 20px;` (0–40px; leave it out for 0, no blur).
+- Missing or unreadable items fall back to the Default values, and the settings screen lists them.
 - Saving the file again applies it right away.
 - Custom CSS is applied after the theme, so it can override parts of it.
 - Colors that mean something (danger, error, success) stay the same in every theme.
@@ -151,7 +159,10 @@ A theme file declares the six color items as CSS variables.
 
 ### 2. Background video
 
-In **Appearance → Background video**, choose a local video file (mp4 / webm) to play across the whole background of the main window. It loops without sound.
+In **Appearance → Background video**, play a picture across the whole background of the main window. **Source** chooses what to play.
+
+- **Playing video** (default): the video of the song YouTube Music is playing now (a music video and so on), drawn large behind the page. Songs without a video track fill it with their artwork. It holds the last frame while the song is paused, and it is not shown on pages such as the sign-in screen.
+- **Video file**: a local video file (mp4 / webm), looped without sound.
 
 ![Background video](.github/images/fork/background-video.png)
 
@@ -159,7 +170,8 @@ In **Appearance → Background video**, choose a local video file (mp4 / webm) t
 
 - **Mask opacity** (0–100%): how strongly the layer over the video covers it. The layer uses the theme's background color.
 - **Blur** (0–20px): blur applied to the video.
-- The video stops while the window is minimized, hidden to the tray or in fullscreen. It does not follow the song's pause.
+- The video stops while the window is minimized, hidden to the tray or in fullscreen. A video file does not follow the song's pause.
+- When the OS asks for reduced motion, a single still picture is shown instead (with Playing video, it is redrawn when the song changes or is paused).
 - When the video file is missing, the window shows no video and the settings screen says so. The path is kept, so the video comes back once the file does.
 
 ### 3. Discord display templates
@@ -177,7 +189,7 @@ In **Integrations → Discord rich presence**, change what Discord shows.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager drives the background video view placed below the YouTube Music view. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm.">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm.">
 </picture>
 
 The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.
