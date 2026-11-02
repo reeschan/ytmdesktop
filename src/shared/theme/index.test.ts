@@ -7,6 +7,7 @@ import {
   isReadableColor,
   resolveTheme,
   ThemeColors,
+  ThemeItem,
   ThemeSourceKind,
   toCssVariables,
   toNativeColor
@@ -34,6 +35,11 @@ function fileSource(content: string | null) {
   return { kind: ThemeSourceKind.File, content } as const;
 }
 
+function themeFileWithSurfaceBlur(value: string): string {
+  return `${themeFile(FILE_COLORS)}:root { --ytmd-surface-blur: ${value}; }
+`;
+}
+
 function themeFile(colors: Partial<Record<string, string>>): string {
   const names: Record<string, string> = {
     background: "--ytmd-color-background",
@@ -58,12 +64,28 @@ describe("resolveTheme", () => {
       BundledTheme.Forest,
       { background: "#0C1410", surface: "#16231C", text: "#E4EEE8", textMuted: "#93A89B", accent: "#4ADE80", border: "#22352B" }
     ]
-  ])("returns the colors of the bundled theme %s", (theme, colors) => {
-    expect(resolveTheme({ kind: ThemeSourceKind.Bundled, theme })).toEqual({ colors, unreadableItems: [], fileMissing: false });
+  ])("returns the colors and no surface blur for the bundled theme %s", (theme, colors) => {
+    expect(resolveTheme({ kind: ThemeSourceKind.Bundled, theme })).toEqual({ colors, surfaceBlur: 0, unreadableItems: [], fileMissing: false });
+  });
+
+  it("returns the colors and the surface blur of the bundled theme Glass", () => {
+    expect(resolveTheme({ kind: ThemeSourceKind.Bundled, theme: BundledTheme.Glass })).toEqual({
+      colors: {
+        background: "#0A0A12",
+        surface: "rgba(255,255,255,0.08)",
+        text: "#FFFFFF",
+        textMuted: "rgba(255,255,255,0.65)",
+        accent: "#8AB4FF",
+        border: "rgba(255,255,255,0.18)"
+      },
+      surfaceBlur: 20,
+      unreadableItems: [],
+      fileMissing: false
+    });
   });
 
   it("returns every value of a theme file that declares all items", () => {
-    expect(resolveTheme(fileSource(themeFile(FILE_COLORS)))).toEqual({ colors: FILE_COLORS, unreadableItems: [], fileMissing: false });
+    expect(resolveTheme(fileSource(themeFile(FILE_COLORS)))).toEqual({ colors: FILE_COLORS, surfaceBlur: 0, unreadableItems: [], fileMissing: false });
   });
 
   it("uses Default for items missing from the file and reports them in COLOR_ITEMS order", () => {
@@ -71,6 +93,7 @@ describe("resolveTheme", () => {
 
     expect(resolveTheme(fileSource(content))).toEqual({
       colors: { ...DEFAULT_COLORS, background: "#101010", text: "white", border: "#333333" },
+      surfaceBlur: 0,
       unreadableItems: [ColorItem.Surface, ColorItem.TextMuted, ColorItem.Accent],
       fileMissing: false
     });
@@ -81,6 +104,7 @@ describe("resolveTheme", () => {
 
     expect(resolveTheme(fileSource(content))).toEqual({
       colors: { ...FILE_COLORS, accent: DEFAULT_COLORS.accent },
+      surfaceBlur: 0,
       unreadableItems: [ColorItem.Accent],
       fileMissing: false
     });
@@ -91,6 +115,7 @@ describe("resolveTheme", () => {
 
     expect(resolveTheme(fileSource(content))).toEqual({
       colors: { ...FILE_COLORS, background: DEFAULT_COLORS.background, text: DEFAULT_COLORS.text, border: DEFAULT_COLORS.border },
+      surfaceBlur: 0,
       unreadableItems: [ColorItem.Background, ColorItem.Text, ColorItem.Border],
       fileMissing: false
     });
@@ -105,11 +130,11 @@ describe("resolveTheme", () => {
   });
 
   it("returns Default for every item and reports all of them for an empty file", () => {
-    expect(resolveTheme(fileSource(""))).toEqual({ colors: DEFAULT_COLORS, unreadableItems: [...COLOR_ITEMS], fileMissing: false });
+    expect(resolveTheme(fileSource(""))).toEqual({ colors: DEFAULT_COLORS, surfaceBlur: 0, unreadableItems: [...COLOR_ITEMS], fileMissing: false });
   });
 
   it("returns Default for every item and reports the file as missing when there is no content", () => {
-    expect(resolveTheme(fileSource(null))).toEqual({ colors: DEFAULT_COLORS, unreadableItems: [], fileMissing: true });
+    expect(resolveTheme(fileSource(null))).toEqual({ colors: DEFAULT_COLORS, surfaceBlur: 0, unreadableItems: [], fileMissing: true });
   });
 
   it("reads declarations in any selector, ignores comments, keeps the last one and drops !important", () => {
@@ -134,6 +159,31 @@ describe("resolveTheme", () => {
       accent: "#555555",
       border: "#666666"
     });
+  });
+
+  it.each([
+    ["20px", 20],
+    ["0", 0],
+    ["12.5px", 12.5],
+    ["100px", 40]
+  ])("reads the surface blur %j as %d px", (value, surfaceBlur) => {
+    expect(resolveTheme(fileSource(themeFileWithSurfaceBlur(value)))).toEqual({ colors: FILE_COLORS, surfaceBlur, unreadableItems: [], fileMissing: false });
+  });
+
+  it.each(["abc", "-4px", "2em"])("uses no surface blur and reports it for the value %j", value => {
+    expect(resolveTheme(fileSource(themeFileWithSurfaceBlur(value)))).toEqual({
+      colors: FILE_COLORS,
+      surfaceBlur: 0,
+      unreadableItems: [ThemeItem.SurfaceBlur],
+      fileMissing: false
+    });
+  });
+
+  it("reports the surface blur after the color items", () => {
+    const content = `${themeFile({ ...FILE_COLORS, accent: "banana" })}:root { --ytmd-surface-blur: abc; }
+`;
+
+    expect(resolveTheme(fileSource(content)).unreadableItems).toEqual([ColorItem.Accent, ThemeItem.SurfaceBlur]);
   });
 });
 

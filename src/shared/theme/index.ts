@@ -28,10 +28,24 @@ export const COLOR_ITEM_CSS_VARIABLES: Record<ColorItem, string> = {
 
 export type ThemeColors = Record<ColorItem, string>;
 
+/**
+ * Every item of a theme: the color items and the items that are not colors
+ */
+export const ThemeItem = {
+  ...ColorItem,
+  SurfaceBlur: "surfaceBlur"
+} as const;
+export type ThemeItem = (typeof ThemeItem)[keyof typeof ThemeItem];
+
+export const SURFACE_BLUR_CSS_VARIABLE = "--ytmd-surface-blur";
+// The largest surface blur in px. Larger values are rounded down to it
+export const MAX_SURFACE_BLUR = 40;
+
 export const BundledTheme = {
   Default: "default",
   Midnight: "midnight",
-  Forest: "forest"
+  Forest: "forest",
+  Glass: "glass"
 } as const;
 export type BundledTheme = (typeof BundledTheme)[keyof typeof BundledTheme];
 
@@ -59,10 +73,30 @@ export const BUNDLED_THEMES: Record<BundledTheme, ThemeColors> = {
     [ColorItem.TextMuted]: "#93A89B",
     [ColorItem.Accent]: "#4ADE80",
     [ColorItem.Border]: "#22352B"
+  },
+  [BundledTheme.Glass]: {
+    [ColorItem.Background]: "#0A0A12",
+    [ColorItem.Surface]: "rgba(255,255,255,0.08)",
+    [ColorItem.Text]: "#FFFFFF",
+    [ColorItem.TextMuted]: "rgba(255,255,255,0.65)",
+    [ColorItem.Accent]: "#8AB4FF",
+    [ColorItem.Border]: "rgba(255,255,255,0.18)"
   }
 };
 
+/**
+ * The surface blur of each bundled theme in px (0 is no blur)
+ */
+export const BUNDLED_THEME_SURFACE_BLUR: Record<BundledTheme, number> = {
+  [BundledTheme.Default]: 0,
+  [BundledTheme.Midnight]: 0,
+  [BundledTheme.Forest]: 0,
+  [BundledTheme.Glass]: 20
+};
+
 export const DEFAULT_THEME_COLORS: ThemeColors = BUNDLED_THEMES[BundledTheme.Default];
+// The surface blur used when a theme does not declare one or declares one that is not readable
+const DEFAULT_SURFACE_BLUR = 0;
 
 export const ThemeSourceKind = {
   Bundled: "bundled",
@@ -78,9 +112,14 @@ export type ThemeSource = { kind: typeof ThemeSourceKind.Bundled; theme: Bundled
 export type ResolvedTheme = {
   colors: ThemeColors;
   /**
-   * Color items that were missing or not readable as a color, in the order of COLOR_ITEMS
+   * The blur behind surfaces in px (0 is no blur)
    */
-  unreadableItems: ColorItem[];
+  surfaceBlur: number;
+  /**
+   * Color items that were missing or not readable as a color, in the order of COLOR_ITEMS,
+   * followed by the surface blur when it was declared but not readable
+   */
+  unreadableItems: ThemeItem[];
   fileMissing: boolean;
 };
 
@@ -254,21 +293,38 @@ function readCustomProperties(css: string): Map<string, string> {
   return properties;
 }
 
+const PIXEL_LENGTH = /^(\d+\.?\d*|\.\d+)px$/i;
+const ZERO_LENGTH = /^0$/;
+
 /**
- * Resolves the colors of a theme source. Items that are missing or not readable as a color fall back to DEFAULT_THEME_COLORS
+ * Reads a length that is 0 or a non-negative number of px, rounded down to the maximum.
+ * Returns null when the value is not readable (for example "abc", "-4px" or "2em")
+ */
+function readPixelLength(value: string, maximum: number): number | null {
+  const trimmed = value.trim();
+  if (ZERO_LENGTH.test(trimmed)) return 0;
+
+  const match = PIXEL_LENGTH.exec(trimmed);
+  if (!match) return null;
+  return Math.min(maximum, parseFloat(match[1]));
+}
+
+/**
+ * Resolves the colors and the surface blur of a theme source.
+ * Color items that are missing or not readable fall back to DEFAULT_THEME_COLORS, and a missing or unreadable surface blur is 0
  */
 export function resolveTheme(source: ThemeSource): ResolvedTheme {
   if (source.kind === ThemeSourceKind.Bundled) {
-    return { colors: { ...BUNDLED_THEMES[source.theme] }, unreadableItems: [], fileMissing: false };
+    return { colors: { ...BUNDLED_THEMES[source.theme] }, surfaceBlur: BUNDLED_THEME_SURFACE_BLUR[source.theme], unreadableItems: [], fileMissing: false };
   }
 
   if (source.content === null) {
-    return { colors: { ...DEFAULT_THEME_COLORS }, unreadableItems: [], fileMissing: true };
+    return { colors: { ...DEFAULT_THEME_COLORS }, surfaceBlur: DEFAULT_SURFACE_BLUR, unreadableItems: [], fileMissing: true };
   }
 
   const properties = readCustomProperties(source.content);
   const colors = { ...DEFAULT_THEME_COLORS };
-  const unreadableItems: ColorItem[] = [];
+  const unreadableItems: ThemeItem[] = [];
   for (const item of COLOR_ITEMS) {
     const value = properties.get(COLOR_ITEM_CSS_VARIABLES[item]);
     if (value !== undefined && isReadableColor(value)) {
@@ -277,7 +333,19 @@ export function resolveTheme(source: ThemeSource): ResolvedTheme {
       unreadableItems.push(item);
     }
   }
-  return { colors, unreadableItems, fileMissing: false };
+
+  let surfaceBlur = DEFAULT_SURFACE_BLUR;
+  const surfaceBlurValue = properties.get(SURFACE_BLUR_CSS_VARIABLE);
+  if (surfaceBlurValue !== undefined) {
+    const readBlur = readPixelLength(surfaceBlurValue, MAX_SURFACE_BLUR);
+    if (readBlur === null) {
+      unreadableItems.push(ThemeItem.SurfaceBlur);
+    } else {
+      surfaceBlur = readBlur;
+    }
+  }
+
+  return { colors, surfaceBlur, unreadableItems, fileMissing: false };
 }
 
 /**

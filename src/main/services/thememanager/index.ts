@@ -4,10 +4,12 @@ import log from "electron-log";
 import { DependencyConstructor } from "~shared/types";
 import { MemoryStoreSchema, ThemeSelection } from "~shared/store/schema";
 import {
+  BUNDLED_THEME_SURFACE_BLUR,
   BundledTheme,
   COLOR_ITEMS,
   ColorItem,
   DEFAULT_THEME_COLORS,
+  ResolvedTheme,
   resolveTheme,
   ThemeColors,
   ThemeSource,
@@ -76,6 +78,30 @@ type CssColorRuleOptions = {
 // YouTube Music declares its variables on selectors more specific than html (for example html[dark])
 const YTM_THEME_RULE_OPTIONS: CssColorRuleOptions = { important: true };
 
+type CssSurfaceRule = {
+  selectors: readonly string[];
+  // The color item filling the surfaces
+  fill: ColorItem;
+  // The color item of the 1px line drawn inside the edges of the surfaces
+  edge: ColorItem;
+};
+
+// Surfaces of YouTube Music that get a background (the bars, the guide, the menus and the dialogs), turned into frosted glass when the theme has a surface blur
+// Only one element of each overlapping pair is listed so no surface gets the fill and the edge twice
+// (for example #player-bar-background paints behind ytmusic-player-bar; #guide-wrapper and #mini-guide-background are never shown together)
+const YTM_BLURRED_SURFACE_RULE: CssSurfaceRule = {
+  selectors: [
+    "#nav-bar-background",
+    "#guide-wrapper",
+    "#mini-guide-background",
+    "#player-bar-background",
+    "tp-yt-iron-dropdown ytmusic-menu-popup-renderer",
+    "tp-yt-paper-dialog"
+  ],
+  fill: ColorItem.Surface,
+  edge: ColorItem.Border
+};
+
 /**
  * Builds CSS rules whose declarations take their values from the color items
  */
@@ -85,6 +111,21 @@ function toCssColorRules(rules: CssColorRule[], colors: ThemeColors, options: Cs
   return rules
     .map(rule => `${rule.selector} { ${rule.declarations.map(declaration => `${declaration.property}: ${colors[declaration.item]}${priority};`).join(" ")} }`)
     .join("\n");
+}
+
+/**
+ * Builds a CSS rule that fills the surfaces with a color, blurs what is drawn behind them by the given px and draws a 1px line inside their edges.
+ * The line is an inset box-shadow so the layout does not change
+ */
+function toCssBlurredSurfaceRule(rule: CssSurfaceRule, colors: ThemeColors, blur: number, options: CssColorRuleOptions): string {
+  const priority = options.important ? " !important" : "";
+  const declarations = [
+    `background: ${colors[rule.fill]}${priority};`,
+    `backdrop-filter: blur(${blur}px)${priority};`,
+    `box-shadow: inset 0 0 0 1px ${colors[rule.edge]}${priority};`
+  ];
+
+  return `${rule.selectors.join(", ")} { ${declarations.join(" ")} }`;
 }
 
 function isBundledTheme(value: string): value is BundledTheme {
@@ -110,6 +151,7 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
   ];
 
   private colors: ThemeColors = { ...DEFAULT_THEME_COLORS };
+  private surfaceBlur: number = BUNDLED_THEME_SURFACE_BLUR[BundledTheme.Default];
   private appInjections = new Map<WebContents, CssInjection>();
   private ytmInjection: CssInjection = { key: null, queue: Promise.resolve() };
 
@@ -142,7 +184,9 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     const configStore = this.getDependency(ConfigStore);
     const ytmViewManager = this.getDependency(YTMViewManager);
 
-    this.colors = this.loadTheme();
+    const theme = this.loadTheme();
+    this.colors = theme.colors;
+    this.surfaceBlur = theme.surfaceBlur;
     this.updateThemeFileWatch();
 
     this.configListener = configStore.onDidChange("appearance", (newState, oldState) => {
@@ -194,6 +238,13 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
   }
 
   /**
+   * Returns the blur behind surfaces of the loaded theme in px (0 is no blur)
+   */
+  public getSurfaceBlur(): number {
+    return this.surfaceBlur;
+  }
+
+  /**
    * Returns the colors in a form native APIs can read. Items that cannot be converted use the Default theme's value
    */
   public getNativeColors(): ThemeColors {
@@ -228,21 +279,22 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     }
   }
 
-  private loadTheme(): ThemeColors {
+  private loadTheme(): Pick<ResolvedTheme, "colors" | "surfaceBlur"> {
     const memoryStore = this.getDependency(MemoryStore<MemoryStoreSchema>);
 
     const resolvedTheme = resolveTheme(this.createThemeSource());
     memoryStore.set("themeUnreadableItems", resolvedTheme.unreadableItems);
     memoryStore.set("themeFileMissing", resolvedTheme.fileMissing);
 
-    return resolvedTheme.colors;
+    return { colors: resolvedTheme.colors, surfaceBlur: resolvedTheme.surfaceBlur };
   }
 
   private reloadTheme() {
-    const colors = this.loadTheme();
-    if (sameColors(colors, this.colors)) return;
+    const { colors, surfaceBlur } = this.loadTheme();
+    if (sameColors(colors, this.colors) && surfaceBlur === this.surfaceBlur) return;
 
     this.colors = colors;
+    this.surfaceBlur = surfaceBlur;
     for (const contents of this.appInjections.keys()) {
       this.injectAppTheme(contents, false);
     }
@@ -338,7 +390,7 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
       if (!contents || contents.isDestroyed()) return;
 
       const previousKey = injection.key;
-      injection.key = await contents.insertCSS(toCssColorRules(YTM_THEME_RULES, this.colors, YTM_THEME_RULE_OPTIONS));
+      injection.key = await contents.insertCSS(this.buildYTMThemeCss());
       if (previousKey !== null) {
         try {
           await contents.removeInsertedCSS(previousKey);
@@ -351,6 +403,14 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
       // Lets CSS that has to win over the theme (for example custom CSS) insert itself again after it
       this.emit("ytm-theme-applied");
     });
+  }
+
+  private buildYTMThemeCss(): string {
+    const css = toCssColorRules(YTM_THEME_RULES, this.colors, YTM_THEME_RULE_OPTIONS);
+    if (this.surfaceBlur <= 0) return css;
+
+    // Comes after the color rules so it wins over the backgrounds they give the same surfaces
+    return `${css}\n${toCssBlurredSurfaceRule(YTM_BLURRED_SURFACE_RULE, this.colors, this.surfaceBlur, YTM_THEME_RULE_OPTIONS)}`;
   }
 
   private applyTitleBarOverlay(browserWindow: BrowserWindow) {
