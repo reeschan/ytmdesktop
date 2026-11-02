@@ -12,7 +12,7 @@ const appVersion = await window.ytmd.getAppVersion();
 </script>
 
 <template>
-  <div class="changelog-container">
+  <div class="changelog-container tw:bg-ytmd-background">
     <h1 class="updated-header">
       YTMDesktop has Updated!
     </h1>
@@ -29,7 +29,6 @@ const appVersion = await window.ytmd.getAppVersion();
 <style scoped>
 .changelog-container {
   height: 100%;
-  background: #000000;
   padding: 16px;
 }
 
@@ -39,7 +38,7 @@ const appVersion = await window.ytmd.getAppVersion();
 }
 
 .app-version {
-  border-bottom: 1px solid #212121;
+  border-bottom: 1px solid var(--ytmd-color-border);
   padding-bottom: 8px;
   margin: 0;
 }

@@ -1,4 +1,4 @@
-<script setup lang="ts" generic="T extends 'checkbox' | 'file' | 'range' | 'select' | 'custom'">
+<script setup lang="ts" generic="T extends 'checkbox' | 'file' | 'range' | 'select' | 'text' | 'custom'">
 import { computed, ref } from "vue";
 
 type ModelValue = {
@@ -7,6 +7,7 @@ type ModelValue = {
   range: number;
   custom: never;
   select: number;
+  text: string;
 };
 
 const props = defineProps<{
@@ -25,6 +26,8 @@ const props = defineProps<{
   flexColumn?: boolean;
   beta?: boolean;
   optionsMap?: { [key: number]: string }; // This is for the select menu
+  optionsOrder?: number[]; // This is for the select menu, defaults to the key order of optionsMap
+  accept?: string; // This is for the file picker, defaults to ".css"
 }>();
 const emit = defineEmits(["update:modelValue", "file-change", "change", "clear"]);
 
@@ -47,17 +50,24 @@ const selectOpen = ref(false);
 const selectedOption = computed(() => {
   return props.optionsMap[props.modelValue as number];
 });
+const orderedOptionKeys = computed(() => {
+  if (!props.optionsMap) return [] as number[];
+  return props.optionsOrder ?? Object.keys(props.optionsMap).map(key => Number.parseInt(key));
+});
 
 // This function should be using ModelValue[T] but because it's bound to @click it doesn't interpret it as correct
-function select(optionKey: string) {
-  value.value = Number.parseInt(optionKey) as ModelValue[T];
+function select(optionKey: number) {
+  value.value = optionKey as ModelValue[T];
   selectOpen.value = false;
   emit("change");
 }
 </script>
 
 <template>
-  <div :class="{ 'ytmd-setting': true, 'indented': props.indented, 'flex-column': props.flexColumn }">
+  <div
+    class="tw:border-ytmd-border"
+    :class="{ 'ytmd-setting': true, 'indented': props.indented, 'flex-column': props.flexColumn }"
+  >
     <p v-if="!disabled && !hasDescription">
       {{ name }} <span
         v-if="restartRequired"
@@ -65,7 +75,7 @@ function select(optionKey: string) {
       >autorenew</span>
       <span
         v-if="beta"
-        class="beta-tag"
+        class="beta-tag tw:bg-ytmd-accent"
         title="This is a beta feature and may not work correctly yet."
       >BETA</span>
     </p>
@@ -80,11 +90,11 @@ function select(optionKey: string) {
         >autorenew</span>
         <span
           v-if="beta"
-          class="beta-tag"
+          class="beta-tag tw:bg-ytmd-accent"
           title="This is a beta feature and may not work correctly yet."
         >BETA</span>
       </p>
-      <p class="description">
+      <p class="description tw:text-ytmd-text-muted">
         {{ description }}
       </p>
     </div>
@@ -93,27 +103,37 @@ function select(optionKey: string) {
       class="disabled-name-message"
     >
       <p class="name">
-        <span class="disabled-tag">DISABLED</span> {{ name }} <span
+        <span class="disabled-tag tw:bg-ytmd-surface">DISABLED</span> {{ name }} <span
           v-if="restartRequired"
           class="reload-required material-symbols-outlined"
         >autorenew</span>
         <span
           v-if="beta"
-          class="beta-tag"
+          class="beta-tag tw:bg-ytmd-accent"
           title="This is a beta feature and may not work correctly yet."
         >BETA</span>
       </p>
-      <p class="message">
+      <p class="message tw:text-ytmd-text-muted">
         {{ disabledMessage }}
       </p>
     </div>
 
     <input
-      v-if="type !== 'file' && type !== 'range' && type !== 'select' && type !== 'custom'"
+      v-if="type !== 'file' && type !== 'range' && type !== 'select' && type !== 'text' && type !== 'custom'"
       v-model="value"
+      class="tw:bg-ytmd-surface tw:checked:bg-ytmd-accent tw:disabled:bg-ytmd-surface"
       :disabled="disabled"
       :type="props.type"
       @change="$emit('change', $event)"
+    >
+    <input
+      v-if="type == 'text'"
+      v-model="value"
+      class="text-input tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+      :disabled="disabled"
+      :aria-label="name"
+      type="text"
+      @input="$emit('change', $event)"
     >
     <div
       v-if="type == 'range'"
@@ -122,6 +142,7 @@ function select(optionKey: string) {
       <span class="range-value">{{ value }}</span>
       <input
         v-model="value"
+        class="tw:bg-ytmd-surface"
         :disabled="disabled"
         :type="props.type"
         :max="props.max"
@@ -132,19 +153,19 @@ function select(optionKey: string) {
     </div>
     <div
       v-if="type == 'file'"
-      class="file-picker"
+      class="file-picker tw:bg-ytmd-surface"
     >
       <input
         ref="fileInput"
         :disabled="disabled"
         type="file"
-        accept=".css"
+        :accept="props.accept ?? '.css'"
         :data-setting="bindSetting"
         @change="$emit('file-change', $event)"
       >
       <div class="file-input-button">
         <button
-          class="choose"
+          class="choose tw:bg-ytmd-accent"
           @click="fileInput.click()"
         >
           <span class="material-symbols-outlined">file_open</span>
@@ -153,13 +174,13 @@ function select(optionKey: string) {
           :disabled="disabled"
           type="text"
           readonly
-          class="path"
+          class="path tw:bg-transparent"
           placeholder="No file chosen"
           :value="value"
         >
         <button
           v-if="value"
-          class="remove"
+          class="remove tw:bg-transparent"
           @click="$emit('clear')"
         >
           <span class="material-symbols-outlined">delete</span>
@@ -168,6 +189,7 @@ function select(optionKey: string) {
     </div>
     <div
       v-if="type == 'select'"
+      class="tw:bg-ytmd-surface"
       :class="{ select: true, open: selectOpen }"
     >
       <div
@@ -186,14 +208,14 @@ function select(optionKey: string) {
           class="material-symbols-outlined"
         >arrow_drop_up</span>
       </div>
-      <div class="options">
+      <div class="options tw:bg-ytmd-surface">
         <div
-          v-for="(optionValue, optionKey) of props.optionsMap"
+          v-for="optionKey of orderedOptionKeys"
           :key="optionKey"
-          class="option"
+          class="option tw:hover:bg-ytmd-text/10"
           @click="select(optionKey)"
         >
-          {{ optionValue }}
+          {{ props.optionsMap[optionKey] }}
         </div>
       </div>
     </div>
@@ -212,7 +234,8 @@ function select(optionKey: string) {
 .ytmd-setting.indented {
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 1px solid #212121;
+  border-left-width: 1px;
+  border-left-style: solid;
 }
 
 .ytmd-setting.flex-column {
@@ -222,13 +245,11 @@ function select(optionKey: string) {
 }
 
 .ytmd-setting .beta-tag {
-  background-color: #f44336;
   border-radius: 4px;
   padding: 2px 4px;
 }
 
 .ytmd-setting .disabled-tag {
-  background-color: #212121;
   border-radius: 4px;
   padding: 2px 4px;
 }
@@ -241,7 +262,6 @@ function select(optionKey: string) {
 .name-description .description,
 .disabled-name-message .message {
   margin-top: 4px;
-  color: #969696;
 }
 
 .reload-required {
@@ -263,7 +283,6 @@ input[type="checkbox"] {
   outline: none;
   border: none;
   cursor: pointer;
-  background-color: #212121;
   transition: background-color ease 0.3s;
 }
 
@@ -274,16 +293,12 @@ input[type="checkbox"]:before {
   z-index: 2;
   width: 28px;
   height: 28px;
-  background: #fff;
+  background: var(--ytmd-color-text);
   left: 2px;
   top: 2px;
   border-radius: 50%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ytmd-color-background) 20%, transparent);
   transition: all ease 0.3s;
-}
-
-input[type="checkbox"]:checked {
-  background-color: #f44336;
 }
 
 input[type="checkbox"]:checked:before {
@@ -291,12 +306,11 @@ input[type="checkbox"]:checked:before {
 }
 
 input[type="checkbox"]:disabled {
-  background-color: #212121;
   cursor: not-allowed;
 }
 
 input[type="checkbox"]:disabled::before {
-  background-color: #969696;
+  background-color: var(--ytmd-color-text-muted);
 }
 
 input[type="file"] {
@@ -304,7 +318,6 @@ input[type="file"] {
 }
 
 .file-picker {
-  background-color: #212121;
   border-radius: 4px;
 }
 
@@ -324,13 +337,11 @@ input[type="file"] {
 }
 
 .file-input-button button.choose {
-  background-color: #f44336;
   border-radius: 4px 0 0 4px;
 }
 
 .file-input-button button.remove {
-  background-color: transparent;
-  border-left: 1px solid #323232;
+  border-left: 1px solid color-mix(in srgb, var(--ytmd-color-text) 10%, transparent);
   border-radius: 0 4px 4px 0;
 }
 
@@ -344,7 +355,6 @@ input[type="file"] {
   padding: 8px;
   width: 100%;
   border: none;
-  background-color: transparent;
 }
 
 .file-input-button input[type="text"]:focus,
@@ -359,6 +369,20 @@ input[type="file"] {
   text-overflow: ellipsis;
 }
 
+.text-input {
+  width: 216px;
+  padding: 8px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+  outline: none;
+}
+
+.text-input:focus-visible {
+  outline: 2px solid var(--ytmd-color-accent);
+  outline-offset: 1px;
+}
+
 .range-value {
   vertical-align: top;
   margin-right: 8px;
@@ -368,7 +392,6 @@ input[type="range"] {
   appearance: none;
   height: 15px;
   border-radius: 4px;
-  background: #212121;
   outline: none;
 }
 
@@ -377,14 +400,13 @@ input[type="range"]::-webkit-slider-thumb {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #f44336;
+  background: var(--ytmd-color-accent);
   cursor: pointer;
 }
 
 .select {
   position: relative;
   width: 216px;
-  background-color: #212121;
   border-radius: 4px;
 }
 
@@ -418,12 +440,7 @@ input[type="range"]::-webkit-slider-thumb {
 .select .options .option {
   user-select: none;
   cursor: pointer;
-  background-color: #212121;
   padding: 8px;
-}
-
-.select .options .option:hover {
-  background-color: #323232;
 }
 
 .select:not(.open) .options {

@@ -19,7 +19,7 @@ onBeforeMount(async () => {
 </script>
 
 <template>
-  <div class="container-wrapper">
+  <div class="container-wrapper tw:bg-ytmd-background">
     <div class="container">
       <h1 class="title">
         Companion Authorization Request
@@ -55,7 +55,6 @@ onBeforeMount(async () => {
 .container-wrapper {
   width: 100%;
   height: calc(100% - 36px);
-  background-color: #000000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -106,7 +105,7 @@ onBeforeMount(async () => {
 .allow,
 .deny {
   background: unset;
-  border: 1px solid #212121;
+  border: 1px solid var(--ytmd-color-border);
   padding: 16px 32px;
   margin-right: 32px;
   border-radius: 4px;
@@ -114,7 +113,7 @@ onBeforeMount(async () => {
 }
 
 .allow:hover {
-  background-color: #212121;
+  background-color: var(--ytmd-color-surface);
 }
 
 .deny {

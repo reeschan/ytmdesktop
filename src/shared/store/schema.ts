@@ -1,8 +1,17 @@
+import { BundledTheme } from "~shared/theme";
+
 export enum TrayIconStyle {
   Auto = 0,
   White = 1,
   Black = 2
 }
+
+// Every bundled theme, plus the theme file
+export const ThemeSelection = {
+  ...BundledTheme,
+  File: "file" // Uses the theme file at appearance.themeFilePath
+} as const;
+export type ThemeSelection = (typeof ThemeSelection)[keyof typeof ThemeSelection];
 
 export type StoreSchema = {
   metadata: {
@@ -22,6 +31,12 @@ export type StoreSchema = {
     customCSSPath: string | null;
     zoom: number;
     trayIconStyle: TrayIconStyle;
+    theme: ThemeSelection;
+    themeFilePath: string | null;
+    backgroundVideoEnabled: boolean;
+    backgroundVideoPath: string | null;
+    backgroundVideoMaskOpacity: number; // 0-100 (%)
+    backgroundVideoMaskBlur: number; // 0-20 (px)
   };
   playback: {
     continueWhereYouLeftOff: boolean;
@@ -35,6 +50,11 @@ export type StoreSchema = {
     companionServerAuthTokens: string | null; // array[object] | Encrypted for security
     companionServerCORSWildcardEnabled: boolean;
     discordPresenceEnabled: boolean;
+    discordPresenceDetailsTemplate: string;
+    discordPresenceStateTemplate: string;
+    discordPresenceLargeTextTemplate: string;
+    discordPresenceShowButton: boolean;
+    discordPresenceStatusDisplay: number; // Discord status_display_type (0 = Name, 1 = State, 2 = Details)
     lastFMEnabled: boolean;
     enhancedMediaServiceEnabled: boolean;
   };
@@ -69,6 +89,10 @@ export type StoreSchema = {
 
 export type MemoryStoreSchema = {
   discordPresenceConnectionFailed: boolean;
+
+  themeUnreadableItems: string[];
+  themeFileMissing: boolean;
+  backgroundVideoFileMissing: boolean;
 
   shortcutsPlayPauseRegisterFailed: boolean;
   shortcutsNextRegisterFailed: boolean;

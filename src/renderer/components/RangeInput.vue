@@ -81,13 +81,13 @@ onBeforeUnmount(stopDrag);
       ref="track"
       class="range"
     >
-      <div class="range-background" />
+      <div class="range-background tw:bg-ytmd-surface" />
       <div
-        class="range-fill"
+        class="range-fill tw:bg-ytmd-accent"
         :style="{ width: progress + '%' }"
       />
       <div
-        class="range-handle"
+        class="range-handle tw:bg-ytmd-accent"
         :style="{ left: progress + '%' }"
       />
     </div>
@@ -110,14 +110,12 @@ onBeforeUnmount(stopDrag);
 .range-background {
   position: absolute;
   inset: 0;
-  background: #323232;
   border-radius: 6px;
 }
 
 .range-fill {
   position: absolute;
   inset: 0;
-  background: #ff0000;
   width: 0%;
   border-radius: 6px;
 }
@@ -128,7 +126,6 @@ onBeforeUnmount(stopDrag);
   transform: translate(-50%, -50%);
   width: 12px;
   height: 12px;
-  background: #ff0000;
   border-radius: 50%;
   pointer-events: none;
 }

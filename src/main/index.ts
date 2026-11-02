@@ -18,6 +18,8 @@ import AutoUpdater from "./services/autoupdater";
 import ConfigStore from "./services/configstore";
 import IntegrationManager, { IntegrationManagerHook } from "./services/integrationmanager";
 import YTMViewManager from "./services/ytmviewmanager";
+import ThemeManager from "./services/thememanager";
+import BackgroundVideoManager from "./services/backgroundvideo";
 import ShortcutManager from "./services/shortcutmanager";
 import TaskbarManager from "./services/taskbarmanager";
 import AppWindowManager from "./services/windowmanager";
@@ -49,6 +51,8 @@ serviceCollection.addServices([
   ProtectedAPIManager,
   PlayerStateStore,
   YTMViewManager,
+  ThemeManager,
+  BackgroundVideoManager,
   ShortcutManager,
   TaskbarManager,
   ProtocolManager,
@@ -374,6 +378,11 @@ app.on("ready", async () => {
         action: "deny"
       };
     });
+
+    settingsWindow.ipcHandle("playerStateStore:getState", () => {
+      const playerStateStore = serviceHost.getService(PlayerStateStore);
+      return playerStateStore.getState();
+    });
   });
 
   mainWindow.ipcOn("window:openMiniplayer", () => {
@@ -614,6 +623,8 @@ app.on("ready", async () => {
   ytmViewManager.createView();
   const ytmView = ytmViewManager.getView();
   if (ytmView) mainWindow.attachView(ytmView, 0);
+  // Attached after the YTM view so the background video view sits below it
+  serviceHost.getService(BackgroundVideoManager).attachToMainWindow(mainWindow);
 
   // This hides the main view if it was recreated and the YTMView is in a ready state
   await mainView.on("recreated", async () => {

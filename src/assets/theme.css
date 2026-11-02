@@ -1,0 +1,32 @@
+/* Tailwind without preflight: only the theme and utilities layers are imported */
+@layer theme, utilities;
+/*
+  prefix(tw): every utility starts with "tw:" (for example tw:bg-ytmd-surface, tw:hover:bg-ytmd-text/10).
+  Existing class names such as .container, .hidden, .flex and .border are not prefixed, so they never become
+  Tailwind utilities and the current look is kept.
+*/
+@import "tailwindcss/theme.css" layer(theme) prefix(tw);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+/* Sample utilities, always generated (used to check the prefix and the modifiers) */
+@source inline("tw:bg-ytmd-surface tw:hover:bg-ytmd-text/10");
+
+/* Color items. Tailwind names (--color-ytmd-*) point at the runtime variables (--ytmd-color-*) injected by main */
+@theme inline {
+  --color-ytmd-background: var(--ytmd-color-background);
+  --color-ytmd-surface: var(--ytmd-color-surface);
+  --color-ytmd-text: var(--ytmd-color-text);
+  --color-ytmd-text-muted: var(--ytmd-color-text-muted);
+  --color-ytmd-accent: var(--ytmd-color-accent);
+  --color-ytmd-border: var(--ytmd-color-border);
+}
+
+/* Default theme values, used until main injects the active theme */
+:root {
+  --ytmd-color-background: #030303;
+  --ytmd-color-surface: #212121;
+  --ytmd-color-text: #FFFFFF;
+  --ytmd-color-text-muted: #AAAAAA;
+  --ytmd-color-accent: #FF0000;
+  --ytmd-color-border: #212121;
+}

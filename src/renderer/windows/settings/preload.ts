@@ -6,6 +6,7 @@ import Store from "../../store-ipc/store";
 import { MemoryStoreSchema, StoreSchema } from "~shared/store/schema";
 import MemoryStore from "../../store-ipc/memory-store";
 import { WindowsEventArguments } from "~shared/types";
+import type { PlayerState } from "~shared/playerstatestore/types";
 
 const store = new Store<StoreSchema>();
 const memoryStore = new MemoryStore<MemoryStoreSchema>();
@@ -52,6 +53,14 @@ contextBridge.exposeInMainWorld("ytmd", {
   getTrueFilePath: (file: File) => webUtils.getPathForFile(file),
 
   lastFMStepAuthenticate: () => ipcRenderer.send("lastfm:authenticate"),
+
+  getPlayerState: async (): Promise<PlayerState | null> => await ipcRenderer.invoke("playerStateStore:getState"),
+  // Block body so ipcRenderer itself is never returned through the context bridge
+  onPlayerStateChanged: (callback: (state: PlayerState) => void) => {
+    ipcRenderer.on("playerStateStore:stateChanged", (event: Electron.IpcRendererEvent, state: PlayerState) => {
+      callback(state);
+    });
+  },
 
   processVersions: { electron: process.versions.electron, chrome: process.versions.chrome }
 });

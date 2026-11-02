@@ -1,143 +1,209 @@
-# YouTube Music Desktop App
-### Now with a Fresh new Codebase 😉
+# YouTube Music Desktop App (reeschan fork)
 
-![YouTube Music Desktop App](.github/images/readme_main_app.png)
+[日本語](#日本語) | [English](#english)
 
-[![Discord][discord-img]][discord-url]
-[![Gitmoji][gitmoji-img]][gitmoji-url]
-[![GitHub license][license-img]][license-url]
-[![GitHub release][release-img]][release-url]
-[![Download][download-img]][download-url]
+![Midnight theme](.github/images/fork/theme-midnight.png)
 
-<!--
-TODO: Write guides for v2. While these may still be helpful they are geared towards v1
-#### 📖 Guide:
-1. [How to use](https://github.com/ytmdesktop/ytmdesktop/wiki/How-use)
-2. [FAQ](https://github.com/ytmdesktop/ytmdesktop/wiki/FAQ)
--->
+---
 
-# ⬇️ Download at
-<a href="https://repology.org/project/ytmdesktop/versions">
-	<img type="image/svg" align="right" src="https://repology.org/badge/vertical-allrepos/ytmdesktop.svg" alt="Packaging status"/>
-</a>
+## 日本語
 
-#### Windows
-<!--
-### UPDATE THESE PLATFORMS ###
-- Chocolatey: ```choco install ytmdesktop```
--->
-- Winget: ```winget install "YouTube Music Desktop App"``` or ```winget install Ytmdesktop.Ytmdesktop```
-- Scoop: ```scoop bucket add extras``` then ```scoop install ytmdesktop``` (Community Maintained)
-- Binaries: <https://github.com/ytmdesktop/ytmdesktop/releases>
+このリポジトリは [ytmdesktop/ytmdesktop](https://github.com/ytmdesktop/ytmdesktop) の個人用の fork です。
+アプリの機能・ダウンロード・開発環境の作り方・ビルドの手順は、本家の README を参照してください。
 
-#### Linux
-<!--
-### UPDATE THESE PLATFORMS ###
-- Snap: <https://snapcraft.io/youtube-music-desktop-app>
--->
-- Arch Linux (AUR): <https://aur.archlinux.org/packages/ytmdesktop> (Community Maintained)
-- Binaries: <https://github.com/ytmdesktop/ytmdesktop/releases>
+- 本家の README: <https://github.com/ytmdesktop/ytmdesktop#readme>
+- 本家のリリース: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
-#### Mac
-- Brew: ```brew install --cask ytmdesktop-youtube-music``` (Community Maintained)
-- Binaries: <https://github.com/ytmdesktop/ytmdesktop/releases>
+この fork では、次の 3 つの機能を足しています。
 
-# Developing
-To clone and run this repository you'll need [Git](https://git-scm.com) and [Node.js (v20)](https://nodejs.org/en/download/) (which comes with [npm](http://npmjs.com)) installed on your computer. From your command line:
+### 1. テーマ
 
-```sh
-# Clone this repository
-git clone https://github.com/ytmdesktop/ytmdesktop.git
-# Go into the directory
-cd ytmdesktop
-```
-##### And:
-```sh
-# If you do not have Yarn Installed / New to Node as a whole you can enable Yarn with:
-corepack enable
+設定の **Appearance → Theme** で、アプリ全体の配色を選べます。アプリの画面 (タイトルバー・設定・ミニプレイヤーなど) と YouTube Music の画面の両方に、同じ色が当たります。切り替えは再起動なしで、すぐ反映されます。
 
-# Install dependencies
-yarn install
-# Run the app
-yarn start
+- 同梱のテーマ: **Default** (元の見た目)、**Midnight** (紺)、**Forest** (深緑)
+- **Theme file** を選ぶと、自分で書いたテーマファイル (CSS) を使えます
+
+| Midnight | Forest |
+|---|---|
+| ![Midnight](.github/images/fork/theme-midnight.png) | ![Forest](.github/images/fork/theme-forest.png) |
+
+![テーマの設定](.github/images/fork/settings-theme.png)
+
+テーマファイルには、6 つの色項目を CSS 変数で書きます。
+
+```css
+:root {
+  --ytmd-color-background: #0b1020; /* 背景 */
+  --ytmd-color-surface: #161d33;    /* 面 (カード・メニュー・プレイヤーバー) */
+  --ytmd-color-text: #e6e9f2;       /* 文字 */
+  --ytmd-color-text-muted: #9aa3bd; /* 控えめな文字 */
+  --ytmd-color-accent: oklch(0.72 0.12 260); /* アクセント (スイッチ・スライダー・シークバー) */
+  --ytmd-color-border: #263052;     /* 枠線 */
+}
 ```
 
-# Building the Project
-To build for your platform you need to run `yarn make`, however please see the information below regarding the required additionally Software, Tools and Packages which are needed to successfully package into a nice installer file.
+- 色は、16 進・`rgb()`・`hsl()`・`oklch()` などの関数・名前付きの色で書けます (Tailwind v4 の `oklch` の色もそのまま使えます)。
+- 書いていない項目や読めない値には、Default の色を使います。どの項目が読めなかったかは、設定画面に出ます。
+- ファイルを保存し直すと、すぐ反映されます。
+- カスタム CSS は、テーマの後に当たります。テーマの一部を上書きできます。
+- 危険・エラー・成功を表す色は、テーマに関わらず固定です。
+- アプリの画面は Tailwind v4 (prefix `tw:`) で、`tw:bg-ytmd-surface` のようにテーマの色を使っています。
 
-## Windows
-To download the full suite of Tools/Software needed to build the app it is recommended to install the suite of build tools that electron provide which includes Visual Studio, Python and other tools.
+### 2. 背景動画
 
-`npm i -g @electron/build-tools`
+設定の **Appearance → Background video** で、手元の動画ファイル (mp4 / webm) をメインウィンドウの背景全体に流せます。動画は無音でループ再生します。
 
-This will start downloading and installing, and may require a few prompts here and there to finalise everything.
+![背景動画](.github/images/fork/background-video.png)
 
-<!--
-TODO: Fill this information in
-## MacOS
-*to do*
--->
+![背景動画の設定](.github/images/fork/settings-background-video.png)
 
-## Linux
-Building the project on Linux only requires you to install:
-- For building on Debian based Linux Distros like Ubuntu, you will need to install `fakeroot` and `dpkg`
-- For building on RedHat based Linux Distros like Fedora, you will need to install `rpm` or `rpm-build`
+- **Mask opacity** (0〜100%): 動画の上に重ねる層の濃さ。層の色はテーマの背景色です。
+- **Blur** (0〜20px): 動画のぼかし。
+- 最小化・トレイに隠す・全画面表示の間は、動画を止めます。曲の一時停止とは連動しません。
+- 動画ファイルが見つからないときは、動画なしで表示し、設定画面で知らせます。パスは残るので、ファイルを戻せば再び流れます。
 
-*please note that by default both packages are built if you try building this application on a linux distro*
+### 3. Discord の表示テンプレート
 
-<!--
-### Note to the note, I suspect this has been fixed now, testing myself I was able to run the software without anything extra, although did have to sepecify `--disable-gpu` to run.
-**Note:** If you're using Windows Subsystem for Linux (WSL2), [see this guide][more] or use `node` from the command prompt. -->
+設定の **Integrations → Discord rich presence** で、Discord に出す内容を変えられます。
 
-<!--
-Project currently doesn't have Locales, so Ignore this for now.
-## To contribute for your own language
-Navigate to [ytmdesktop-locales](https://github.com/ytmdesktop/ytmdesktop-locales) and follow the instructions there.
--->
+![Discord の表示テンプレート](.github/images/fork/settings-discord.png)
 
-## Contributors
+- **First line**・**Second line**・**Album art tooltip** の 3 つの欄に、`{title}`・`{artist}`・`{album}` を差し込めます。例えば First line を `{title} / {artist}` にすると、曲名とアーティストを 1 行で出せます。
+- 空になった欄は出しません。1 行目だけは、空のとき曲名で埋めます。
+- 「Play on YTMDesktop」ボタンを出すかどうかと、Discord のメンバー一覧に何を出すか (アプリ名・1 行目・2 行目) を選べます。
+- 設定画面で、再生中の曲を使ったプレビューを見ながら書けます。
 
-A Thank you to all the contributors throughout the project, without their work this project would have just been a small project and never expanded to where it is now.
+### 構成
 
-[<img alt="adlerluiz" src="https://avatars.githubusercontent.com/u/2112638?v=4&s=240" width="120" height="120">](https://github.com/adlerluiz)
-[<img alt="NovusTheory" src="https://avatars.githubusercontent.com/u/3434404?v=4&s=240" width="120" height="120">](https://github.com/NovusTheory)
-[<img alt="mingjun97" src="https://avatars.githubusercontent.com/u/15214491?v=4&s=240" width="120" height="120">](https://github.com/mingjun97)
-[<img alt="rickpalmeira" src="https://avatars.githubusercontent.com/u/4140033?v=4&s=240" width="120" height="120">](https://github.com/rickpalmeira)
-[<img alt="Alipoodle" src="https://avatars.githubusercontent.com/u/17199186?v=4&s=240" width="120" height="120">](https://github.com/Alipoodle)
-[<img alt="flleeppyy" src="https://avatars.githubusercontent.com/u/18307183?v=4&s=240" width="120" height="120">](https://github.com/flleeppyy)
-[<img alt="zagoruev" src="https://avatars.githubusercontent.com/u/986243?v=4&s=240" width="120" height="120">](https://github.com/zagoruev)
-[<img alt="Venipa" src="https://avatars.githubusercontent.com/u/17952364?v=4&s=240" width="120" height="120">](https://github.com/Venipa)
-[<img alt="serjan-nasredin" src="https://avatars.githubusercontent.com/u/67647968?v=4&s=240" width="120" height="120">](https://github.com/serjan-nasredin)
-[<img alt="TotalChris" src="https://avatars.githubusercontent.com/u/41809916?v=4&s=240" width="120" height="120">](https://github.com/TotalChris)
-[<img alt="ArnyminerZ" src="https://avatars.githubusercontent.com/u/12086466?v=4&s=240" width="120" height="120">](https://github.com/ArnyminerZ)
-[<img alt="TotallyNotInUse" src="https://avatars.githubusercontent.com/u/56458705?v=4&s=240" width="120" height="120">](https://github.com/TotallyNotInUse)
-[<img alt="ddarkr" src="https://avatars.githubusercontent.com/u/6638675?v=4&s=240" width="120" height="120">](https://github.com/ddarkr)
-[<img alt="pinkiesky" src="https://avatars.githubusercontent.com/u/7098424?v=4&s=240" width="120" height="120">](https://github.com/pinkiesky)
-[<img alt="NNowakowski" src="https://avatars.githubusercontent.com/u/16933892?v=4&s=240" width="120" height="120">](https://github.com/NNowakowski)
-[<img alt="dm3ch" src="https://avatars.githubusercontent.com/u/5025313?v=4&s=240" width="120" height="120">](https://github.com/dm3ch)
-[<img alt="Vistaus" src="https://avatars.githubusercontent.com/u/1716229?v=4&s=240" width="120" height="120">](https://github.com/Vistaus)
-[<img alt="smarquespt" src="https://avatars.githubusercontent.com/u/1302668?v=4&s=240" width="120" height="120">](https://github.com/smarquespt)
-[<img alt="peter9811" src="https://avatars.githubusercontent.com/u/22783445?v=4&s=240" width="120" height="120">](https://github.com/peter9811)
-[<img alt="KageRyo" src="https://avatars.githubusercontent.com/u/36478298?v=4&s=240" width="120" height="120">](https://github.com/KageRyo)
-[<img alt="andrew000" src="https://avatars.githubusercontent.com/u/11490628?v=4&s=240" width="120" height="120">](https://github.com/andrew000)
-[<img alt="danparidae" src="https://avatars.githubusercontent.com/u/7272087?v=4&s=240" width="120" height="120">](https://github.com/danparidae)
-[<img alt="tbvjaos510" src="https://avatars.githubusercontent.com/u/32216112?v=4&s=240" width="120" height="120">](https://github.com/tbvjaos510)
-[<img alt="andia89" src="https://avatars.githubusercontent.com/u/6475757?v=4&s=240" width="120" height="120">](https://github.com/andia89)
-[<img alt="nils-kt" src="https://avatars.githubusercontent.com/u/34674720?v=4&s=240" width="120" height="120">](https://github.com/nils-kt)
-[<img alt="Nerogar" src="https://avatars.githubusercontent.com/u/3390934?v=4&s=240" width="120" height="120">](https://github.com/Nerogar)
-[<img alt="nattadasu" src="https://avatars.githubusercontent.com/u/49780229?v=4&s=240" width="120" height="120">](https://github.com/nattadasu)
-[<img alt="mkotb" src="https://avatars.githubusercontent.com/u/6364146?v=4&s=240" width="120" height="120">](https://github.com/mkotb)
-[<img alt="chaoky" src="https://avatars.githubusercontent.com/u/9826702?v=4&s=240" width="120" height="120">](https://github.com/chaoky)
-[<img alt="ElectricalBoy" src="https://avatars.githubusercontent.com/u/15651807?v=4&s=240" width="120" height="120">](https://github.com/ElectricalBoy)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager が YouTube Music のビューの下にある背景動画のビューを動かす。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。">
+</picture>
 
-[discord-img]: https://img.shields.io/badge/Discord-JOIN-GREEN.svg?style=for-the-badge&logo=discord
-[discord-url]: https://discord.gg/88P2n2a
-[gitmoji-img]: https://img.shields.io/badge/Gitmoji-STANDARD-FFDD67.svg?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJncmluLXRvbmd1ZS13aW5rIiBjbGFzcz0ic3ZnLWlubGluZS0tZmEgZmEtZ3Jpbi10b25ndWUtd2luayBmYS13LTE2IiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OTYgNTEyIj48cGF0aCBmaWxsPSIjRkZERDY3IiBkPSJNMzQ0IDE4NGEyNCAyNCAwIDEwMCA0OCAyNCAyNCAwIDEwMC00OHpNMjQ4IDhhMjQ4IDI0OCAwIDAwLTg3IDQ4MGMtNi0xMi05LTI2LTktNDB2LTQ1Yy0yNS0xNy00My0zOS00OC02NC0yLTEyIDEwLTIyIDIxLTE4IDMwIDEwIDc1IDE1IDEyMyAxNXM5My01IDEyMy0xNWMxMi00IDIzIDYgMjEgMTgtNCAyNS0yMyA0Ny00OCA2M3Y0NmMwIDE0LTMgMjgtOSA0MEEyNDggMjQ4IDAgMDAyNDggOHptLTU2IDIyNWwtOS04Yy0xNS0xNC00Ny0xNC02MSAwbC0xMCA4Yy04IDctMjIgMC0yMC0xMSA0LTI1IDM0LTQyIDYwLTQyczU2IDE3IDYwIDQyYzIgMTEtMTIgMTgtMjAgMTF6bTE1MiAzOWE2NCA2NCAwIDExMC0xMjggNjQgNjQgMCAwMTAgMTI4em0tNTEgMTAzYy0xNC03LTMxIDItMzQgMTdsLTIgOGMtMiA5LTE2IDktMTggMGwtMS04Yy00LTE1LTIxLTI0LTM1LTE3bC0xOSA5djYzYzAgMzUgMjggNjUgNjMgNjUgMzYgMCA2NS0yOSA2NS02NHYtNjRsLTE5LTl6Ii8+PC9zdmc+
-[gitmoji-url]: https://gitmoji.carloscuesta.me
-[license-img]: https://img.shields.io/github/license/ytmdesktop/ytmdesktop.svg?style=for-the-badge&logo=librarything
-[license-url]: https://github.com/ytmdesktop/ytmdesktop/blob/master/LICENSE
-[release-img]: https://img.shields.io/github/release/ytmdesktop/ytmdesktop.svg?style=for-the-badge&logo=flattr
-[release-url]: https://GitHub.com/ytmdesktop/ytmdesktop/releases/
-[download-img]: https://img.shields.io/github/downloads/ytmdesktop/ytmdesktop/total.svg?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyBhcmlhLWhpZGRlbj0idHJ1ZSIgZGF0YS1wcmVmaXg9ImZhcyIgZGF0YS1pY29uPSJjbG91ZC1kb3dubG9hZC1hbHQiIGNsYXNzPSJzdmctaW5saW5lLS1mYSBmYS1jbG91ZC1kb3dubG9hZC1hbHQgZmEtdy0yMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB2aWV3Qm94PSIwIDAgNjQwIDUxMiI+PHBhdGggZmlsbD0iI0ZGRiIgZD0iTTUzOCAyMjdjNC0xMSA2LTIzIDYtMzVhOTYgOTYgMCAwMC0xNDktODAgMTYwIDE2MCAwIDAwLTI5OSA4OCAxNDQgMTQ0IDAgMDA0OCAyODBoMzY4YTEyOCAxMjggMCAwMDI2LTI1M3ptLTEzMyA4OEwyOTkgNDIxYy02IDYtMTYgNi0yMiAwTDE3MSAzMTVjLTEwLTEwLTMtMjcgMTItMjdoNjVWMTc2YzAtOSA3LTE2IDE2LTE2aDQ4YzkgMCAxNiA3IDE2IDE2djExMmg2NWMxNSAwIDIyIDE3IDEyIDI3eiIvPjwvc3ZnPg==
-[download-url]: https://github.com/ytmdesktop/ytmdesktop/releases/
-[more]: https://www.howtogeek.com/261575/how-to-run-graphical-linux-desktop-applications-from-windows-10s-bash-shell/
+図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
+
+### 開発 (この fork で変わったところ)
+
+```sh
+pnpm install
+pnpm start   # 開発版を起動
+pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定・Discord の表示の組み立て)
+```
+
+設計の文書は [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md)、[docs/adr/](docs/adr/)、[GLOSSARY.md](GLOSSARY.md) にあります。
+
+PR と `development` への push では、GitHub Actions がテスト・型チェック・lint を回します (`.github/workflows/build.yml`)。
+
+### リリース
+
+Windows x64 のインストーラー (exe) を、タグから GitHub Release に上げます (`.github/workflows/publish.yml`)。
+
+1. `package.json` の `version` を上げて、`development` にマージする
+2. 同じ版のタグを付けて push する (例えば `git tag v2.2.0` と `git push origin v2.2.0`)。タグと `package.json` の版が違うと、ワークフローは止まる
+3. Actions が exe を作り、この fork の **下書き** の Release に付ける。中身を確かめて公開する
+
+アプリの自動更新は、この fork の公開済みの Release を見ます (リポジトリ変数 `YTMD_UPDATE_FEED_OWNER` と `YTMD_UPDATE_FEED_REPOSITORY`)。
+
+---
+
+## English
+
+This repository is a personal fork of [ytmdesktop/ytmdesktop](https://github.com/ytmdesktop/ytmdesktop).
+For the app's features, downloads, development setup and build steps, see the upstream README.
+
+- Upstream README: <https://github.com/ytmdesktop/ytmdesktop#readme>
+- Upstream releases: <https://github.com/ytmdesktop/ytmdesktop/releases>
+
+This fork adds the following three features.
+
+### 1. Themes
+
+Pick a color theme in **Appearance → Theme**. The same colors apply to the app screens (title bar, settings, miniplayer and so on) and to YouTube Music itself, right away and without a restart.
+
+- Bundled themes: **Default** (the original look), **Midnight** (navy) and **Forest** (dark green)
+- **Theme file** lets you use your own theme file (CSS)
+
+| Midnight | Forest |
+|---|---|
+| ![Midnight](.github/images/fork/theme-midnight.png) | ![Forest](.github/images/fork/theme-forest.png) |
+
+![Theme settings](.github/images/fork/settings-theme.png)
+
+A theme file declares the six color items as CSS variables.
+
+```css
+:root {
+  --ytmd-color-background: #0b1020; /* background */
+  --ytmd-color-surface: #161d33;    /* surface (cards, menus, player bar) */
+  --ytmd-color-text: #e6e9f2;       /* text */
+  --ytmd-color-text-muted: #9aa3bd; /* muted text */
+  --ytmd-color-accent: oklch(0.72 0.12 260); /* accent (switches, sliders, seek bar) */
+  --ytmd-color-border: #263052;     /* border */
+}
+```
+
+- Colors can be hex, `rgb()`, `hsl()`, `oklch()` and the other color functions, or named colors (Tailwind v4 `oklch` colors work as they are).
+- Missing or unreadable items fall back to the Default colors, and the settings screen lists them.
+- Saving the file again applies it right away.
+- Custom CSS is applied after the theme, so it can override parts of it.
+- Colors that mean something (danger, error, success) stay the same in every theme.
+- The app screens use Tailwind v4 with the `tw:` prefix, for example `tw:bg-ytmd-surface`.
+
+### 2. Background video
+
+In **Appearance → Background video**, choose a local video file (mp4 / webm) to play across the whole background of the main window. It loops without sound.
+
+![Background video](.github/images/fork/background-video.png)
+
+![Background video settings](.github/images/fork/settings-background-video.png)
+
+- **Mask opacity** (0–100%): how strongly the layer over the video covers it. The layer uses the theme's background color.
+- **Blur** (0–20px): blur applied to the video.
+- The video stops while the window is minimized, hidden to the tray or in fullscreen. It does not follow the song's pause.
+- When the video file is missing, the window shows no video and the settings screen says so. The path is kept, so the video comes back once the file does.
+
+### 3. Discord display templates
+
+In **Integrations → Discord rich presence**, change what Discord shows.
+
+![Discord display templates](.github/images/fork/settings-discord.png)
+
+- **First line**, **Second line** and **Album art tooltip** take `{title}`, `{artist}` and `{album}`. For example, `{title} / {artist}` on the first line shows the title and the artist on one line.
+- Empty lines are left out, except the first line, which falls back to the title.
+- Choose whether to show the "Play on YTMDesktop" button, and what the Discord member list shows (app name, first line or second line).
+- A preview built from the playing song shows the result while you type.
+
+### Architecture
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager drives the background video view placed below the YouTube Music view. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm.">
+</picture>
+
+The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.
+
+### Development (what changed in this fork)
+
+```sh
+pnpm install
+pnpm start   # run the dev build
+pnpm test    # Vitest (theme resolution, background video decision, Discord activity builder)
+```
+
+Design documents: [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md), [docs/adr/](docs/adr/) and [GLOSSARY.md](GLOSSARY.md).
+
+On pull requests and pushes to `development`, GitHub Actions runs the tests, the type check and lint (`.github/workflows/build.yml`).
+
+### Releases
+
+A tag builds the Windows x64 installer (exe) and attaches it to a GitHub Release (`.github/workflows/publish.yml`).
+
+1. Bump `version` in `package.json` and merge it into `development`
+2. Push a tag for the same version (for example `git tag v2.2.0` and `git push origin v2.2.0`). The workflow stops when the tag and `package.json` disagree
+3. Actions builds the exe and attaches it to a **draft** Release of this fork. Check it and publish it
+
+The app's auto updater follows the published Releases of this fork (repository variables `YTMD_UPDATE_FEED_OWNER` and `YTMD_UPDATE_FEED_REPOSITORY`).
+
+---
+
+License: [GPL-3.0](LICENSE), the same as upstream.

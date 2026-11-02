@@ -3,6 +3,7 @@ import Store from "../store-ipc/store";
 import { StoreSchema, MemoryStoreSchema } from "~shared/store/schema";
 import MemoryStore from "../store-ipc/memory-store";
 import { PlayerState } from "~shared/playerstatestore/types";
+import type { BackgroundVideoState } from "../windows/background-video/preload";
 
 declare global {
   interface Window {
@@ -21,6 +22,8 @@ declare global {
       restartApplication(): void;
       restartApplicationForUpdate(): void;
       getTrueFilePath(file: File): string;
+      getPlayerState?(): Promise<PlayerState | null>;
+      onPlayerStateChanged?(callback: (state: PlayerState) => void): void;
       processVersions: {
         electron: string;
         chrome: string;
@@ -72,6 +75,10 @@ declare global {
       };
       executeCommandInYTMView(command: string, ...args: unknown[]);
       isWayland(): boolean;
+
+      // Background video specific
+      onBackgroundVideoState?(callback: (state: BackgroundVideoState) => void): void;
+      requestBackgroundVideoState?(): void;
     };
   }
 

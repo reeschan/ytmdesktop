@@ -1,7 +1,8 @@
 import Conf from "conf";
 import { app, ipcMain } from "electron";
 import log from "electron-log";
-import { StoreSchema, TrayIconStyle } from "~shared/store/schema";
+import { DEFAULT_PRESENCE_DISPLAY_SETTINGS } from "~shared/discord-presence/activity";
+import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
 import { DependencyConstructor, Paths, ValueAtPath } from "~shared/types";
 import Service from "../service";
 import AppWindowManager from "../windowmanager";
@@ -39,7 +40,13 @@ export default class ConfigStore extends Service {
           customCSSEnabled: false,
           customCSSPath: null,
           zoom: 100,
-          trayIconStyle: TrayIconStyle.Auto
+          trayIconStyle: TrayIconStyle.Auto,
+          theme: ThemeSelection.Default,
+          themeFilePath: null,
+          backgroundVideoEnabled: false,
+          backgroundVideoPath: null,
+          backgroundVideoMaskOpacity: 60,
+          backgroundVideoMaskBlur: 0
         },
         playback: {
           continueWhereYouLeftOff: true,
@@ -53,6 +60,11 @@ export default class ConfigStore extends Service {
           companionServerAuthTokens: null,
           companionServerCORSWildcardEnabled: true,
           discordPresenceEnabled: false,
+          discordPresenceDetailsTemplate: DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.details,
+          discordPresenceStateTemplate: DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.state,
+          discordPresenceLargeTextTemplate: DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.largeText,
+          discordPresenceShowButton: DEFAULT_PRESENCE_DISPLAY_SETTINGS.showButton,
+          discordPresenceStatusDisplay: DEFAULT_PRESENCE_DISPLAY_SETTINGS.statusDisplay,
           lastFMEnabled: false,
           enhancedMediaServiceEnabled: true
         },
@@ -148,6 +160,51 @@ export default class ConfigStore extends Service {
           if (store.has("lastfm.token")) {
             // @ts-expect-error Removed store key
             store.delete("lastfm.token");
+          }
+        },
+        ">=2.2.0": store => {
+          if (!store.has("appearance.theme")) {
+            store.set("appearance.theme", ThemeSelection.Default);
+          }
+
+          if (!store.has("appearance.themeFilePath")) {
+            store.set("appearance.themeFilePath", null);
+          }
+
+          if (!store.has("appearance.backgroundVideoEnabled")) {
+            store.set("appearance.backgroundVideoEnabled", false);
+          }
+
+          if (!store.has("appearance.backgroundVideoPath")) {
+            store.set("appearance.backgroundVideoPath", null);
+          }
+
+          if (!store.has("appearance.backgroundVideoMaskOpacity")) {
+            store.set("appearance.backgroundVideoMaskOpacity", 60);
+          }
+
+          if (!store.has("appearance.backgroundVideoMaskBlur")) {
+            store.set("appearance.backgroundVideoMaskBlur", 0);
+          }
+
+          if (!store.has("integrations.discordPresenceDetailsTemplate")) {
+            store.set("integrations.discordPresenceDetailsTemplate", DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.details);
+          }
+
+          if (!store.has("integrations.discordPresenceStateTemplate")) {
+            store.set("integrations.discordPresenceStateTemplate", DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.state);
+          }
+
+          if (!store.has("integrations.discordPresenceLargeTextTemplate")) {
+            store.set("integrations.discordPresenceLargeTextTemplate", DEFAULT_PRESENCE_DISPLAY_SETTINGS.templates.largeText);
+          }
+
+          if (!store.has("integrations.discordPresenceShowButton")) {
+            store.set("integrations.discordPresenceShowButton", DEFAULT_PRESENCE_DISPLAY_SETTINGS.showButton);
+          }
+
+          if (!store.has("integrations.discordPresenceStatusDisplay")) {
+            store.set("integrations.discordPresenceStatusDisplay", DEFAULT_PRESENCE_DISPLAY_SETTINGS.statusDisplay);
           }
         }
       }

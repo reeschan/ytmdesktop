@@ -22,23 +22,23 @@ window.ytmd.autoUpdater.onError(() => {
 </script>
 
 <template>
-  <div class="app-updater-container">
+  <div class="app-updater-container tw:bg-ytmd-background">
     <img
       class="logo"
       draggable="false"
       :src="logo"
     >
     <div class="music-loader">
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
-      <div class="loader-line" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
+      <div class="loader-line tw:bg-ytmd-text" />
     </div>
-    <p class="status-text">
+    <p class="status-text tw:text-ytmd-text-muted">
       {{ appLoadingStatus }}
     </p>
   </div>
@@ -47,7 +47,6 @@ window.ytmd.autoUpdater.onError(() => {
 <style scoped>
 .app-updater-container {
   height: 100%;
-  background-color: #000000;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -59,10 +58,6 @@ window.ytmd.autoUpdater.onError(() => {
   width: 128px;
   height: 128px;
   margin-bottom: 16px;
-}
-
-.status-text {
-  color: #969696;
 }
 
 .music-loader {
@@ -77,7 +72,6 @@ window.ytmd.autoUpdater.onError(() => {
   width: 6px;
   height: 2px;
   border-radius: 10px;
-  background-color: #ffffff;
   animation: musicloader 1.5s ease-in-out infinite;
 }
 

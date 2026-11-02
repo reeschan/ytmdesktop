@@ -1,6 +1,8 @@
 ---
 name: Application Publish
 
+# Pushing a tag such as v2.2.0 builds the Windows installer and attaches it to a draft GitHub Release of this repository.
+# The tag must match the version in package.json. Publish the draft to make it available to the auto updater.
 on:
   push:
     tags:
@@ -15,16 +17,7 @@ jobs:
   build:
     strategy:
       matrix:
-        os:
-          [
-            { name: "linux", image: "ubuntu-24.04", arch: "x64" },
-            { name: "linux", image: "ubuntu-24.04-arm", arch: "arm64" },
-            { name: "windows", image: "windows-2025", arch: "x64" },
-            # Naming conflict can't publish windows arm. See #1183.
-            # { name: "windows", image: "windows-11-arm", arch: "arm64" },
-            { name: "macos", image: "macos-26-intel", arch: "x64" },
-            { name: "macos", image: "macos-26", arch: "arm64" },
-          ]
+        os: [{ name: "windows", image: "windows-2025", arch: "x64" }]
 
       fail-fast: true # Explicitly failing fast because this is a publish. We want to bail the entire release if something went wrong with another build
 
@@ -39,6 +32,15 @@ jobs:
         with:
           runtime: node@lts
           cache: true
+
+      - name: Check the tag matches package.json
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "The tag $GITHUB_REF_NAME does not match package.json ($version)"
+            exit 1
+          fi
 
       - name: Make (${{ matrix.os.arch }})
         env:

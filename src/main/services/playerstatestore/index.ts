@@ -374,6 +374,9 @@ export default class PlayerStateStore extends EventEmitterService<PlayerStateSto
     if (windowManager.hasWindow("Miniplayer")) {
       windowManager.getWindow("Miniplayer").ipcBroadcast("playerStateStore:stateChanged", state);
     }
+    if (windowManager.hasWindow("Settings")) {
+      windowManager.getWindow("Settings").ipcBroadcast("playerStateStore:stateChanged", state);
+    }
 
     if (state.hasFullMetadata && state.videoDetails) {
       if (windowManager.hasWindow("Main"))
