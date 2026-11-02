@@ -14,9 +14,9 @@
 - 本家の README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - 本家のリリース: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
-この fork は、本家のコードを改変しています (2026-11-02、reeschan)。改変したのは下の 3 つの機能とそれに伴う設定・ビルドの変更で、ファイルごとの変更はコミットの履歴にあります。ライセンスは本家と同じ [GPL-3.0](LICENSE) です。本家とは関係のない非公式の fork です。YouTube と YouTube Music は Google LLC の商標です。
+この fork は、本家のコードを改変しています (2026-11-02、reeschan)。改変したのは下の 4 つの機能とそれに伴う設定・ビルドの変更で、ファイルごとの変更はコミットの履歴にあります。ライセンスは本家と同じ [GPL-3.0](LICENSE) です。本家とは関係のない非公式の fork です。YouTube と YouTube Music は Google LLC の商標です。Shazam は Apple Inc. の商標です。
 
-この fork では、次の 3 つの機能を足しています。
+この fork では、次の 4 つの機能を足しています。
 
 ### 1. テーマ
 
@@ -83,11 +83,19 @@
 - 「Play on YTMDesktop」ボタンを出すかどうかと、Discord のメンバー一覧に何を出すか (アプリ名・1 行目・2 行目) を選べます。
 - 設定画面で、再生中の曲を使ったプレビューを見ながら書けます。
 
+### 4. 曲の聞き取り (Shazam)
+
+設定の **Integrations → Shazam** で有効にし、[RapidAPI の Shazam](https://rapidapi.com/apidojo/api/shazam) で取った API Key を入れます。キーは暗号化して保存されます。
+
+- 音の元は、PC の音 (Windows のみ)、システムの既定のマイク、入力デバイスから選びます。macOS と Linux の既定はシステムの既定のマイクで、Linux で PC の音を録るときは Monitor のデバイスを選びます。
+- 検索欄の右のアイコンを押すと 5 秒録って曲を探し、見つかれば `曲名 アーティスト` で検索します。音の元が PC の音でアプリが再生中なら、録音の間だけ再生を止めます。
+- 本家とは関係のない非公式の連携です。Shazam (Apple) とも関係はありません。
+
 ### 構成
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。YouTube Music のビューで曲の聞き取りのアイコンを押すと、main の SongRecognition が隠れたアプリ画面に PC の音かマイクを 5 秒録らせ、RapidAPI の Shazam API に問い合わせ、一致した曲を YouTube Music のビューで検索する。">
 </picture>
 
 図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
@@ -97,7 +105,7 @@
 ```sh
 pnpm install
 pnpm start   # 開発版を起動
-pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定・Discord の表示の組み立て)
+pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定・Discord の表示の組み立て・曲の聞き取り)
 ```
 
 設計の文書は [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md)、[docs/adr/](docs/adr/)、[GLOSSARY.md](GLOSSARY.md) にあります。
@@ -128,9 +136,9 @@ For the app's features, downloads, development setup and build steps, see the up
 - Upstream README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - Upstream releases: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
-This fork modifies the upstream code (2026-11-02, reeschan). The changes are the three features below and the settings and build changes they need; the commit history lists the changes file by file. It is licensed under [GPL-3.0](LICENSE), the same as upstream. It is an unofficial fork, not affiliated with upstream. YouTube and YouTube Music are trademarks of Google LLC.
+This fork modifies the upstream code (2026-11-02, reeschan). The changes are the four features below and the settings and build changes they need; the commit history lists the changes file by file. It is licensed under [GPL-3.0](LICENSE), the same as upstream. It is an unofficial fork, not affiliated with upstream. YouTube and YouTube Music are trademarks of Google LLC. Shazam is a trademark of Apple Inc.
 
-This fork adds the following three features.
+This fork adds the following four features.
 
 ### 1. Themes
 
@@ -197,11 +205,19 @@ In **Integrations → Discord rich presence**, change what Discord shows.
 - Choose whether to show the "Play on YTMDesktop" button, and what the Discord member list shows (app name, first line or second line).
 - A preview built from the playing song shows the result while you type.
 
+### 4. Song recognition (Shazam)
+
+Turn it on in **Integrations → Shazam** and enter an API Key from [Shazam on RapidAPI](https://rapidapi.com/apidojo/api/shazam). The key is stored encrypted.
+
+- Choose the audio source from the PC's sound (Windows only), the system's default microphone, or an input device. On macOS and Linux the default is the system's default microphone; on Linux, choose a Monitor device to record the PC's sound.
+- Press the icon at the right of the search box to record 5 seconds and look the song up. If it is found, the app searches for `title artist`. When the audio source is the PC's sound and the app is playing, playback is paused only while recording.
+- This is an unofficial integration, not affiliated with upstream, and not affiliated with Shazam (Apple) either.
+
 ### Architecture
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm.">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm. Pressing the song recognition icon in the YouTube Music view makes SongRecognition in the main process have the hidden app view record PC audio or the mic for 5 seconds, ask the Shazam API on RapidAPI, and search the matched song in the YouTube Music view.">
 </picture>
 
 The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.
@@ -211,7 +227,7 @@ The diagram source is [docs/architecture/architecture.d2](docs/architecture/arch
 ```sh
 pnpm install
 pnpm start   # run the dev build
-pnpm test    # Vitest (theme resolution, background video decision, Discord activity builder)
+pnpm test    # Vitest (theme resolution, background video decision, Discord activity builder, song recognition)
 ```
 
 Design documents: [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md), [docs/adr/](docs/adr/) and [GLOSSARY.md](GLOSSARY.md).
