@@ -14,6 +14,8 @@
 - 本家の README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - 本家のリリース: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
+この fork は、本家のコードを改変しています (2026-11-02、reeschan)。改変したのは下の 3 つの機能とそれに伴う設定・ビルドの変更で、ファイルごとの変更はコミットの履歴にあります。ライセンスは本家と同じ [GPL-3.0](LICENSE) です。本家とは関係のない非公式の fork です。YouTube と YouTube Music は Google LLC の商標です。
+
 この fork では、次の 3 つの機能を足しています。
 
 ### 1. テーマ
@@ -114,6 +116,10 @@ Windows x64 のインストーラー (exe) を、タグから GitHub Release に
 
 ---
 
+ライセンス: [GPL-3.0](LICENSE)。本家と同じです。
+
+---
+
 ## English
 
 This repository is a personal fork of [ytmdesktop/ytmdesktop](https://github.com/ytmdesktop/ytmdesktop).
@@ -121,6 +127,8 @@ For the app's features, downloads, development setup and build steps, see the up
 
 - Upstream README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - Upstream releases: <https://github.com/ytmdesktop/ytmdesktop/releases>
+
+This fork modifies the upstream code (2026-11-02, reeschan). The changes are the three features below and the settings and build changes they need; the commit history lists the changes file by file. It is licensed under [GPL-3.0](LICENSE), the same as upstream. It is an unofficial fork, not affiliated with upstream. YouTube and YouTube Music are trademarks of Google LLC.
 
 This fork adds the following three features.
 
