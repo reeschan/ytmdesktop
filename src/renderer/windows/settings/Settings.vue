@@ -1,9 +1,12 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { computed, ref } from "vue";
 import KeybindInput from "../../components/KeybindInput.vue";
 import YTMDSetting from "../../components/YTMDSetting.vue";
-import { StoreSchema, TrayIconStyle } from "~shared/store/schema";
+import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
+import { ColorItem } from "~shared/theme";
 import { AuthToken } from "~shared/integrations/companion-server/types";
+import { buildActivity, DiscordActivityStatusDisplayType, TemplateField } from "~shared/discord-presence/activity";
+import { LikeStatus, PlayerState, VideoDetails, VideoState, VideoType } from "~shared/playerstatestore/types";
 import logo from "~assets/icons/ytmd.png";
 
 declare const YTMD_GIT_COMMIT_HASH: string | undefined;
@@ -49,6 +52,28 @@ const customCSSEnabled = ref<boolean>(appearance.customCSSEnabled);
 const customCSSPath = ref<string>(appearance.customCSSPath);
 const zoom = ref<number>(appearance.zoom);
 const trayIconStyle = ref<number>(appearance.trayIconStyle);
+const theme = ref<ThemeSelection>(appearance.theme);
+const themeFilePath = ref<string | null>(appearance.themeFilePath);
+const backgroundVideoEnabled = ref<boolean>(appearance.backgroundVideoEnabled);
+const backgroundVideoPath = ref<string | null>(appearance.backgroundVideoPath);
+const backgroundVideoMaskOpacity = ref<number>(appearance.backgroundVideoMaskOpacity);
+const backgroundVideoMaskBlur = ref<number>(appearance.backgroundVideoMaskBlur);
+
+const themeOptions: Record<ThemeSelection, string> = {
+  [ThemeSelection.Default]: "Default",
+  [ThemeSelection.Midnight]: "Midnight",
+  [ThemeSelection.Forest]: "Forest",
+  [ThemeSelection.File]: "Theme file"
+};
+
+const colorItemNames: Record<ColorItem, string> = {
+  [ColorItem.Background]: "Background",
+  [ColorItem.Surface]: "Surface",
+  [ColorItem.Text]: "Text",
+  [ColorItem.TextMuted]: "Muted text",
+  [ColorItem.Accent]: "Accent",
+  [ColorItem.Border]: "Border"
+};
 
 const continueWhereYouLeftOff = ref<boolean>(playback.continueWhereYouLeftOff);
 const continueWhereYouLeftOffPaused = ref<boolean>(playback.continueWhereYouLeftOffPaused);
@@ -62,6 +87,11 @@ const companionServerAuthTokens = ref<AuthToken[]>(
 );
 const companionServerCORSWildcardEnabled = ref<boolean>(integrations.companionServerCORSWildcardEnabled);
 const discordPresenceEnabled = ref<boolean>(integrations.discordPresenceEnabled);
+const discordPresenceDetailsTemplate = ref<string>(integrations.discordPresenceDetailsTemplate);
+const discordPresenceStateTemplate = ref<string>(integrations.discordPresenceStateTemplate);
+const discordPresenceLargeTextTemplate = ref<string>(integrations.discordPresenceLargeTextTemplate);
+const discordPresenceShowButton = ref<boolean>(integrations.discordPresenceShowButton);
+const discordPresenceStatusDisplay = ref<number>(integrations.discordPresenceStatusDisplay);
 const lastFMEnabled = ref<boolean>(integrations.lastFMEnabled);
 const enhancedMediaServiceEnabled = ref<boolean>(integrations.enhancedMediaServiceEnabled);
 
@@ -91,6 +121,12 @@ store.onDidAnyChange(async newState => {
   customCSSPath.value = newState.appearance.customCSSPath;
   zoom.value = newState.appearance.zoom;
   trayIconStyle.value = newState.appearance.trayIconStyle;
+  theme.value = newState.appearance.theme;
+  themeFilePath.value = newState.appearance.themeFilePath;
+  backgroundVideoEnabled.value = newState.appearance.backgroundVideoEnabled;
+  backgroundVideoPath.value = newState.appearance.backgroundVideoPath;
+  backgroundVideoMaskOpacity.value = newState.appearance.backgroundVideoMaskOpacity;
+  backgroundVideoMaskBlur.value = newState.appearance.backgroundVideoMaskBlur;
 
   continueWhereYouLeftOff.value = newState.playback.continueWhereYouLeftOff;
   continueWhereYouLeftOffPaused.value = newState.playback.continueWhereYouLeftOffPaused;
@@ -104,6 +140,9 @@ store.onDidAnyChange(async newState => {
     : [];
   companionServerCORSWildcardEnabled.value = newState.integrations.companionServerCORSWildcardEnabled;
   discordPresenceEnabled.value = newState.integrations.discordPresenceEnabled;
+  // The Discord template inputs are not synced back here: they save on every keystroke, and an older echoed value would overwrite newer text
+  discordPresenceShowButton.value = newState.integrations.discordPresenceShowButton;
+  discordPresenceStatusDisplay.value = newState.integrations.discordPresenceStatusDisplay;
   lastFMEnabled.value = newState.integrations.lastFMEnabled;
   lastFMSessionKey.value = newState.lastfm.sessionKey;
   scrobblePercent.value = newState.lastfm.scrobblePercent;
@@ -140,6 +179,14 @@ const autoUpdaterDisabled = ref<boolean>(await memoryStore.get("autoUpdaterDisab
 
 const lastFMAuthenticationStep = ref<number>(await memoryStore.get("lastFMAuthenticationStep"));
 
+const themeFileMissing = ref<boolean>(await memoryStore.get("themeFileMissing"));
+const themeUnreadableItems = ref<string[]>((await memoryStore.get("themeUnreadableItems")) ?? []);
+const backgroundVideoFileMissing = ref<boolean>(await memoryStore.get("backgroundVideoFileMissing"));
+
+const themeUnreadableItemNames = computed(() =>
+  themeUnreadableItems.value.map(item => colorItemNames[item as ColorItem] ?? item).join(", ")
+);
+
 memoryStore.onStateChanged(newState => {
   discordPresenceConnectionFailed.value = newState.discordPresenceConnectionFailed;
 
@@ -161,6 +208,66 @@ memoryStore.onStateChanged(newState => {
   autoUpdaterDisabled.value = newState.autoUpdaterDisabled;
 
   lastFMAuthenticationStep.value = newState.lastFMAuthenticationStep;
+
+  themeFileMissing.value = newState.themeFileMissing;
+  themeUnreadableItems.value = newState.themeUnreadableItems ?? [];
+  backgroundVideoFileMissing.value = newState.backgroundVideoFileMissing;
+});
+
+const discordPresenceStatusDisplayOptions: Record<DiscordActivityStatusDisplayType, string> = {
+  [DiscordActivityStatusDisplayType.Name]: "Application name",
+  [DiscordActivityStatusDisplayType.Details]: "First line",
+  [DiscordActivityStatusDisplayType.State]: "Second line"
+};
+const discordPresenceStatusDisplayOrder: DiscordActivityStatusDisplayType[] = [
+  DiscordActivityStatusDisplayType.Name,
+  DiscordActivityStatusDisplayType.Details,
+  DiscordActivityStatusDisplayType.State
+];
+
+const discordPresenceTemplateFields = Object.values(TemplateField)
+  .map(field => `{${field}}`)
+  .join(", ");
+
+// Used by the Discord preview while nothing is playing
+const DISCORD_PREVIEW_SAMPLE_VIDEO_DETAILS: VideoDetails = {
+  album: "Album",
+  albumId: null,
+  author: "Artist",
+  channelId: "",
+  durationSeconds: 0,
+  thumbnails: [],
+  title: "Song title",
+  id: "",
+  likeStatus: LikeStatus.Unknown,
+  videoType: VideoType.Unknown,
+  isLive: false
+};
+
+const playerState = ref<PlayerState | null>((await window.ytmd.getPlayerState?.()) ?? null);
+window.ytmd.onPlayerStateChanged?.(state => {
+  playerState.value = state;
+});
+
+const discordPresencePreview = computed(() => {
+  const videoDetails = playerState.value?.videoDetails;
+  return buildActivity(
+    {
+      templates: {
+        details: discordPresenceDetailsTemplate.value,
+        state: discordPresenceStateTemplate.value,
+        largeText: discordPresenceLargeTextTemplate.value
+      },
+      showButton: discordPresenceShowButton.value,
+      statusDisplay: discordPresenceStatusDisplay.value
+    },
+    {
+      videoDetails: videoDetails ?? DISCORD_PREVIEW_SAMPLE_VIDEO_DETAILS,
+      videoState: videoDetails ? playerState.value.trackState : VideoState.Paused,
+      progressSeconds: videoDetails ? playerState.value.videoProgress : 0,
+      nowMs: Date.now()
+    }
+  );
 });
 
 async function memorySettingsChanged() {
@@ -178,6 +285,10 @@ async function settingsChanged() {
   store.set("appearance.customCSSEnabled", customCSSEnabled.value);
   store.set("appearance.zoom", zoom.value);
   store.set("appearance.trayIconStyle", trayIconStyle.value);
+  store.set("appearance.theme", theme.value);
+  store.set("appearance.backgroundVideoEnabled", backgroundVideoEnabled.value);
+  store.set("appearance.backgroundVideoMaskOpacity", Number(backgroundVideoMaskOpacity.value));
+  store.set("appearance.backgroundVideoMaskBlur", Number(backgroundVideoMaskBlur.value));
 
   store.set("playback.continueWhereYouLeftOff", continueWhereYouLeftOff.value);
   store.set("playback.continueWhereYouLeftOffPaused", continueWhereYouLeftOffPaused.value);
@@ -188,6 +299,11 @@ async function settingsChanged() {
   store.set("integrations.companionServerEnabled", companionServerEnabled.value);
   store.set("integrations.companionServerCORSWildcardEnabled", companionServerCORSWildcardEnabled.value);
   store.set("integrations.discordPresenceEnabled", discordPresenceEnabled.value);
+  store.set("integrations.discordPresenceDetailsTemplate", discordPresenceDetailsTemplate.value);
+  store.set("integrations.discordPresenceStateTemplate", discordPresenceStateTemplate.value);
+  store.set("integrations.discordPresenceLargeTextTemplate", discordPresenceLargeTextTemplate.value);
+  store.set("integrations.discordPresenceShowButton", discordPresenceShowButton.value);
+  store.set("integrations.discordPresenceStatusDisplay", discordPresenceStatusDisplay.value);
   store.set("integrations.lastFMEnabled", lastFMEnabled.value);
   store.set("lastfm.scrobblePercent", scrobblePercent.value);
   store.set("integrations.enhancedMediaServiceEnabled", enhancedMediaServiceEnabled.value);
@@ -202,6 +318,11 @@ async function settingsChanged() {
   store.set("shortcuts.volumeMute", shortcutVolumeMute.value);
   store.set("shortcuts.toggleShuffle", shortcutToggleShuffle.value);
   store.set("shortcuts.toggleRepeat", shortcutToggleRepeat.value);
+}
+
+// Saves a single setting without rewriting the others (for example a text input that saves on every keystroke)
+function singleSettingChanged(key: string, value: unknown) {
+  store.set(key, value);
 }
 
 async function settingChangedRequiresRestart() {
@@ -241,6 +362,14 @@ async function deleteCompanionAuthToken(appId: string) {
 
 function removeCustomCSSPath() {
   store.set("appearance.customCSSPath", null);
+}
+
+function removeThemeFilePath() {
+  store.set("appearance.themeFilePath", null);
+}
+
+function removeBackgroundVideoPath() {
+  store.set("appearance.backgroundVideoPath", null);
 }
 
 function changeTab(newTab: number) {
@@ -298,7 +427,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 <template>
   <div class="settings-container">
     <div class="content-container">
-      <ul class="sidebar">
+      <ul class="sidebar tw:border-ytmd-border">
         <li
           :class="{ active: currentTab === 1 }"
           @click="changeTab(1)"
@@ -340,7 +469,7 @@ window.ytmd.handleUpdateDownloaded(() => {
       <div class="content">
         <div
           v-if="requiresRestart"
-          class="restart-banner"
+          class="restart-banner tw:bg-ytmd-accent"
         >
           <p class="message">
             <span class="material-symbols-outlined">autorenew</span> Restart app to apply changes
@@ -393,10 +522,95 @@ window.ytmd.handleUpdateDownloaded(() => {
           class="appearance-tab"
         >
           <YTMDSetting
-            v-model="alwaysShowVolumeSlider"
+            type="custom"
+            name="Theme"
+          >
+            <select
+              v-model="theme"
+              class="theme-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              @change="settingsChanged"
+            >
+              <option
+                v-for="(optionName, optionValue) of themeOptions"
+                :key="optionValue"
+                :value="optionValue"
+              >
+                {{ optionName }}
+              </option>
+            </select>
+          </YTMDSetting>
+          <YTMDSetting
+            v-if="theme === ThemeSelection.File"
+            v-model="themeFilePath"
+            type="file"
+            indented
+            bind-setting="appearance.themeFilePath"
+            accept=".css"
+            name="Theme file path"
+            @file-change="settingChangedFile"
+            @clear="removeThemeFilePath"
+          />
+          <div
+            v-if="themeFileMissing"
+            class="setting indented"
+          >
+            <p class="appearance-warning tw:text-ytmd-text-muted">
+              Theme file not found. Using the Default colors.
+            </p>
+          </div>
+          <div
+            v-if="themeUnreadableItems.length > 0"
+            class="setting indented"
+          >
+            <p class="appearance-warning tw:text-ytmd-text-muted">
+              Could not read: {{ themeUnreadableItemNames }}. Using the Default colors for them.
+            </p>
+          </div>
+          <YTMDSetting
+            v-model="backgroundVideoEnabled"
             type="checkbox"
-            name="Always show volume slider"
-            description="This feature only works on the old player bar and may not work for you"
+            name="Background video"
+            @change="settingsChanged"
+          />
+          <YTMDSetting
+            v-if="backgroundVideoEnabled"
+            v-model="backgroundVideoPath"
+            type="file"
+            indented
+            bind-setting="appearance.backgroundVideoPath"
+            accept="video/mp4,video/webm,.mp4,.webm"
+            name="Background video file path"
+            @file-change="settingChangedFile"
+            @clear="removeBackgroundVideoPath"
+          />
+          <div
+            v-if="backgroundVideoFileMissing"
+            class="setting indented"
+          >
+            <p class="appearance-warning tw:text-ytmd-text-muted">
+              Video file not found. The background video is not shown.
+            </p>
+          </div>
+          <YTMDSetting
+            v-if="backgroundVideoEnabled"
+            v-model="backgroundVideoMaskOpacity"
+            type="range"
+            indented
+            max="100"
+            min="0"
+            step="5"
+            name="Mask opacity"
+            @change="settingsChanged"
+          />
+          <YTMDSetting
+            v-if="backgroundVideoEnabled"
+            v-model="backgroundVideoMaskBlur"
+            type="range"
+            indented
+            max="20"
+            min="0"
+            step="1"
+            name="Blur"
             @change="settingsChanged"
           />
           <YTMDSetting
@@ -414,6 +628,13 @@ window.ytmd.handleUpdateDownloaded(() => {
             name="Custom CSS file path"
             @file-change="settingChangedFile"
             @clear="removeCustomCSSPath"
+          />
+          <YTMDSetting
+            v-model="alwaysShowVolumeSlider"
+            type="checkbox"
+            name="Always show volume slider"
+            description="This feature only works on the old player bar and may not work for you"
+            @change="settingsChanged"
           />
           <YTMDSetting
             v-model="zoom"
@@ -547,7 +768,7 @@ window.ytmd.handleUpdateDownloaded(() => {
             </table>
             <div
               v-if="companionServerAuthTokens.length === 0"
-              class="no-authorized-companions"
+              class="no-authorized-companions tw:text-ytmd-text-muted"
             >
               <td>No authorized companions</td>
             </div>
@@ -562,13 +783,84 @@ window.ytmd.handleUpdateDownloaded(() => {
             v-if="discordPresenceEnabled && discordPresenceConnectionFailed"
             class="setting indented"
           >
-            <p class="discord-failure">
+            <p class="discord-failure tw:text-ytmd-text-muted">
               Discord connection could not be established after 30 attempts
             </p>
             <button @click="restartDiscordPresence">
               Retry
             </button>
           </div>
+          <template v-if="discordPresenceEnabled">
+            <div class="setting indented">
+              <p class="discord-template-fields tw:text-ytmd-text-muted">
+                Available fields: {{ discordPresenceTemplateFields }}
+              </p>
+            </div>
+            <YTMDSetting
+              v-model="discordPresenceDetailsTemplate"
+              type="text"
+              name="First line"
+              indented
+              @change="singleSettingChanged('integrations.discordPresenceDetailsTemplate', discordPresenceDetailsTemplate)"
+            />
+            <YTMDSetting
+              v-model="discordPresenceStateTemplate"
+              type="text"
+              name="Second line"
+              indented
+              @change="singleSettingChanged('integrations.discordPresenceStateTemplate', discordPresenceStateTemplate)"
+            />
+            <YTMDSetting
+              v-model="discordPresenceLargeTextTemplate"
+              type="text"
+              name="Album art tooltip"
+              indented
+              @change="singleSettingChanged('integrations.discordPresenceLargeTextTemplate', discordPresenceLargeTextTemplate)"
+            />
+            <YTMDSetting
+              v-model="discordPresenceShowButton"
+              type="checkbox"
+              name="Show 'Play on YTMDesktop' button"
+              indented
+              @change="settingsChanged"
+            />
+            <YTMDSetting
+              v-model="discordPresenceStatusDisplay"
+              type="select"
+              name="Shown in the member list"
+              :options-map="discordPresenceStatusDisplayOptions"
+              :options-order="discordPresenceStatusDisplayOrder"
+              indented
+              @change="settingsChanged"
+            />
+            <div class="setting indented">
+              <div class="discord-preview tw:bg-ytmd-surface tw:border-ytmd-border">
+                <p class="discord-preview-title tw:text-ytmd-text-muted">
+                  Preview
+                </p>
+                <p class="discord-preview-line">
+                  {{ discordPresencePreview.details }}
+                </p>
+                <p
+                  v-if="discordPresencePreview.state"
+                  class="discord-preview-line"
+                >
+                  {{ discordPresencePreview.state }}
+                </p>
+                <p
+                  v-if="discordPresencePreview.assets?.large_text"
+                  class="discord-preview-line tw:text-ytmd-text-muted"
+                >
+                  Album art tooltip: {{ discordPresencePreview.assets.large_text }}
+                </p>
+                <span
+                  v-for="button of discordPresencePreview.buttons ?? []"
+                  :key="button.label"
+                  class="discord-preview-button tw:border-ytmd-border"
+                >{{ button.label }}</span>
+              </div>
+            </div>
+          </template>
           <YTMDSetting
             v-model="lastFMEnabled"
             type="checkbox"
@@ -816,19 +1108,19 @@ window.ytmd.handleUpdateDownloaded(() => {
             </button>
             <p
               v-if="checkingForUpdate && !updateAvailable && !updateDownloaded"
-              class="updating"
+              class="updating tw:text-ytmd-text-muted"
             >
               <span class="material-symbols-outlined">progress_activity</span>Checking for updates...
             </p>
             <p
               v-if="updateAvailable && !updateDownloaded"
-              class="updating"
+              class="updating tw:text-ytmd-text-muted"
             >
               <span class="material-symbols-outlined">progress_activity</span>Downloading update...
             </p>
             <p
               v-if="updateNotAvailable"
-              class="no-update"
+              class="no-update tw:text-ytmd-text-muted"
             >
               Update not available
             </p>
@@ -840,10 +1132,10 @@ window.ytmd.handleUpdateDownloaded(() => {
             >
               <span class="material-symbols-outlined">update</span>Check for updates
             </button>
-            <p class="no-auto-updater">
+            <p class="no-auto-updater tw:text-ytmd-text-muted">
               Auto updater disabled
             </p>
-            <p class="no-auto-updater">
+            <p class="no-auto-updater tw:text-ytmd-text-muted">
               Platform or build does not support automatic updates
             </p>
           </template>
@@ -892,11 +1184,11 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .content::-webkit-scrollbar-track {
-  background: #212121;
+  background: var(--ytmd-color-surface);
 }
 
 .content::-webkit-scrollbar-thumb {
-  background-color: #414141;
+  background-color: color-mix(in srgb, var(--ytmd-color-text) 15%, transparent);
 }
 
 .sidebar {
@@ -906,7 +1198,8 @@ window.ytmd.handleUpdateDownloaded(() => {
   margin: unset;
   padding: unset;
   height: 100%;
-  border-right: 1px solid #212121;
+  border-right-width: 1px;
+  border-right-style: solid;
   display: flex;
   flex-direction: column;
 }
@@ -916,7 +1209,7 @@ window.ytmd.handleUpdateDownloaded(() => {
   align-items: center;
   padding: 16px;
   cursor: pointer;
-  color: #bbbbbb;
+  color: var(--ytmd-color-text-muted);
 }
 
 .sidebar li .material-symbols-outlined {
@@ -929,12 +1222,12 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .sidebar li:hover {
-  background-color: #111111;
+  background-color: color-mix(in srgb, var(--ytmd-color-surface) 50%, transparent);
 }
 
 .sidebar li.active {
-  background-color: #212121;
-  color: #eeeeee;
+  background-color: var(--ytmd-color-surface);
+  color: var(--ytmd-color-text);
 }
 
 .sidebar li .material-symbols-outlined {
@@ -954,7 +1247,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 .setting.indented {
   margin-left: 12px;
   padding-left: 12px;
-  border-left: 1px solid #212121;
+  border-left: 1px solid var(--ytmd-color-border);
 }
 
 .name-with-description .name {
@@ -963,7 +1256,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 
 .name-with-description .description {
   margin-top: 4px;
-  color: #969696;
+  color: var(--ytmd-color-text-muted);
 }
 
 .about-tab {
@@ -986,11 +1279,11 @@ window.ytmd.handleUpdateDownloaded(() => {
 
 .version-info p {
   margin: 4px 0;
-  color: #bbbbbb;
+  color: var(--ytmd-color-text-muted);
 }
 
 .version-info .divider {
-  background-color: #414141;
+  background-color: color-mix(in srgb, var(--ytmd-color-text) 25%, transparent);
   height: 1px;
   margin: 8px 0;
 }
@@ -1007,11 +1300,10 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .links a {
-  color: #bbbbbb;
+  color: var(--ytmd-color-text-muted);
 }
 
 .restart-banner {
-  background-color: #f44336;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1029,7 +1321,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 .restart-banner .restart-button {
   margin: 0 8px;
   background-color: transparent;
-  border: 1px solid #ffffff;
+  border: 1px solid var(--ytmd-color-text);
   border-radius: 4px;
   padding: 8px 16px;
   cursor: pointer;
@@ -1039,7 +1331,7 @@ window.ytmd.handleUpdateDownloaded(() => {
   display: flex;
   align-items: center;
   background-color: transparent;
-  border: 1px solid #ffffff;
+  border: 1px solid var(--ytmd-color-text);
   border-radius: 4px;
   padding: 4px 8px;
   margin-bottom: 8px;
@@ -1047,7 +1339,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .update-check-button:disabled {
-  border: 1px solid #888888;
+  border: 1px solid var(--ytmd-color-text-muted);
   cursor: not-allowed;
 }
 
@@ -1055,14 +1347,12 @@ window.ytmd.handleUpdateDownloaded(() => {
 .no-update {
   display: flex;
   align-items: center;
-  color: #888888;
   margin: 0 0 8px 0;
 }
 
 .no-auto-updater {
   display: flex;
   align-items: center;
-  color: #888888;
   margin: 0 0 8px 0;
 }
 
@@ -1082,7 +1372,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 .update-button {
   display: flex;
   align-items: center;
-  background-color: #f44336;
+  background-color: var(--ytmd-color-accent);
   border: none;
   border-radius: 4px;
   padding: 4px 8px;
@@ -1101,7 +1391,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .setting.disabled {
-  color: #c6c6c6;
+  color: var(--ytmd-color-text-muted);
 }
 
 .authorized-companions-table {
@@ -1115,7 +1405,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .authorized-companions-table tr .companion .id {
-  color: #969696;
+  color: var(--ytmd-color-text-muted);
   font-size: 14px;
 }
 
@@ -1133,7 +1423,7 @@ window.ytmd.handleUpdateDownloaded(() => {
 }
 
 .authorized-companions-table thead tr th {
-  border-bottom: 1px solid #212121;
+  border-bottom: 1px solid var(--ytmd-color-border);
 }
 .authorized-companions-table thead tr .controls {
   width: 48px;
@@ -1144,19 +1434,62 @@ window.ytmd.handleUpdateDownloaded(() => {
   padding: 4px;
   display: flex;
   align-items: center;
-  background-color: #212121;
+  background-color: var(--ytmd-color-surface);
   cursor: pointer;
   border: none;
 }
 
 .no-authorized-companions {
-  color: #bbbbbb;
   padding: 4px;
 }
 
 .discord-failure {
   margin: 0;
-  color: #969696;
+}
+
+.discord-template-fields {
+  margin: 0;
+}
+
+.discord-preview {
+  width: 100%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.discord-preview-title {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+}
+
+.discord-preview-line {
+  margin: 0 0 4px 0;
+  overflow-wrap: anywhere;
+}
+
+.discord-preview-button {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.appearance-warning {
+  margin: 0;
+}
+
+.theme-select {
+  width: 216px;
+  padding: 8px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+  cursor: pointer;
 }
 
 button {
@@ -1165,7 +1498,7 @@ button {
   padding: 8px;
   display: flex;
   align-items: center;
-  background-color: #212121;
+  background-color: var(--ytmd-color-surface);
   cursor: pointer;
   border: none;
 }
