@@ -10,6 +10,9 @@ import LastFM from "./integrations/last-fm";
 import NowPlayingNotifications from "./integrations/notifications";
 import VolumeRatio from "./integrations/volume-ratio";
 import EnhancedMediaService from "./integrations/enhanced-media-service";
+import SongRecognition from "./integrations/song-recognition";
+import { installSongRecognitionMediaHandlers } from "./integrations/song-recognition/media";
+import { SHAZAM_API_KEY_URL } from "~shared/song-recognition";
 import path from "node:path";
 import electronSquirrelStartup from "electron-squirrel-startup";
 import { ServiceHost } from "./services/servicehost";
@@ -108,7 +111,7 @@ integrationManager.on("enable-error", (integration, error) => {
     buttons: ["Okay"]
   });
 });
-integrationManager.createIntegrations([CompanionServer, DiscordPresence, LastFM, NowPlayingNotifications, VolumeRatio, CustomCSS, EnhancedMediaService]);
+integrationManager.createIntegrations([CompanionServer, DiscordPresence, LastFM, NowPlayingNotifications, VolumeRatio, CustomCSS, EnhancedMediaService, SongRecognition]);
 integrationManager.runHook(IntegrationManagerHook.AppBeforeReady);
 
 let tray: Tray;
@@ -252,6 +255,16 @@ app.on("ready", async () => {
       }
     }
   });
+  installSongRecognitionMediaHandlers(() => mainView.webContents);
+  mainView.on("webcontents-will-navigate", event => {
+    log.warn("Blocked navigation of the app view", event.url);
+    event.preventDefault();
+  });
+  mainView.on("webcontents-will-redirect", event => {
+    log.warn("Blocked redirect of the app view", event.url);
+    event.preventDefault();
+  });
+  SongRecognition.setAppViewContentsGetter(() => mainView.webContents);
   mainView.ipcOn("ytmView:reload", () => {
     const ytmView = ytmViewManager.getView();
     if (ytmView) {
@@ -370,7 +383,7 @@ app.on("ready", async () => {
       }
     });
     settingsWindow.setWindowOpenHandler(details => {
-      if (details.url === "https://github.com/ytmdesktop/ytmdesktop" || details.url === "https://ytmdesktop.github.io/") {
+      if (details.url === "https://github.com/ytmdesktop/ytmdesktop" || details.url === "https://ytmdesktop.github.io/" || details.url === SHAZAM_API_KEY_URL) {
         shell.openExternal(details.url);
       }
 
