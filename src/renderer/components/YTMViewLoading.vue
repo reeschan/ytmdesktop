@@ -100,7 +100,7 @@ function refreshYtm() {
             v-else
             class="load-error-container"
           >
-            <p class="ytmview-loading-status error tw:text-ytmd-accent">
+            <p class="ytmview-loading-status error">
               Failed to load YouTube Music: {{ ytmViewLoadError.description }} ({{ ytmViewLoadError.code }})
             </p>
             <button
@@ -112,7 +112,7 @@ function refreshYtm() {
           </div>
           <div
             v-if="ytmViewLoadTimedOut && !ytmViewLoadError"
-            class="ytmview-loading-timeout tw:text-ytmd-accent"
+            class="ytmview-loading-timeout"
           >
             <span>YouTube Music is taking longer than usual to load</span>
           </div>
@@ -159,6 +159,11 @@ function refreshYtm() {
   align-items: center;
 }
 
+/* Error colors stay the same in every theme */
+.ytmview-loading-status.error {
+  color: #f44336;
+}
+
 .refresh-ytm-button {
   border-radius: 4px;
   padding: 8px;
@@ -169,6 +174,7 @@ function refreshYtm() {
 }
 
 .ytmview-loading-timeout {
+  color: #f44336;
   display: flex;
   flex-direction: column;
   justify-content: center;

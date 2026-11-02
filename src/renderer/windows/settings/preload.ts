@@ -55,10 +55,12 @@ contextBridge.exposeInMainWorld("ytmd", {
   lastFMStepAuthenticate: () => ipcRenderer.send("lastfm:authenticate"),
 
   getPlayerState: async (): Promise<PlayerState | null> => await ipcRenderer.invoke("playerStateStore:getState"),
-  onPlayerStateChanged: (callback: (state: PlayerState) => void) =>
+  // Block body so ipcRenderer itself is never returned through the context bridge
+  onPlayerStateChanged: (callback: (state: PlayerState) => void) => {
     ipcRenderer.on("playerStateStore:stateChanged", (event: Electron.IpcRendererEvent, state: PlayerState) => {
       callback(state);
-    }),
+    });
+  },
 
   processVersions: { electron: process.versions.electron, chrome: process.versions.chrome }
 });

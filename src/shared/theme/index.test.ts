@@ -149,7 +149,7 @@ describe("isReadableColor", () => {
     expect(isReadableColor(value)).toBe(true);
   });
 
-  it.each(["banana", "#12", "#12345", "rgb(", "rgb(0 0 0", "url(x)", "rgb(var(--x))", "red; } body {", "red}", "{red"])("rejects %j", value => {
+  it.each(["banana", "#12", "#12345", "rgb(", "rgb(0 0 0", "url(x)", "rgb(var(--x))", "red; } body {", "red}", "{red", "rgb()", "rgb(255 0)", "rgb(255, 0)", "hsl(deg)", "rgb(1,,,)", "rgb(1 2 3 4)", "rgb(1, 2 3)"])("rejects %j", value => {
     expect(isReadableColor(value)).toBe(false);
   });
 });

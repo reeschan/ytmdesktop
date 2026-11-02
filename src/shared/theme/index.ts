@@ -105,7 +105,16 @@ const NAMED_COLORS = new Set([
 ]);
 
 const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
-const FUNCTION_COLOR = /^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)\((?:[0-9.%/,\s+-]|deg|none)*\)$/i;
+// A color function takes three components and an optional alpha, either space separated with "/ alpha" or comma separated
+const COLOR_COMPONENT = String.raw`(?:[+-]?(?:\d+\.?\d*|\.\d+)(?:%|deg)?|none)`;
+const COLOR_FUNCTION_NAME = "(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch)";
+const FUNCTION_COLOR = new RegExp(
+  String.raw`^${COLOR_FUNCTION_NAME}\(\s*(?:` +
+    String.raw`${COLOR_COMPONENT}\s+${COLOR_COMPONENT}\s+${COLOR_COMPONENT}(?:\s*\/\s*${COLOR_COMPONENT})?` +
+    String.raw`|${COLOR_COMPONENT}\s*,\s*${COLOR_COMPONENT}\s*,\s*${COLOR_COMPONENT}(?:\s*,\s*${COLOR_COMPONENT})?` +
+    String.raw`)\s*\)$`,
+  "i"
+);
 const CSS_BREAKING_CHARACTERS = /[;{}]/;
 
 /**

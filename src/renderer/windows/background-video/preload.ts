@@ -7,9 +7,11 @@ import type { BackgroundVideoViewState as BackgroundVideoState } from "~shared/b
 export type { BackgroundVideoViewState as BackgroundVideoState } from "~shared/background-video";
 
 contextBridge.exposeInMainWorld("ytmd", {
-  onBackgroundVideoState: (callback: (state: BackgroundVideoState) => void) =>
+  // Block body so ipcRenderer itself is never returned through the context bridge
+  onBackgroundVideoState: (callback: (state: BackgroundVideoState) => void) => {
     ipcRenderer.on("backgroundVideo:state", (event: Electron.IpcRendererEvent, state: BackgroundVideoState) => {
       callback(state);
-    }),
+    });
+  },
   requestBackgroundVideoState: () => ipcRenderer.send("backgroundVideo:requestState")
 });

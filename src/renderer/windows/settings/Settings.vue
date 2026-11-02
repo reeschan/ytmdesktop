@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed, onBeforeUnmount, ref } from "vue";
 import KeybindInput from "../../components/KeybindInput.vue";
 import YTMDSetting from "../../components/YTMDSetting.vue";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
@@ -320,10 +320,35 @@ async function settingsChanged() {
   store.set("shortcuts.toggleRepeat", shortcutToggleRepeat.value);
 }
 
-// Saves a single setting without rewriting the others (for example a text input that saves on every keystroke)
-function singleSettingChanged(key: string, value: unknown) {
-  store.set(key, value);
+// Text inputs report every keystroke, so each setting is saved on its own once typing pauses
+const TEXT_SETTING_SAVE_DELAY_MS = 400;
+const pendingTextSettings = new Map<string, { value: unknown; timeout: ReturnType<typeof setTimeout> }>();
+
+function saveTextSetting(key: string) {
+  const pending = pendingTextSettings.get(key);
+  if (!pending) return;
+
+  clearTimeout(pending.timeout);
+  pendingTextSettings.delete(key);
+  store.set(key, pending.value);
 }
+
+function saveAllTextSettings() {
+  for (const key of [...pendingTextSettings.keys()]) saveTextSetting(key);
+}
+
+function textSettingChanged(key: string, value: unknown) {
+  const pending = pendingTextSettings.get(key);
+  if (pending) clearTimeout(pending.timeout);
+
+  pendingTextSettings.set(key, { value, timeout: setTimeout(() => saveTextSetting(key), TEXT_SETTING_SAVE_DELAY_MS) });
+}
+
+window.addEventListener("beforeunload", saveAllTextSettings);
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", saveAllTextSettings);
+  saveAllTextSettings();
+});
 
 async function settingChangedRequiresRestart() {
   requiresRestart.value = true;
@@ -801,21 +826,21 @@ window.ytmd.handleUpdateDownloaded(() => {
               type="text"
               name="First line"
               indented
-              @change="singleSettingChanged('integrations.discordPresenceDetailsTemplate', discordPresenceDetailsTemplate)"
+              @change="textSettingChanged('integrations.discordPresenceDetailsTemplate', discordPresenceDetailsTemplate)"
             />
             <YTMDSetting
               v-model="discordPresenceStateTemplate"
               type="text"
               name="Second line"
               indented
-              @change="singleSettingChanged('integrations.discordPresenceStateTemplate', discordPresenceStateTemplate)"
+              @change="textSettingChanged('integrations.discordPresenceStateTemplate', discordPresenceStateTemplate)"
             />
             <YTMDSetting
               v-model="discordPresenceLargeTextTemplate"
               type="text"
               name="Album art tooltip"
               indented
-              @change="singleSettingChanged('integrations.discordPresenceLargeTextTemplate', discordPresenceLargeTextTemplate)"
+              @change="textSettingChanged('integrations.discordPresenceLargeTextTemplate', discordPresenceLargeTextTemplate)"
             />
             <YTMDSetting
               v-model="discordPresenceShowButton"

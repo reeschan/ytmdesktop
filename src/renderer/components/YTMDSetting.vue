@@ -131,6 +131,7 @@ function select(optionKey: number) {
       v-model="value"
       class="text-input tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
       :disabled="disabled"
+      :aria-label="name"
       type="text"
       @input="$emit('change', $event)"
     >
@@ -375,6 +376,11 @@ input[type="file"] {
   border-width: 1px;
   border-style: solid;
   outline: none;
+}
+
+.text-input:focus-visible {
+  outline: 2px solid var(--ytmd-color-accent);
+  outline-offset: 1px;
 }
 
 .range-value {
