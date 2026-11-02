@@ -1,4 +1,5 @@
 import { BackgroundVideoSource } from "~shared/background-video";
+import { SongRecognitionInputDevice, SongRecognitionSourceSetting } from "~shared/song-recognition";
 import { BundledTheme } from "~shared/theme";
 
 export enum TrayIconStyle {
@@ -59,6 +60,9 @@ export type StoreSchema = {
     discordPresenceStatusDisplay: number; // Discord status_display_type (0 = Name, 1 = State, 2 = Details)
     lastFMEnabled: boolean;
     enhancedMediaServiceEnabled: boolean;
+    shazamEnabled: boolean;
+    shazamApiKey: string | null; // Encrypted for security
+    shazamAudioSource: SongRecognitionSourceSetting;
   };
   shortcuts: {
     playPause: string;
@@ -128,4 +132,6 @@ export type MemoryStoreSchema = {
 
   lastFMAuthenticationStep: number;
   lastFMToken: string;
+
+  songRecognitionDevices: SongRecognitionInputDevice[];
 };
