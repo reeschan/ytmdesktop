@@ -97,6 +97,9 @@ window.addEventListener("load", async () => {
       report.add(YTMViewSetupCompletionFlags.Early);
       return waitForYTMPlayerApiReady(controller.signal);
     })();
+    const hookedSetup = hooked.then(ready => {
+      if (ready) runHookedSetup();
+    }).finally(() => report.flush());
     const domController = new AbortController();
     const onPageHide = () => domController.abort();
     window.addEventListener("pagehide", onPageHide, { once: true });
@@ -113,16 +116,12 @@ window.addEventListener("load", async () => {
         console.error("Failed to set up the song recognition button", error);
       }
     });
-    const result = await withTimeout(Promise.all([hooked, domReady]), DEFAULT_STARTUP_TIMEOUT_MS);
+    const result = await withTimeout(Promise.all([hookedSetup, domReady]), DEFAULT_STARTUP_TIMEOUT_MS);
     domController.abort();
     window.removeEventListener("pagehide", onPageHide);
-    if (result.done) {
-      if (result.value[0]) runHookedSetup();
-    } else {
+    if (!result.done) {
       console.warn("YTM setup did not finish before the deadline");
-      void hooked.then(ready => {
-        if (ready) runHookedSetup();
-      }).catch(error => report.error(error)).finally(() => report.flush());
+      void hookedSetup.catch(error => report.error(error));
     }
   } catch (error) {
     report.error(error);
