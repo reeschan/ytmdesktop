@@ -1,0 +1,18 @@
+graph LR
+    window-manager["AppWindowManager\nsrc/main/services/windowmanager/"]
+    ytm-view-manager["YTMViewManager\nsrc/main/services/ytmviewmanager/"]
+    theme-manager["ThemeManager\nsrc/main/services/thememanager/"]
+    background-video["BackgroundVideoManager\nsrc/main/services/backgroundvideo/"]
+    protocol-manager["ProtocolManager\nsrc/main/services/protocolmanager/"]
+
+    ytm-view-manager -->|"YTM 画面の AppView を作る"| window-manager
+    theme-manager -->|"status-changed でビューを掴み ready ごとに insertCSS"| ytm-view-manager
+    theme-manager -->|"getWindows でタイトルバーの色を変える"| window-manager
+    background-video -->|"ready・全画面・ytmReport を購読し背景を透明にする"| ytm-view-manager
+    background-video -->|"colors-changed・ytm-theme-applied を購読"| theme-manager
+    background-video -->|"背景動画の AppView を Main の最下層に付ける"| window-manager
+    background-video -->|"BACKGROUND_VIDEO_FILE_HOST の URL を動画の src にする"| protocol-manager
+    protocol-manager -->|"isInitialized を見てから ytmd://play を navigate"| ytm-view-manager
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class protocol-manager entry

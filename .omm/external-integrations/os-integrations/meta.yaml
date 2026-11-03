@@ -1,0 +1,18 @@
+created: 2026-11-03T06:15:39.944Z
+updated: 2026-11-03T06:19:05.900Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: os-integrations
+children:
+  - enhanced-media-service
+  - login-item
+  - media-controls
+  - notifications
+  - os-shell
+  - protocol-manager
+  - shortcut-manager
+  - taskbar-manager
+  - tray
+  - ytm-image-host
+parentPath: []

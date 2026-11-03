@@ -1,0 +1,3 @@
+- Main ウィンドウのビューの重なり (下から): 背景動画の `AppView` (インデックス 0) → YTM 画面 (インデックス 0 で付けた後に背景動画が下に入る) → `mainView` (`createWindow` の `views` で最初に付く読み込み画面)。`mainView` は YTMViewManager が Ready になると `hide`、Loading・応答なし・作り直しで `show` される (`src/main/index.ts`)。
+- ProtocolManager からは定数 `BACKGROUND_VIDEO_FILE_HOST` を import するだけで、`dependencies` には入れていない。ファイルの配信は ProtocolManager が ConfigStore を直接読んで行う。
+- ファイルを選び直したり有効・元・パスが変わると `sourceToken` を `Date.now()` に変え、src の URL を変えてビューに読み直させる。

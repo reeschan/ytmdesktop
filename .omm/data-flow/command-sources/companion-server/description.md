@@ -1,0 +1,1 @@
+Companion Server の API v1。`POST /command` の本文 (typebox のスキーマで確かめた後) を `sendCommand` が `RemoteControl` の `execute` に変える。音量・シーク位置・キューの番号などは、`PlayerStateStore` の今の状態と比べて範囲外ならエラーにする。`GET /playlists` は `invokeMessage("getPlaylists")` で YTM 画面の答えを待つ。詳しくは `request-lifecycle` を見る。

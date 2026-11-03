@@ -1,0 +1,10 @@
+created: 2026-11-03T06:08:58.728Z
+updated: 2026-11-03T06:08:58.729Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: memory-store
+children: []
+parentPath:
+  - services
+  - stores

@@ -1,0 +1,4 @@
+- YTM 画面から出てよい先は限られる。遷移とリダイレクトは music.youtube.com・consent.youtube.com・accounts.youtube.com・youtube.com のログイン / Premium の数パス・各国の Google のアカウントのドメインだけ許し、ほかは止める。外へ開くリンクは google.com・youtube.com・googleusercontent.com・ggpht.com のものだけ既定のブラウザーで開く。
+- YTM 画面にはマイクや画面の取り込みの権限を渡さない。曲の聞き取りの録音は `ytmd-app://` のアプリ画面だけに許し、Shazam の API Key もメインプロセスから出さない (ADR 0003)。
+- Companion Server は `safeStorage` が使えないと有効にならない。
+- 自動更新は、パッケージ版・本番ビルド・Windows・フィードの設定がそろったときだけ動く。

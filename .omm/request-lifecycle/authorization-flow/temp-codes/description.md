@@ -1,0 +1,1 @@
+メモリ上の一時コードの表 (`temporaryCodeMap`、コード → `{ appId, appVersion, appName }`)。コードは `crypto.randomInt` の 4 桁で、使われていないものを 250ms ごとに探す。置いてから 60 秒で消える。`getIsTemporaryAuthCodeValidAndRemove` は `appId` も合うときだけ中身を返し、その場で消す (1 回しか使えない)。

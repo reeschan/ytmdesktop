@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:39.584Z
+updated: 2026-11-03T06:19:39.585Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: os-shell
+children: []
+parentPath:
+  - os-integrations

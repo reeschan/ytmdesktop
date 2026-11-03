@@ -1,0 +1,3 @@
+- 見るときは `omm view` (既定 http://localhost:3000)。
+- PR で変わった範囲だけ図を直すときは omm-pr-scan スキル、全体を作り直すときは omm-scan を使う。
+- ほかの視点: `data-flow` (再生状態と設定の流れ)、`external-integrations` (外部サービスとのつながり)、`request-lifecycle` (Companion Server へのリクエストの処理)。

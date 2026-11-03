@@ -1,0 +1,2 @@
+- mainView は Integration の登録より後に作られるため、`SongRecognition` は static の `setAppViewContentsGetter` で webContents の取り方を受け取る。ほかの Integration には無い、`index.ts` との直接のつながり。
+- `onEnabled` / `onDisabled` と effect の実行は、それぞれ例外を捕まえてログに出す。

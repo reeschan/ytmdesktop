@@ -1,0 +1,9 @@
+created: 2026-11-03T06:09:14.760Z
+updated: 2026-11-03T06:09:20.690Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: manager
+children: []
+parentPath:
+  - main-entry

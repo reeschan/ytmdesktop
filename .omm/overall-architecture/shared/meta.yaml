@@ -1,0 +1,16 @@
+created: 2026-11-03T06:15:11.466Z
+updated: 2026-11-03T06:15:23.093Z
+update_count: 3
+last_field: diagram
+kind: nested-class
+title: shared
+children:
+  - background-video
+  - companion-server-types
+  - discord-presence
+  - playerstatestore-types
+  - song-recognition
+  - store-schema
+  - theme
+  - types
+parentPath: []

@@ -1,0 +1,4 @@
+- CSS の入れ替えは、新しい CSS を `insertCSS` してから古いキーを `removeInsertedCSS` する順で、webContents ごとの Promise の列 (`CssInjection.queue`) で 1 つずつ行う。間に既定の色が見えないようにし、キーを取りこぼさないため。
+- 文書を読み直すと入れた CSS は消えるので、アプリ画面は `dom-ready`、YTM 画面はビューの `ready` でキーを捨てて入れ直す。
+- 色を当てる YTM のセレクター (`YTM_THEME_RULES`・`YTM_BLURRED_SURFACE_RULE`) は YouTube Music の DOM に合わせた決め打ち。YTM 側の変更で効かなくなりうる。
+- カスタム CSS (Integration) や BackgroundVideoManager の透明化のように、テーマより後に効かせたい CSS は `ytm-theme-applied` を受けて入れ直す。

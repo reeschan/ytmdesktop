@@ -1,0 +1,3 @@
+- `app:checkForUpdates` / `app:restartApplicationForUpdate` / `configStore:reset` には main 側の受け手が無い。About タブの「Check for updates」「Restart to update」は main に届かない。
+- `handleCheckingForUpdate` / `handleUpdateAvailable` / `handleUpdateNotAvailable` / `handleUpdateDownloaded` が待つ `autoUpdater:checkingForUpdate` などのチャネルを、main は送っていない。更新の状態は開いたときの `isAppUpdateAvailable` / `isAppUpdateDownloaded` でしか変わらない。
+- `Settings.vue` は全タブを 1 ファイルに持ち、`settingsChanged()` は 1 項目の変更でも全項目を `store.set` で送り直す。

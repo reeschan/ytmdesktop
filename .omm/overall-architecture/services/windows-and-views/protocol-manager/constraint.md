@@ -1,0 +1,4 @@
+- `protocol.handle` は既定のセッションにだけ付く。partition の違う YTM 画面 (`persist:ytmview`) からは `ytmd-app://` を読めない。
+- アプリ画面のファイルの場所は `process.resourcesPath` の `app.asar/.vite/...` 決め打ちで、パッケージ版でだけ正しい。開発版のアプリ画面は Vite の開発サーバー (`ALL_WINDOWS_VITE_DEV_SERVER_URL`) から読む。背景動画のファイル (`background-video-file`) は開発版でも `ytmd-app://` で配る。
+- `isSafePath` で host のフォルダの外を指すパスを 403 にする。背景動画のファイルは要求のパスを使わず、設定の 1 ファイルしか返さない。
+- 新しいアプリ画面を足すときは、`handleYTMDAppProtocol` の `switch (host)` に host を足さないと 404 になる。

@@ -1,0 +1,24 @@
+graph LR
+    state-source["PlayerStateStore のイベント\n(この図の入力)"]
+    discord-presence["DiscordPresence\nsrc/main/integrations/discord-presence/"]
+    last-fm["LastFM\nsrc/main/integrations/last-fm/"]
+    notifications["NowPlayingNotifications\nsrc/main/integrations/notifications/"]
+    enhanced-media-service["EnhancedMediaService\nsrc/main/integrations/enhanced-media-service/"]
+    companion-server["CompanionServer\nsrc/main/integrations/companion-server/"]
+    song-recognition["SongRecognition\nsrc/main/integrations/song-recognition/"]
+    taskbar-manager["TaskbarManager\nsrc/main/services/taskbarmanager/"]
+    state-manager["StateManager\nsrc/main/services/statemanager/"]
+    app-windows["Main・Miniplayer・Settings\nsrc/main/index.ts"]
+
+    state-source -->|"state-changed"| discord-presence
+    state-source -->|"state-changed と player-signal"| last-fm
+    state-source -->|"state-changed"| notifications
+    state-source -->|"state-changed"| enhanced-media-service
+    state-source -->|"state-changed と playlist-created / deleted"| companion-server
+    state-source -->|"録音中だけ state-changed"| song-recognition
+    state-source -->|"state-changed"| taskbar-manager
+    state-source -->|"stateChanged から updateState を直接呼ぶ"| state-manager
+    state-source -->|"ipcBroadcast と setTitle"| app-windows
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class state-source entry

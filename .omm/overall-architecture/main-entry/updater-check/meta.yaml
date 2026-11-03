@@ -1,0 +1,9 @@
+created: 2026-11-03T06:08:18.511Z
+updated: 2026-11-03T06:08:18.512Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: updater-check
+children: []
+parentPath:
+  - main-entry

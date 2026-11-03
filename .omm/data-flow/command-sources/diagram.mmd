@@ -1,0 +1,22 @@
+graph LR
+    tray["トレイのメニュー\nsrc/main/index.ts"]
+    taskbar-buttons["タスクバーのボタン\nsrc/main/services/taskbarmanager/"]
+    global-shortcuts["グローバルショートカット\nsrc/main/services/shortcutmanager/"]
+    miniplayer["ミニプレイヤー\nsrc/renderer/windows/miniplayer/"]
+    companion-server["Companion Server\nsrc/main/integrations/companion-server/"]
+    media-service["OS のメディア操作\nsrc/main/integrations/enhanced-media-service/"]
+    protocol["ytmd:// のリンク\nsrc/main/services/protocolmanager/"]
+    song-recognition["曲の聞き取り\nsrc/main/integrations/song-recognition/"]
+    remote-control-api["RemoteControl API\nsrc/main/services/protectedapimanager/"]
+
+    tray -->|"playPause・previous・next"| remote-control-api
+    taskbar-buttons -->|"previous・playPause・next"| remote-control-api
+    global-shortcuts -->|"設定したキーのコマンド"| remote-control-api
+    miniplayer -->|"remoteControl:execute の IPC を中継"| remote-control-api
+    companion-server -->|"/command の各コマンドと getPlaylists"| remote-control-api
+    media-service -->|"OS のボタンと seekTo"| remote-control-api
+    protocol -->|"ytmd://play を navigate にする"| remote-control-api
+    song-recognition -->|"録音の前後に pause と play"| remote-control-api
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class tray,taskbar-buttons,global-shortcuts,miniplayer,companion-server,media-service,protocol,song-recognition entry

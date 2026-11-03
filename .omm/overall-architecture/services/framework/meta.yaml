@@ -1,0 +1,12 @@
+created: 2026-11-03T06:07:48.870Z
+updated: 2026-11-03T06:08:15.974Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: framework
+children:
+  - service
+  - service-collection
+  - service-host
+parentPath:
+  - services

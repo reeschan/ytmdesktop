@@ -1,0 +1,17 @@
+created: 2026-11-03T06:09:01.327Z
+updated: 2026-11-03T06:09:28.799Z
+update_count: 5
+last_field: concern
+git_commit: 30f091d
+git_branch: feature/grooving
+children:
+  - app-screens
+  - command-sources
+  - config-listeners
+  - config-store
+  - player-state-store
+  - protected-api
+  - settings-window
+  - state-consumers
+  - youtube-music
+  - ytm-view

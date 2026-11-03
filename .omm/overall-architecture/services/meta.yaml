@@ -1,0 +1,16 @@
+created: 2026-11-03T06:07:04.163Z
+updated: 2026-11-03T06:07:27.791Z
+update_count: 4
+last_field: note
+kind: nested-class
+title: services
+children:
+  - auto-updater
+  - flag-manager
+  - framework
+  - integration-manager
+  - playback-control
+  - stores
+  - watchdog
+  - windows-and-views
+parentPath: []

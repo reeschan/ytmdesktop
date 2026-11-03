@@ -1,0 +1,1 @@
+update.electronjs.org。GitHub のリポジトリの Releases を、Electron の `autoUpdater` (Windows では Squirrel) が読める形で配るサービス。どのリポジトリを見るかはビルド時の `YTMD_UPDATE_FEED_OWNER` / `YTMD_UPDATE_FEED_REPOSITORY` で決まる。変更履歴の本文もここから取る。

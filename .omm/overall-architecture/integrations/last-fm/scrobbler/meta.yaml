@@ -1,0 +1,10 @@
+created: 2026-11-03T06:12:34.752Z
+updated: 2026-11-03T06:12:52.438Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: scrobbler
+children: []
+parentPath:
+  - integrations
+  - last-fm

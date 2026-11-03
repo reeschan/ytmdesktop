@@ -1,0 +1,1 @@
+アプリの版 (`getAppVersion`)、ビルド時に埋め込む git のコミットとブランチ (`YTMD_GIT_COMMIT_HASH` / `YTMD_GIT_BRANCH`)、Electron と Chrome の版を出す。自動更新が使えるときは「Check for updates」と「Restart to update」のボタンと更新の状態を、使えないときは「Auto updater disabled」を出す。

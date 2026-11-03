@@ -1,0 +1,1 @@
+TypeBox で書いたリクエストの body の型。`APIV1CommandRequestBody` (`command` ごとの Union: playPause・volumeUp・seekTo・shuffle・repeatMode・playQueueIndex・changeVideo・toggleLike など)、`APIV1RequestCodeBody` (appId・appName・appVersion)、`APIV1RequestTokenBody` (appId・code)。Fastify の `schema.body` で検証に使い、`Static<>` で TS の型も出す。

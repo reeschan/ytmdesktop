@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:09.355Z
+updated: 2026-11-03T06:13:09.356Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: background-video-manager
+children: []
+parentPath:
+  - config-listeners

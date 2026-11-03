@@ -1,0 +1,1 @@
+録った音を Shazam に送る形にする。`encodePcm16(channels, sampleRate)` は全チャンネルを平均してモノラルにし、線形補間で 44.1kHz に変え、-1〜1 に収めて 16bit リトルエンディアンの PCM にする。`encodePcmBase64` はそれを 32KB ずつ文字列にして base64 にする。テストは `audio.test.ts` (vitest)。import 元は mainView の録音器 (`src/renderer/windows/main/song-recognition-recorder.ts`) だけ。

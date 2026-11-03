@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:15.128Z
+updated: 2026-11-03T06:11:15.129Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: settings-view
+children: []
+parentPath:
+  - app-windows
+  - settings

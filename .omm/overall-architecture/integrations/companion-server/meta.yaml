@@ -1,0 +1,17 @@
+created: 2026-11-03T06:10:19.546Z
+updated: 2026-11-03T06:10:37.219Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: companion-server
+children:
+  - api-v1
+  - auth
+  - errors
+  - ipc-client
+  - local-ipc-clients
+  - network-clients
+  - schemas
+  - server
+parentPath:
+  - integrations

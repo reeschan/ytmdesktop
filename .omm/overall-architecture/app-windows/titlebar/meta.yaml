@@ -1,0 +1,9 @@
+created: 2026-11-03T06:08:43.603Z
+updated: 2026-11-03T06:08:51.244Z
+update_count: 2
+last_field: concern
+kind: nested-class
+title: titlebar
+children: []
+parentPath:
+  - app-windows

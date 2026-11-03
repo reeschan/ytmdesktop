@@ -1,0 +1,6 @@
+- 認可の要求は、利用者が設定画面で受付を開いている (`MemoryStore` の `companionServerAuthWindowEnabled`) あいだだけ通る。受付は 5 分で、またはトークンを 1 つ発行すると閉じる。
+- 認可の画面は同時に 5 つまで。それを超えると `AUTHORIZATION_TOO_MANY` (503)。利用者の返事は 30 秒まで待ち、クライアントの接続が切れたらやめる。
+- トークンは 256 バイトの乱数の hex。保存するのは SHA-256 の hash だけで、一覧全体を `safeStorage` で暗号化して `integrations.companionServerAuthTokens` に置く。同じ `appId` の古いトークンは発行のときに消える。
+- トークンが一覧から消える (取り消される) と、CompanionServer が `integrations` の変更を聞いて、そのトークンの Socket.IO の接続を切る。
+- API のエラーは `@fastify/error` で作った決まったコード (`errors.ts` の `errorCodes`) だけを中身ごと返す。ほかの 500 番台は「An internal server error occurred」にする。
+- 値の範囲 (音量 0〜100、シーク位置、キューの番号など) は、スキーマとハンドラーの両方で確かめる。キューの番号は今のキューの長さと比べる。

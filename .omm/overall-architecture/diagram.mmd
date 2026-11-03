@@ -1,0 +1,25 @@
+graph LR
+    main-entry["Main Entry\nsrc/main/index.ts"]
+    services["Services\nsrc/main/services/"]
+    integrations["Integrations\nsrc/main/integrations/"]
+    app-windows["App Windows\nsrc/renderer/windows/"]
+    ytm-view["YTM View Scripts\nsrc/renderer/ytmview/"]
+    shared["Shared\nsrc/shared/"]
+    youtube-music["YouTube Music\nmusic.youtube.com"]
+
+    main-entry -->|"ServiceHost を組み立てライフサイクルを進める"| services
+    main-entry -->|"IntegrationManager に登録しフックを流す"| integrations
+    integrations -->|"getService で状態・設定・ビューを使う"| services
+    services -->|"BrowserWindow / WebContentsView を作り ytmd-app:// で配る"| app-windows
+    services -->|"WebContentsView に preload を入れて開く"| ytm-view
+    app-windows -->|"ipcRenderer で設定・状態を読み書き"| services
+    ytm-view -->|"MessagePort の Protected API で再生状態を送る"| services
+    ytm-view -->|"ページに DOM と CSS を足し、プレイヤー API にフックする"| youtube-music
+    services -->|"型・純関数を import"| shared
+    app-windows -->|"型・純関数を import"| shared
+    ytm-view -->|"型・純関数を import"| shared
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class youtube-music external
+    class main-entry entry

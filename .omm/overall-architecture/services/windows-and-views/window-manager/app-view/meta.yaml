@@ -1,0 +1,11 @@
+created: 2026-11-03T06:12:10.536Z
+updated: 2026-11-03T06:12:10.537Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: app-view
+children: []
+parentPath:
+  - services
+  - windows-and-views
+  - window-manager

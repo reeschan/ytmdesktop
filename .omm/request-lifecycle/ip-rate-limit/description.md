@@ -1,0 +1,1 @@
+`@fastify/rate-limit` の、認可の 2 本 (`/auth/requestcode`・`/auth/request`) にかかる制限。ルートの `config.rateLimit` で 5 回/分、`hook` を指定しないので既定の `onRequest` で、キーも既定 (IP) になる。プラグイン全体の既定は 100 回/分だが、v1 のルートはどれも自分の設定で上書きしている。

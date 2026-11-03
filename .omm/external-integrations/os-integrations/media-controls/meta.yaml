@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:38.541Z
+updated: 2026-11-03T06:19:38.542Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: media-controls
+children: []
+parentPath:
+  - os-integrations

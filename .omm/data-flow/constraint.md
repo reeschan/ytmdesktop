@@ -1,0 +1,5 @@
+- 再生状態の正はメインプロセスの `PlayerStateStore` 1 つ。アプリ画面と連携機能は YTM 画面に直接問い合わせず、ここから読む (`getState`) か、イベントを聞く。
+- YTM 画面への操作は、必ず Protected API の `RemoteControl` を通す (`execute` の名前付きコマンド、`getPlaylists` だけは `invokeMessage` で結果を待つ)。連携機能の任意のスクリプトは `Integration.executeYTMScript` (`ytmView:executeScript`) を使う。
+- ページ内スクリプトは、YTM のイベントの中で例外を YTM に投げ返さないよう try/catch で包む。
+- 設定の変更はすべて `ConfigStore` を経由する。受け手は `onDidChange(<キー>)` で自分の関わるキーだけを聞き、値が変わっていなければ何もしない作りにする (ThemeManager・BackgroundVideoManager)。
+- `IntegrationManager` は `storeEnableProperty` で有効・無効を決め、`dependentStoreProperties` が変わったら無効化してから有効化し直す。

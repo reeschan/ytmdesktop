@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:22.296Z
+updated: 2026-11-03T06:11:31.352Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: network-clients
+children: []
+parentPath:
+  - integrations
+  - companion-server

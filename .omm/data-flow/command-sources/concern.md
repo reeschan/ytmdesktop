@@ -1,0 +1,2 @@
+- 送り手ごとにコマンド名を文字列で書いている (`"playPause"` など)。コマンドの型や一覧は共有されておらず、`setup/remote.ts` の `switch` と食い違っても型では気づけない。
+- ミニプレイヤーの `remoteControl:execute` はコマンド名と引数をそのまま流す。確かめるのは YTM 画面側の `switch` だけ。

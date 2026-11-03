@@ -1,0 +1,10 @@
+created: 2026-11-03T06:09:51.767Z
+updated: 2026-11-03T06:09:51.769Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: song-recognition-recorder
+children: []
+parentPath:
+  - app-windows
+  - main-view

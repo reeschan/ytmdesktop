@@ -1,0 +1,2 @@
+- `enable-error` イベントは型 (`IntegrationManagerEventMap`) と `src/main/index.ts` のリスナーにはあるが、`emit("enable-error", ...)` している箇所が無い。ENABLE の例外は `reconcileIntegrationEnableState` の Promise の reject になり、`onDidAnyChange` と `runHook` はその Promise を待たない。
+- 有効なままの Integration は、変わった `dependentStoreProperties` 1 つごとに DISABLE → ENABLE を繰り返す。1 回の設定変更で複数が変わると、その数だけ作り直す。

@@ -1,0 +1,30 @@
+graph LR
+    main-process["Main Process\nsrc/main/"]
+    preload["Preload\nwindows/settings/preload.ts"]
+    shell["Settings Shell\nwindows/settings/Index.vue"]
+    settings-view["Settings View\nwindows/settings/Settings.vue"]
+    general-tab["General Tab\nSettings.vue currentTab 1"]
+    appearance-tab["Appearance Tab\nSettings.vue currentTab 2"]
+    playback-tab["Playback Tab\nSettings.vue currentTab 3"]
+    integrations-tab["Integrations Tab\nSettings.vue currentTab 4"]
+    shortcuts-tab["Shortcuts Tab\nSettings.vue currentTab 5"]
+    about-tab["About Tab\nSettings.vue currentTab 99"]
+
+    shell -->|"TitleBar の下に Suspense で出す"| settings-view
+    settings-view -->|"currentTab で出し分ける"| general-tab
+    settings-view -->|"currentTab で出し分ける"| appearance-tab
+    settings-view -->|"currentTab で出し分ける"| playback-tab
+    settings-view -->|"currentTab で出し分ける"| integrations-tab
+    settings-view -->|"currentTab で出し分ける"| shortcuts-tab
+    settings-view -->|"currentTab で出し分ける"| about-tab
+    settings-view -->|"store / memoryStore で読み書きと購読"| preload
+    appearance-tab -->|"getTrueFilePath でファイルの実パスを得る"| preload
+    integrations-tab -->|"safeStorage で暗号化・復号、プレイヤー状態の購読"| preload
+    about-tab -->|"getAppVersion と更新の確認"| preload
+    preload -->|"configStore:* / memoryStore:* / safeStorage:* / app:* を送る"| main-process
+    main-process -->|"configStore:stateChanged / playerStateStore:stateChanged を送る"| preload
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class main-process external
+    class shell entry

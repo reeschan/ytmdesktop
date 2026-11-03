@@ -1,0 +1,1 @@
+Google のログインと同意のページ。YTM 画面の中での遷移を許す先は、`accounts.` / `myaccount.` に続く各国の Google のドメイン、consent.youtube.com、accounts.youtube.com、youtube.com / www.youtube.com の `/signin`・`/premium`・`/musicpremium`・`/signin_prompt`。ログインの状態は partition `persist:ytmview` に残る。

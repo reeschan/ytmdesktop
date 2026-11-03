@@ -1,0 +1,1 @@
+`ShortcutManager` が `globalShortcut.register` で登録するキー。押されると、設定のキーに対応するコマンド (`playPause` / `next` / `previous` / `toggleLike` / `toggleDislike` / `volumeUp` / `volumeDown` / `toggleMute` / `shuffle` / `cycleRepeatMode`) を `RemoteControl` に送る。

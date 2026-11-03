@@ -1,0 +1,10 @@
+created: 2026-11-03T06:12:54.820Z
+updated: 2026-11-03T06:12:55.947Z
+update_count: 2
+last_field: concern
+kind: nested-class
+title: schemas
+children: []
+parentPath:
+  - integrations
+  - last-fm

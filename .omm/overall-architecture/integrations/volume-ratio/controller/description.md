@@ -1,0 +1,1 @@
+Integration 本体。`injected` フラグで二重に流さないようにする。`onEnabled` で `YTMViewManager` の `view-recreated` を聞き、作り直されたら `injected` を偽にして `onEnabled()` を呼び直す。`onDisabled` でリスナーを外す。どちらも `ytmViewManager.ready()` を待ってから流す。

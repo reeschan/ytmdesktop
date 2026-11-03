@@ -1,0 +1,2 @@
+- 権限のハンドラは `session.defaultSession` 全体にかかる。既定のセッションを使うアプリ画面 (設定・ミニプレイヤーなど) はマイクや画面キャプチャを使えない。YTM 画面は別の partition (`persist:ytmview`) なので、このハンドラはかからない。
+- `audio: "loopback"` による PC の音の取り込みは Electron の文書では Windows だけなので、`src/shared/song-recognition/source.ts` が PC の音を Windows に限っている。
