@@ -171,13 +171,15 @@ export default class BackgroundVideoManager extends Service {
     this.attachYTMView();
   };
 
-  private ytmViewRecreatedListener = () => {
-    // The recreated YTM view is attached again at the bottom, so this view is moved back below it
-    if (this.mainWindow && this.view && this.view.getParentWindow() === this.mainWindow) {
+  private ytmViewAttachedListener = (appWindow: AppWindow<AppWindowType>) => {
+    // The YTM view is attached above every view (for example when it is recreated or moved back from another window), so this view is moved back below it
+    if (appWindow === this.mainWindow && this.view && this.view.getParentWindow() === this.mainWindow) {
       this.mainWindow.detachView(this.view);
       this.mainWindow.attachView(this.view, 0);
     }
+  };
 
+  private ytmViewRecreatedListener = () => {
     this.fullscreen = false;
     this.ytmVideoAvailable = false;
     // The recreated view has a new webContents with the default background and no inserted CSS
@@ -450,6 +452,7 @@ export default class BackgroundVideoManager extends Service {
     this.detachYTMView();
     this.ytmView = view;
     this.ytmView?.on("ready", this.ytmViewReadyListener);
+    this.ytmView?.on("attached", this.ytmViewAttachedListener);
     this.ytmView?.on("webcontents-enter-html-full-screen", this.ytmEnterFullscreenListener);
     this.ytmView?.on("webcontents-leave-html-full-screen", this.ytmLeaveFullscreenListener);
     this.ytmView?.ipcOn(BackgroundVideoIpc.Report, this.ytmReportListener);
@@ -468,6 +471,7 @@ export default class BackgroundVideoManager extends Service {
 
     this.ytmView.ipcOff(BackgroundVideoIpc.Report, this.ytmReportListener);
     this.ytmView.off("ready", this.ytmViewReadyListener);
+    this.ytmView.off("attached", this.ytmViewAttachedListener);
     this.ytmView.off("webcontents-enter-html-full-screen", this.ytmEnterFullscreenListener);
     this.ytmView.off("webcontents-leave-html-full-screen", this.ytmLeaveFullscreenListener);
     this.ytmView = null;
