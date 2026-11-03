@@ -102,6 +102,10 @@ const YTM_BLURRED_SURFACE_RULE: CssSurfaceRule = {
   edge: ColorItem.Border
 };
 
+// The search suggestions open from the nav bar over the page, but a blur inside the nav bar does not reach the page behind it.
+// With a blurred theme they are backed with the background color so the page does not show through them
+const YTM_SEARCH_SUGGESTIONS_SELECTOR = "ytmusic-search-box #suggestion-list";
+
 /**
  * Builds CSS rules whose declarations take their values from the color items
  */
@@ -126,6 +130,16 @@ function toCssBlurredSurfaceRule(rule: CssSurfaceRule, colors: ThemeColors, blur
   ];
 
   return `${rule.selectors.join(", ")} { ${declarations.join(" ")} }`;
+}
+
+/**
+ * Builds a CSS rule that fills the elements with the surface color laid over the background color
+ */
+function toCssBackedSurfaceRule(selector: string, colors: ThemeColors, options: CssColorRuleOptions): string {
+  const priority = options.important ? " !important" : "";
+  const surface = colors[ColorItem.Surface];
+
+  return `${selector} { background: linear-gradient(${surface}, ${surface}), ${colors[ColorItem.Background]}${priority}; }`;
 }
 
 function isBundledTheme(value: string): value is BundledTheme {
@@ -410,7 +424,11 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     if (this.surfaceBlur <= 0) return css;
 
     // Comes after the color rules so it wins over the backgrounds they give the same surfaces
-    return `${css}\n${toCssBlurredSurfaceRule(YTM_BLURRED_SURFACE_RULE, this.colors, this.surfaceBlur, YTM_THEME_RULE_OPTIONS)}`;
+    return [
+      css,
+      toCssBlurredSurfaceRule(YTM_BLURRED_SURFACE_RULE, this.colors, this.surfaceBlur, YTM_THEME_RULE_OPTIONS),
+      toCssBackedSurfaceRule(YTM_SEARCH_SUGGESTIONS_SELECTOR, this.colors, YTM_THEME_RULE_OPTIONS)
+    ].join("\n");
   }
 
   private applyTitleBarOverlay(browserWindow: BrowserWindow) {

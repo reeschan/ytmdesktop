@@ -3,6 +3,7 @@ import { app, ipcMain } from "electron";
 import log from "electron-log";
 import { BackgroundVideoSource } from "~shared/background-video";
 import { DEFAULT_PRESENCE_DISPLAY_SETTINGS } from "~shared/discord-presence/activity";
+import { DEFAULT_SONG_RECOGNITION_SOURCE } from "~shared/song-recognition";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
 import { DependencyConstructor, Paths, ValueAtPath } from "~shared/types";
 import Service from "../service";
@@ -68,7 +69,10 @@ export default class ConfigStore extends Service {
           discordPresenceShowButton: DEFAULT_PRESENCE_DISPLAY_SETTINGS.showButton,
           discordPresenceStatusDisplay: DEFAULT_PRESENCE_DISPLAY_SETTINGS.statusDisplay,
           lastFMEnabled: false,
-          enhancedMediaServiceEnabled: true
+          enhancedMediaServiceEnabled: true,
+          shazamEnabled: false,
+          shazamApiKey: null,
+          shazamAudioSource: DEFAULT_SONG_RECOGNITION_SOURCE
         },
         shortcuts: {
           playPause: "",
@@ -211,6 +215,18 @@ export default class ConfigStore extends Service {
 
           if (!store.has("integrations.discordPresenceStatusDisplay")) {
             store.set("integrations.discordPresenceStatusDisplay", DEFAULT_PRESENCE_DISPLAY_SETTINGS.statusDisplay);
+          }
+
+          if (!store.has("integrations.shazamEnabled")) {
+            store.set("integrations.shazamEnabled", false);
+          }
+
+          if (!store.has("integrations.shazamApiKey")) {
+            store.set("integrations.shazamApiKey", null);
+          }
+
+          if (!store.has("integrations.shazamAudioSource")) {
+            store.set("integrations.shazamAudioSource", DEFAULT_SONG_RECOGNITION_SOURCE);
           }
         }
       }

@@ -33,6 +33,9 @@ const config: ForgeConfig = {
       }
     ],
     appCategoryType: "public.app-category.music",
+    extendInfo: {
+      NSMicrophoneUsageDescription: "YouTube Music Desktop App records a few seconds of audio to identify the song that is playing."
+    },
     asar: true
   },
   rebuildConfig: {},

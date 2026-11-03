@@ -21,6 +21,11 @@ export function createStyleSheet() {
         color: #FFFFFF;
       }
 
+      /* YTM draws a square border around the opened search box besides the rounded one of its inner box */
+      ytmusic-search-box[opened], ytmusic-search-box[has-query] {
+        border: none;
+      }
+
       .ytmd-hidden {
         display: none;
       }

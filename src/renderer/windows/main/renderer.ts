@@ -31,6 +31,14 @@ import "~assets/app.css";
 
 import { createApp } from "vue";
 import App from "./Index.vue";
+import { startSongRecognitionRecorder } from "./song-recognition-recorder";
 
 const app = createApp(App);
 app.mount("#app");
+
+// Started after mount so a failure here never blocks the loading view
+try {
+  startSongRecognitionRecorder();
+} catch (error) {
+  console.error("Failed to start the song recognition recorder", error);
+}

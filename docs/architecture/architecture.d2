@@ -57,6 +57,10 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F002-video%20player.svg
     }
+    recorder: "App view (hidden)\nrecords PC audio / mic for 5 s" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F014-music%20player.svg
+    }
   }
 
   screens: "Title bar · Settings · Miniplayer\nVue 3 + Tailwind (tw:)" {
@@ -88,6 +92,10 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://cdn.simpleicons.org/youtubemusic
     }
+    songrec: "SongRecognition\npause YTM · query · search" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F313-search.svg
+    }
     integrations: "Integrations\nDiscord · Custom CSS · Companion · Last.fm" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F143-windows.svg
@@ -116,6 +124,10 @@ external: External {
     class: ext
     icon: https://cdn.simpleicons.org/lastdotfm
   }
+  shazam: "Shazam API\n(RapidAPI)" {
+    class: ext
+    icon: https://cdn.simpleicons.org/shazam
+  }
 }
 
 user -> app.window.ytm: listens
@@ -134,3 +146,7 @@ app.window.ytm -> app.main.player: player state
 app.main.player -> app.main.integrations
 app.main.integrations -> external.discord: activity from templates
 app.main.integrations -> external.lastfm: scrobble {style.stroke-dash: 4}
+app.window.ytm <-> app.main.songrec: icon press / search the title
+app.main.config -> app.main.songrec: API key (encrypted)
+app.main.songrec <-> app.window.recorder: record / PCM
+app.main.songrec -> external.shazam: PCM (HTTPS)
