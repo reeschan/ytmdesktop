@@ -112,6 +112,11 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
       });
     }
 
+    // Keep a permanent "error" listener so emitting "error" never throws when no other listener is attached
+    this.on("error", () => {
+      log.debug("AutoUpdater error event emitted");
+    });
+
     autoUpdater.on("checking-for-update", () => {
       log.debug("AutoUpdater checking for updates...");
       this.state = AutoUpdaterState.Checking;
