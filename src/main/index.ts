@@ -34,8 +34,21 @@ import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
 import { VideoType } from "~shared/playerstatestore/types";
+import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
+
+// How much of a restored window has to overlap a display on each axis for it to stay where it was saved
+const MINIMUM_VISIBLE_WINDOW_SIZE = 64;
+
+// Saved bounds can point at a display that is no longer connected or has moved, so move them back onto a display when needed
+const getVisibleWindowBounds = (bounds: Electron.Rectangle): Electron.Rectangle =>
+  ensureBoundsAreVisible(
+    bounds,
+    screen.getAllDisplays().map(display => display.workArea),
+    screen.getDisplayMatching(bounds).workArea,
+    MINIMUM_VISIBLE_WINDOW_SIZE
+  );
 
 // Squirrel shortcut creation/removal
 // This is part of application installation/uninstallation process close the app immediately
@@ -229,7 +242,8 @@ app.on("ready", async () => {
 
   //#region Main Window
   const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-  const windowBounds = configStore.get("state.windowBounds");
+  const savedWindowBounds = configStore.get("state.windowBounds");
+  const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
   const mainView = new AppView({
     name: "Main",
@@ -405,7 +419,8 @@ app.on("ready", async () => {
     }
 
     const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-    const windowBounds = configStore.get("state.miniplayerWindowBounds");
+    const savedWindowBounds = configStore.get("state.miniplayerWindowBounds");
+    const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
     const mainWindowBounds = mainWindow._getElectronWindow().getBounds();
     const miniplayerWindow = windowManager.createWindow("Browser", {
