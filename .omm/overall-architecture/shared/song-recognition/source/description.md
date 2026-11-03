@@ -1,0 +1,1 @@
+音の元を決める。`isPcAudioAvailable(platform)` は Windows (`win32`) だけ真 (Electron の文書で loopback の取り込みが Windows だけのため)。`resolveRecordSource(setting, devices, platform)` は、既定のマイクならそのまま、デバイス指定なら今のデバイス一覧にあればそれ・無ければ既定のマイク、PC の音や設定が無い・知らない値なら Windows では PC の音・他では既定のマイクにする。テストは `source.test.ts` (vitest)。import 元は main の song-recognition の `index.ts` と設定のアプリ画面。

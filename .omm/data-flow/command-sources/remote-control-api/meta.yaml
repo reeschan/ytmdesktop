@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:59.250Z
+updated: 2026-11-03T06:13:59.251Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: remote-control-api
+children: []
+parentPath:
+  - command-sources

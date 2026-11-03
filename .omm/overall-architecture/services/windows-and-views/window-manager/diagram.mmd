@@ -1,0 +1,9 @@
+graph LR
+    app-window-manager["AppWindowManager\nsrc/main/services/windowmanager/index.ts"]
+    app-window["AppWindow\nsrc/main/services/windowmanager/appwindow.ts"]
+    app-view["AppView\nsrc/main/services/windowmanager/appview.ts"]
+
+    app-window-manager -->|"createWindow で生成し名前で持つ"| app-window
+    app-window -->|"閉じたら destroyWindow で登録から外す"| app-window-manager
+    app-window -->|"attachView / detachView で contentView に付け外し"| app-view
+    app-view -->|"親の resize を購読し大きさを合わせる"| app-window

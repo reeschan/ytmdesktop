@@ -1,0 +1,12 @@
+graph LR
+    constants["定数と型\nsrc/shared/song-recognition/index.ts"]
+    audio["PCM への変換\nsrc/shared/song-recognition/audio.ts"]
+    response["Shazam の応答の読み解き\nsrc/shared/song-recognition/response.ts"]
+    source["音の元の決定\nsrc/shared/song-recognition/source.ts"]
+    state["状態の遷移\nsrc/shared/song-recognition/state.ts"]
+
+    audio -->|"SONG_RECOGNITION_SAMPLE_RATE を使う"| constants
+    response -->|"SongRecognitionResultKind を使う"| constants
+    source -->|"SourceKind・SourceSetting・InputDevice を使う"| constants
+    state -->|"SongRecognitionPhase・ResultKind を使う"| constants
+    state -->|"SongRecognitionResult と Match を使う"| response

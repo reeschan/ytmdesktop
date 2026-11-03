@@ -1,0 +1,10 @@
+created: 2026-11-03T06:10:38.267Z
+updated: 2026-11-03T06:10:39.359Z
+update_count: 2
+last_field: concern
+kind: nested-class
+title: server
+children: []
+parentPath:
+  - integrations
+  - companion-server

@@ -1,0 +1,18 @@
+graph LR
+    state-route["GET /state\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    playlists-route["GET /playlists\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    command-route["POST /command\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    send-command["sendCommand\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    transform-state["transformPlayerState\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    player-state["再生状態\n(PlayerStateStore.getState)"]
+    remote-control-port["RemoteControl API\n(ProtectedAPI)"]
+
+    state-route -->|"getState で今の状態を読む"| player-state
+    state-route -->|"API の形に直して返す"| transform-state
+    command-route -->|"検証済みの本文を渡し 204 を返す"| send-command
+    send-command -->|"キューの長さと比べる"| player-state
+    send-command -->|"postMessage で execute"| remote-control-port
+    playlists-route -->|"invokeMessage で getPlaylists"| remote-control-port
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class player-state,remote-control-port external

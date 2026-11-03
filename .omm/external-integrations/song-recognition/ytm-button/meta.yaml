@@ -1,0 +1,9 @@
+created: 2026-11-03T06:17:31.340Z
+updated: 2026-11-03T06:17:31.341Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ytm-button
+children: []
+parentPath:
+  - song-recognition

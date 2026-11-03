@@ -1,0 +1,1 @@
+Companion Server のトークン 1 件の型 `AuthToken` (appId・appVersion・appName・id・token (SHA-256 のハッシュ)・metadata.version)。暗号化して `integrations.companionServerAuthTokens` に入れる一覧の要素。テストは無い。import 元: `src/main/integrations/companion-server/index.ts`・`api-shared/auth.ts` (相対パスで import)、設定のアプリ画面。

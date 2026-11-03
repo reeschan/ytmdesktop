@@ -1,0 +1,9 @@
+created: 2026-11-03T06:11:05.991Z
+updated: 2026-11-03T06:11:05.993Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ytm-hook
+children: []
+parentPath:
+  - ytm-view

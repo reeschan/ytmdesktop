@@ -1,0 +1,9 @@
+created: 2026-11-03T06:22:50.875Z
+updated: 2026-11-03T06:22:50.876Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: auth-window-flag
+children: []
+parentPath:
+  - authorization-flow

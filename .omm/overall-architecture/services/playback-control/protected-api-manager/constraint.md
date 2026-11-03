@@ -1,0 +1,4 @@
+- `setMainPort` を呼ぶたびに、作ってある全 `ProtectedAPI` の port を `null` にする。YTM 画面が読み直されて新しい main port が届くと、各 API は YTM 画面がもう一度 `ProvideAPIPort` を送るまで送受信できない。
+- `ProtectedAPI` のオブジェクトと購読しているリスナーは port を外しても残る。Service は `createOrGetAPI` を一度呼んでリスナーを付ければよく、port の付け替えは ProtectedAPIManager が受け持つ。
+- port が無い間の `postMessage` は何も送らずに捨てる (`this.port?.postMessage`)。`invokeMessage` は 30 秒後に reject する。
+- port の `close` でもその API の port を `null` にする。

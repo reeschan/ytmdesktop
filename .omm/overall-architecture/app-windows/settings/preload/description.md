@@ -1,0 +1,1 @@
+設定ウィンドウの `preload.ts`。`Store<StoreSchema>` と `MemoryStore<MemoryStoreSchema>` (store-ipc) を作り、ウィンドウ操作・設定と状態の読み書き・`safeStorage`・アプリの再起動と更新・`webUtils.getPathForFile`・Last.fm の認証・プレイヤー状態の購読を `window.ytmd` に出す。一覧は settings の description を参照。`onPlayerStateChanged` はブロック本体にして、`ipcRenderer` 自体がブリッジ越しに返らないようにしている。

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:36.385Z
+updated: 2026-11-03T06:19:36.386Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: protocol-manager
+children: []
+parentPath:
+  - os-integrations

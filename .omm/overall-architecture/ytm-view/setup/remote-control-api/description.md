@@ -1,0 +1,1 @@
+Protected API の `RemoteControl` のポート (protectedapimanager が作る)。main 側では ProtectedAPIManager の `createOrGetAPI("RemoteControl")` を、ミニプレイヤーとトレイのメニュー (`src/main/index.ts`)・ShortcutManager・TaskbarManager・ProtocolManager・Companion Server・Enhanced media service・曲の聞き取りの Integration が使い、`execute` を postMessage し、`getPlaylists` を invoke する。

@@ -1,0 +1,15 @@
+created: 2026-11-03T06:22:01.323Z
+updated: 2026-11-03T06:23:24.946Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: api-routes
+children:
+  - command-route
+  - player-state
+  - playlists-route
+  - remote-control-port
+  - send-command
+  - state-route
+  - transform-state
+parentPath: []

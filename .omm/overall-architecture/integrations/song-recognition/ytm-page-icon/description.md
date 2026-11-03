@@ -1,0 +1,1 @@
+(外部) YTM 画面に足した聞き取りのアイコン (`src/renderer/ytmview/scripts/setup/song-recognition.ts` と YTM 画面の preload)。押すと preload が `songRecognition:press` を main に送る。main から `songRecognition:state` (表示するか・段階・メッセージ) を受けて見た目を変え、`songRecognition:search` を受けたら YTM 画面の検索欄で検索する。

@@ -1,0 +1,19 @@
+created: 2026-11-03T06:08:05.582Z
+updated: 2026-11-03T06:08:31.044Z
+update_count: 4
+last_field: concern
+kind: nested-class
+title: app-windows
+children:
+  - authorize-companion
+  - background-video
+  - changelog
+  - components
+  - main-process
+  - main-view
+  - miniplayer
+  - settings
+  - store-ipc
+  - titlebar
+  - updater
+parentPath: []

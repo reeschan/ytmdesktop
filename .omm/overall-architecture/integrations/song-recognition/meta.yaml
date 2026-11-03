@@ -1,0 +1,15 @@
+created: 2026-11-03T06:13:36.869Z
+updated: 2026-11-03T06:13:52.816Z
+update_count: 3
+last_field: diagram
+kind: nested-class
+title: song-recognition
+children:
+  - app-view-recorder
+  - controller
+  - media
+  - shazam
+  - shazam-api
+  - ytm-page-icon
+parentPath:
+  - integrations

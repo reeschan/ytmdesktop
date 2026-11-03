@@ -1,0 +1,1 @@
+Shazam への問い合わせ (`detectSong`)。PCM の base64 を本文に、`X-RapidAPI-Key` と `X-RapidAPI-Host` を付けて POST する。API Key は `SongRecognition` が `integrations.shazamApiKey` を `safeStorage` で復号して渡す。例外は投げず、HTTP の状態と本文・時間切れ・ネットワークの失敗のどれかを `ShazamOutcome` で返す。

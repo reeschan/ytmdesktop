@@ -1,0 +1,9 @@
+created: 2026-11-03T06:09:03.704Z
+updated: 2026-11-03T06:09:03.704Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: app-events
+children: []
+parentPath:
+  - main-entry

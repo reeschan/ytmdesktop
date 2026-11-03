@@ -1,0 +1,2 @@
+- `src/main/index.ts` は約 750 行で、起動順・ウィンドウ 5 種の作成・トレイ・IPC ハンドラ・YTM 画面の状態に合わせたローディング画面の出し入れが 1 つの `ready` ハンドラに入っている。ウィンドウの設定 (`frame: false`、`titleBarOverlay`、`devTools` の条件など) も各所に書き写されている。
+- 起動順はコードの並びだけで決まっている。例: `installSongRecognitionMediaHandlers` と `SongRecognition.setAppViewContentsGetter` は mainView を作った直後でないといけない、Updater ウィンドウはメインウィンドウを作った後に閉じないと `window-all-closed` が先に出る、背景動画のビューは YTM 画面を付けた後に付けて下に置く。

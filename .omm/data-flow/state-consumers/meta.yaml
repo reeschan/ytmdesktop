@@ -1,0 +1,18 @@
+created: 2026-11-03T06:10:00.341Z
+updated: 2026-11-03T06:11:24.443Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: state-consumers
+children:
+  - app-windows
+  - companion-server
+  - discord-presence
+  - enhanced-media-service
+  - last-fm
+  - notifications
+  - song-recognition
+  - state-manager
+  - state-source
+  - taskbar-manager
+parentPath: []

@@ -1,0 +1,3 @@
+`PlayerStateStore` が持つ再生状態の型。`VideoState` (Unknown -1・Paused 0・Playing 1・Buffering 2)、`RepeatMode`、`LikeStatus`、`VideoType` (MusicAudio・MusicVideo・MusicUploaded・PodcastEpisode)、`Thumbnail`、`VideoDetails` (曲名・アーティスト (`author`)・アルバム・長さ・ジャケット・ID など)、`PlayerQueue` / `PlayerQueueItem`、`PlayerState` (曲・プレイリスト ID・状態・キュー・位置・音量・ミュート・広告中・`hasFullMetadata`)、`PlayerSignal` (NewPlayback だけ)。テストは無い。
+
+import 元: `src/main/index.ts`、`PlayerStateStore`・`TaskbarManager`、再生を扱う Integration (Companion Server・Discord・Last.fm・通知・OS のメディア操作・曲の聞き取り)、ミニプレイヤーと設定のアプリ画面、`src/renderer/@types/global.d.ts`、`shared/discord-presence/activity.ts`。

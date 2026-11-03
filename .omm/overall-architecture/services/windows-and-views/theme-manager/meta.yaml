@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:20.765Z
+updated: 2026-11-03T06:11:22.435Z
+update_count: 2
+last_field: constraint
+kind: nested-class
+title: theme-manager
+children: []
+parentPath:
+  - services
+  - windows-and-views

@@ -1,0 +1,1 @@
+Socket.IO の名前空間 `/api/v1/realtime` (WebSocket だけ、アップグレード無し)。接続時のミドルウェアで handshake の `auth.token` を確かめ、`socket.data.tokenId` を覚える。送るのは `state-update` / `playlist-created` / `playlist-deleted` だけで、クライアントからのコマンドは受けない (コードはコメントアウトされている)。トークンが取り消されると、その接続を切る。

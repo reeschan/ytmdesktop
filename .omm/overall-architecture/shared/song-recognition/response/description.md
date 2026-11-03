@@ -1,0 +1,1 @@
+`interpretShazamResponse(outcome)`: Shazam への問い合わせの結果 (`ShazamOutcome`: HTTP の応答・時間切れ・ネットワークエラー) を `SongRecognitionResult` にする。200 で `track.title` と `track.subtitle` があれば空白でつないだ検索語 (`match`)、無ければ NoMatch。401 / 403 は InvalidKey、429 は LimitReached、それ以外と時間切れ・ネットワークエラーは NetworkError。テストは `response.test.ts` (vitest)。import 元は main の song-recognition の `index.ts` と `shazam.ts`。

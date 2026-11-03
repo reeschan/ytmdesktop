@@ -1,0 +1,3 @@
+- main は `session.defaultSession` の権限ハンドラで、マイク (`media`、映像なし) と画面の取り込み (`display-capture`) をこのビューの webContents にだけ許す。`setDisplayMediaRequestHandler` も、このビューの mainFrame からの要求にだけ、画面と `loopback` の音を返す (`src/main/integrations/song-recognition/media.ts`)。
+- このビューの `webcontents-will-navigate` / `webcontents-will-redirect` は main が止める。録音の権限を持つ画面が別のページに変わらないようにするため。
+- ビューは作り直されることがあるので、main は権限の判定や録音のたびに今の webContents を取り直す。

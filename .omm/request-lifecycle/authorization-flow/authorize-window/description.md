@@ -1,0 +1,1 @@
+Companion の認可のアプリ画面 (`ytmd-app://authorize-companion`)。`BrowserWindow` (640×480、sandbox・contextIsolation) を直接作り、`additionalArguments` で `requestId`・アプリ名・コードを preload に渡す。画面はアプリ名とコードを見せ、利用者の返事を `companionAuthorization:result:<requestId>` で送る。メインプロセスは送り手の webContents がこの画面かを確かめる。新しいウィンドウと外への遷移は止める。

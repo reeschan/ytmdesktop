@@ -1,0 +1,17 @@
+graph LR
+    store-schema["設定とメモリの型\nsrc/shared/store/schema.ts"]
+    theme["テーマ\nsrc/shared/theme/"]
+    background-video["背景動画\nsrc/shared/background-video/"]
+    song-recognition["曲の聞き取り\nsrc/shared/song-recognition/"]
+    discord-presence["Discord のアクティビティ\nsrc/shared/discord-presence/"]
+    playerstatestore-types["再生状態の型\nsrc/shared/playerstatestore/types.ts"]
+    companion-server-types["Companion のトークンの型\nsrc/shared/integrations/companion-server/types.ts"]
+    types["共通の型\nsrc/shared/types.ts"]
+
+    store-schema -->|"ThemeSelection の元に BundledTheme を使う"| theme
+    store-schema -->|"BackgroundVideoSource を使う"| background-video
+    store-schema -->|"SongRecognitionSourceSetting と InputDevice を使う"| song-recognition
+    discord-presence -->|"VideoDetails・VideoState・Thumbnail を使う"| playerstatestore-types
+
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class store-schema store

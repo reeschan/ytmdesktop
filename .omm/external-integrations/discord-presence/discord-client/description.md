@@ -1,0 +1,1 @@
+Discord の RPC の最小限のクライアント (`DiscordClient`)。`discord-ipc-0` から `9` まで順につなぎにいき、つながったら `HANDSHAKE` (`v: 1`, `client_id`) を送る。`PING` には `PONG` を返す。`setActivity` / `clearActivity` は `cmd: "SET_ACTIVITY"` (`pid` 付き) を送るだけ。`connect` / `close` のイベントを出す。

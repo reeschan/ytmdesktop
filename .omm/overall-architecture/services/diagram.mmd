@@ -1,0 +1,32 @@
+graph LR
+    framework["Service Framework\nsrc/main/services/service*.ts"]
+    stores["Stores\nconfigstore / memorystore / statemanager"]
+    windows-and-views["Windows and Views\nwindowmanager / ytmviewmanager / protocolmanager / thememanager / backgroundvideo"]
+    playback-control["Playback Control\nprotectedapimanager / playerstatestore / shortcutmanager / taskbarmanager"]
+    watchdog["WatchDog\nsrc/main/services/watchdog/"]
+    auto-updater["AutoUpdater\nsrc/main/services/autoupdater/"]
+    integration-manager["IntegrationManager\nsrc/main/services/integrationmanager/"]
+    flag-manager["FlagManager (未登録)\nsrc/main/services/flagmanager/"]
+
+    framework -->|"依存順に生成しライフサイクルを回す"| stores
+    framework -->|"依存順に生成しライフサイクルを回す"| windows-and-views
+    framework -->|"依存順に生成しライフサイクルを回す"| playback-control
+    framework -->|"依存順に生成しライフサイクルを回す"| watchdog
+    framework -->|"依存順に生成しライフサイクルを回す"| auto-updater
+    framework -->|"依存順に生成しライフサイクルを回す"| integration-manager
+    flag-manager -.->|"Service を継承するが ServiceCollection に未登録"| framework
+
+    stores -->|"stateChanged を全ウィンドウへ ipcBroadcast"| windows-and-views
+    stores -->|"crash を購読し state の書き込みを止める"| watchdog
+    windows-and-views -->|"設定・lastUrl・一時フラグを読み書き"| stores
+    windows-and-views -->|"ytmd://play を RemoteControl API で流す"| playback-control
+    playback-control -->|"設定を読み、登録失敗フラグと lastVideoId を書く"| stores
+    playback-control -->|"Main のタイトル・サムバー・進捗を変え、状態を送る"| windows-and-views
+    auto-updater -->|"autoUpdater* フラグを書く"| stores
+    integration-manager -->|"設定の変更で Integration を有効化・無効化"| stores
+    integration-manager -->|"ServiceHost を受け取り Integration に注入"| framework
+    integration-manager -.->|"依存はコメントアウト"| flag-manager
+    flag-manager -->|"flags:changed を全ウィンドウへ"| windows-and-views
+
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class stores store

@@ -1,0 +1,5 @@
+- Companion Server は Integration で、`integrations.companionServerEnabled` が真で `safeStorage` が使えるときだけ動く。`companionServerCORSWildcardEnabled` を変えるとサーバーごと作り直される。
+- API v1 は Fastify のプラグイン (`CompanionServerAPIv1`) で、`@fastify/rate-limit` はこのプラグインの中だけに登録される。そのため外の `/metadata` には効かない。
+- レート制限の `hook: "preHandler"` は、ルートの `preHandler` (トークンの検証) の後ろに足される (`@fastify/rate-limit` の `addRouteRateHook` が配列の末尾に push する)。だから `keyGenerator` で `request.authId` を使える。
+- `/command` の結果は HTTP では返らない。クライアントは realtime の `state-update` (または `/state`) で変化を見る。
+- 状態の形は `transformPlayerState` が決める API の形で、アプリ内の `PlayerState` とは別に保っている。

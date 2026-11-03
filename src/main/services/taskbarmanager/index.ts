@@ -1,4 +1,4 @@
-import { nativeImage } from "electron";
+import { NativeImage, nativeImage } from "electron";
 import log from "electron-log";
 import { getControlsIconPath } from "../../util";
 import Service from "../service";
@@ -9,11 +9,19 @@ import { DependencyConstructor } from "~shared/types";
 import { VideoState } from "~shared/playerstatestore/types";
 import PlayerStateStore from "../playerstatestore";
 import ProtectedAPIManager from "../protectedapimanager";
+import { AppWindow, AppWindowType } from "../windowmanager/appwindow";
+
+type ThumbarIcons = { previous: NativeImage; play: NativeImage; pause: NativeImage; next: NativeImage };
+type ThumbarState = { window: AppWindow<AppWindowType>; hasVideo: boolean; isPlaying: boolean };
 
 export default class TaskbarManager extends Service {
   public static override readonly dependencies: DependencyConstructor<Service>[] = [ConfigStore, AppWindowManager, ProtectedAPIManager, PlayerStateStore];
 
   private _initialized = false;
+  private thumbarIcons: ThumbarIcons | null = null;
+  // Setting the thumbar buttons blocks the main process for several milliseconds, and the player state changes several times a second while playing
+  private appliedThumbarState: ThumbarState | null = null;
+
   public get initialized() {
     return this._initialized;
   }
@@ -47,43 +55,7 @@ export default class TaskbarManager extends Service {
       const hasVideo = !!playerState.videoDetails;
       const isPlaying = playerState.trackState === VideoState.Playing;
 
-      const taskbarFlags: string[] = [];
-      if (!hasVideo) {
-        taskbarFlags.push("disabled");
-      }
-
-      const protectedApiManager = this.getDependency(ProtectedAPIManager);
-      mainWindow.setThumbarButtons([
-        {
-          tooltip: "Previous",
-          icon: nativeImage.createFromPath(getControlsIconPath("play-previous-button.png")),
-          flags: taskbarFlags,
-          async click() {
-            const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
-            remoteControlApi.postMessage("execute", "previous");
-          }
-        },
-        {
-          tooltip: "Play/Pause",
-          icon: isPlaying
-            ? nativeImage.createFromPath(getControlsIconPath("pause-button.png"))
-            : nativeImage.createFromPath(getControlsIconPath("play-button.png")),
-          flags: taskbarFlags,
-          async click() {
-            const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
-            remoteControlApi.postMessage("execute", "playPause");
-          }
-        },
-        {
-          tooltip: "Next",
-          icon: nativeImage.createFromPath(getControlsIconPath("play-next-button.png")),
-          flags: taskbarFlags,
-          async click() {
-            const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
-            remoteControlApi.postMessage("execute", "next");
-          }
-        }
-      ]);
+      this.reconcileThumbarButtons({ window: mainWindow, hasVideo, isPlaying });
 
       let progressInTaskbar = false;
       if (!state) {
@@ -101,5 +73,55 @@ export default class TaskbarManager extends Service {
         mainWindow.setProgressBar(-1);
       }
     }
+  }
+
+  private reconcileThumbarButtons(state: ThumbarState) {
+    const applied = this.appliedThumbarState;
+    if (applied && applied.window === state.window && applied.hasVideo === state.hasVideo && applied.isPlaying === state.isPlaying) return;
+    this.appliedThumbarState = state;
+
+    this.thumbarIcons ??= {
+      previous: nativeImage.createFromPath(getControlsIconPath("play-previous-button.png")),
+      play: nativeImage.createFromPath(getControlsIconPath("play-button.png")),
+      pause: nativeImage.createFromPath(getControlsIconPath("pause-button.png")),
+      next: nativeImage.createFromPath(getControlsIconPath("play-next-button.png"))
+    };
+    const icons = this.thumbarIcons;
+
+    const taskbarFlags: string[] = [];
+    if (!state.hasVideo) {
+      taskbarFlags.push("disabled");
+    }
+
+    const protectedApiManager = this.getDependency(ProtectedAPIManager);
+    state.window.setThumbarButtons([
+      {
+        tooltip: "Previous",
+        icon: icons.previous,
+        flags: taskbarFlags,
+        async click() {
+          const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
+          remoteControlApi.postMessage("execute", "previous");
+        }
+      },
+      {
+        tooltip: "Play/Pause",
+        icon: state.isPlaying ? icons.pause : icons.play,
+        flags: taskbarFlags,
+        async click() {
+          const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
+          remoteControlApi.postMessage("execute", "playPause");
+        }
+      },
+      {
+        tooltip: "Next",
+        icon: icons.next,
+        flags: taskbarFlags,
+        async click() {
+          const remoteControlApi = protectedApiManager.createOrGetAPI("RemoteControl");
+          remoteControlApi.postMessage("execute", "next");
+        }
+      }
+    ]);
   }
 }

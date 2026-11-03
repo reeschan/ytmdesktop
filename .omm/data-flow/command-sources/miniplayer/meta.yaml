@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:53.600Z
+updated: 2026-11-03T06:13:53.601Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: miniplayer
+children: []
+parentPath:
+  - command-sources

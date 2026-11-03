@@ -1,0 +1,10 @@
+created: 2026-11-03T06:09:33.683Z
+updated: 2026-11-03T06:09:33.684Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: renderer
+children: []
+parentPath:
+  - app-windows
+  - main-view
