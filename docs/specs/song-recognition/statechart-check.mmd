@@ -1,0 +1,63 @@
+stateDiagram-v2
+    state "Song recognition" as All {
+        state "Integration" as RE {
+            On: Enabled
+            Off: Disabled
+            [*] --> On
+            On --> Off: turn the integration off
+            Off --> On: turn the integration on
+        }
+        --
+        state "Audio source" as RS {
+            Pc: PC audio
+            Mic: Microphone or device
+            [*] --> Pc
+            Pc --> Mic: change the audio source
+            Mic --> Pc: change the audio source
+        }
+        --
+        state "Recognition" as RR {
+            Idle: Idle
+            Rec: Recording
+            Search: Searching
+            Msg: Showing message
+            [*] --> Idle
+            Idle --> Rec: press the icon [enabled]
+            %% when On
+            Msg --> Rec: press the icon [enabled]
+            %% when On
+            Rec --> Idle: press again
+            Rec --> Search: 5 seconds recorded
+            Rec --> Msg: cannot record
+            Search --> Search: press the icon [enabled]
+            %% when On
+            Search --> Idle: match found
+            Search --> Msg: no match or error
+            Msg --> Idle: 4 seconds pass
+            Rec --> Idle: turn the integration off
+            Search --> Idle: turn the integration off
+            Msg --> Idle: turn the integration off
+        }
+        --
+        state "YTM playback" as RP {
+            Playing: Playing
+            UserPaused: Paused by the user
+            OurPaused: Paused by recognition
+            [*] --> Playing
+            Playing --> UserPaused: the user pauses
+            UserPaused --> Playing: the user plays
+            Playing --> OurPaused: press the icon [idle or message, enabled, PC audio]
+            %% when Idle, Msg, On, Pc
+            OurPaused --> Playing: the user plays
+            OurPaused --> Playing: press again
+            OurPaused --> Playing: 5 seconds recorded
+            OurPaused --> Playing: cannot record
+            OurPaused --> Playing: turn the integration off
+        }
+    }
+
+    %% never IdleStillPaused: Idle & Paused by recognition -- 聞き取りが終わったあと、聞き取りが止めた再生が止まったまま残らない
+    %% never SearchStillPaused: Searching & Paused by recognition -- 録り終えたら、聞き取りが止めた再生は戻っている
+    %% never MsgStillPaused: Showing message & Paused by recognition -- 録れなかったときも、聞き取りが止めた再生は戻っている
+    %% never RecordingWhenOff: Disabled & Recording -- 連携を OFF にしたら、録音は続かない
+    %% never SearchingWhenOff: Disabled & Searching -- 連携を OFF にしたら、問い合わせは続かない

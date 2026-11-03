@@ -49,10 +49,30 @@ export function createNavigationMenuArrows() {
     const navBar = searchBar?.parentNode;
     navBar?.insertBefore(historyForwardElement, searchBar);
     navBar?.insertBefore(historyBackElement, historyForwardElement);
+    if (searchBar instanceof HTMLElement) keepOpenedSearchBoxInPlace(searchBar);
   } else {
     historyForwardElement.classList.add("pivotbar");
     historyBackElement.classList.add("pivotbar");
     pivotBar.prepend(historyForwardElement);
     pivotBar.prepend(historyBackElement);
   }
+}
+
+// YTM takes the opened search box out of the flow, which moves it over the history buttons.
+// It is shifted back to where it was while closed.
+function keepOpenedSearchBoxInPlace(searchBox: HTMLElement) {
+  let closedX = searchBox.getBoundingClientRect().x;
+
+  new ResizeObserver(() => {
+    if (!searchBox.hasAttribute("opened")) closedX = searchBox.getBoundingClientRect().x;
+  }).observe(searchBox.parentElement ?? searchBox);
+
+  new MutationObserver(() => {
+    searchBox.style.marginLeft = "";
+    if (searchBox.hasAttribute("opened")) {
+      searchBox.style.marginLeft = `${closedX - searchBox.getBoundingClientRect().x}px`;
+    } else {
+      closedX = searchBox.getBoundingClientRect().x;
+    }
+  }).observe(searchBox, { attributes: true, attributeFilter: ["opened"] });
 }

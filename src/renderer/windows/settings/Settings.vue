@@ -8,6 +8,14 @@ import { BackgroundVideoSource } from "~shared/background-video";
 import { AuthToken } from "~shared/integrations/companion-server/types";
 import { buildActivity, DiscordActivityStatusDisplayType, TemplateField } from "~shared/discord-presence/activity";
 import { LikeStatus, PlayerState, VideoDetails, VideoState, VideoType } from "~shared/playerstatestore/types";
+import {
+  DEFAULT_SONG_RECOGNITION_SOURCE,
+  SHAZAM_API_KEY_URL,
+  SongRecognitionInputDevice,
+  SongRecognitionSourceKind,
+  SongRecognitionSourceSetting
+} from "~shared/song-recognition";
+import { isPcAudioAvailable } from "~shared/song-recognition/source";
 import logo from "~assets/icons/ytmd.png";
 
 declare const YTMD_GIT_COMMIT_HASH: string | undefined;
@@ -103,6 +111,10 @@ const discordPresenceShowButton = ref<boolean>(integrations.discordPresenceShowB
 const discordPresenceStatusDisplay = ref<number>(integrations.discordPresenceStatusDisplay);
 const lastFMEnabled = ref<boolean>(integrations.lastFMEnabled);
 const enhancedMediaServiceEnabled = ref<boolean>(integrations.enhancedMediaServiceEnabled);
+// The values below can be missing in a settings file saved by an older version
+const shazamEnabled = ref<boolean>(integrations.shazamEnabled ?? false);
+const shazamApiKey = ref<string>(await decryptShazamApiKey(integrations.shazamApiKey));
+const shazamAudioSource = ref<SongRecognitionSourceSetting>(integrations.shazamAudioSource ?? DEFAULT_SONG_RECOGNITION_SOURCE);
 
 const shortcutPlayPause = ref<string>(shortcuts.playPause);
 const shortcutNext = ref<string>(shortcuts.next);
@@ -157,6 +169,9 @@ store.onDidAnyChange(async newState => {
   lastFMSessionKey.value = newState.lastfm.sessionKey;
   scrobblePercent.value = newState.lastfm.scrobblePercent;
   enhancedMediaServiceEnabled.value = newState.integrations.enhancedMediaServiceEnabled;
+  shazamEnabled.value = newState.integrations.shazamEnabled ?? false;
+  // The API key input is not synced back here: it saves while typing, and an older echoed value would overwrite newer text
+  shazamAudioSource.value = newState.integrations.shazamAudioSource ?? DEFAULT_SONG_RECOGNITION_SOURCE;
 
   shortcutPlayPause.value = newState.shortcuts.playPause;
   shortcutNext.value = newState.shortcuts.next;
@@ -192,6 +207,7 @@ const lastFMAuthenticationStep = ref<number>(await memoryStore.get("lastFMAuthen
 const themeFileMissing = ref<boolean>(await memoryStore.get("themeFileMissing"));
 const themeUnreadableItems = ref<string[]>((await memoryStore.get("themeUnreadableItems")) ?? []);
 const backgroundVideoFileMissing = ref<boolean>(await memoryStore.get("backgroundVideoFileMissing"));
+const songRecognitionDevices = ref<SongRecognitionInputDevice[]>((await memoryStore.get("songRecognitionDevices")) ?? []);
 
 const themeUnreadableItemNames = computed(() =>
   themeUnreadableItems.value.map(item => themeItemNames[item as ThemeItem] ?? item).join(", ")
@@ -222,6 +238,76 @@ memoryStore.onStateChanged(newState => {
   themeFileMissing.value = newState.themeFileMissing;
   themeUnreadableItems.value = newState.themeUnreadableItems ?? [];
   backgroundVideoFileMissing.value = newState.backgroundVideoFileMissing;
+
+  songRecognitionDevices.value = newState.songRecognitionDevices ?? [];
+});
+
+async function decryptShazamApiKey(encrypted: string | null | undefined): Promise<string> {
+  if (!encrypted || !safeStorageAvailable.value) return "";
+
+  try {
+    return (await safeStorage.decryptString(encrypted)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+const shazamPlatform = window.ytmd.isWindows ? "win32" : isDarwin ? "darwin" : "linux";
+const shazamPcAudioAvailable = isPcAudioAvailable(shazamPlatform);
+const SHAZAM_DEVICE_OPTION_PREFIX = `${SongRecognitionSourceKind.Device}:`;
+const SHAZAM_NOT_CONNECTED_SUFFIX = " (not connected)";
+
+function shazamDeviceOptionValue(deviceId: string) {
+  return `${SHAZAM_DEVICE_OPTION_PREFIX}${deviceId}`;
+}
+
+// The select holds one string per option: "pc-audio", "default-mic" or "device:<deviceId>"
+const shazamAudioSourceValue = computed({
+  get() {
+    const source = shazamAudioSource.value;
+    if (source.kind === SongRecognitionSourceKind.DefaultMic) return SongRecognitionSourceKind.DefaultMic;
+    if (source.kind === SongRecognitionSourceKind.Device && source.deviceId !== null) return shazamDeviceOptionValue(source.deviceId);
+    return shazamPcAudioAvailable ? SongRecognitionSourceKind.PcAudio : SongRecognitionSourceKind.DefaultMic;
+  },
+  set(value: string) {
+    let source: SongRecognitionSourceSetting;
+    if (value.startsWith(SHAZAM_DEVICE_OPTION_PREFIX)) {
+      const deviceId = value.slice(SHAZAM_DEVICE_OPTION_PREFIX.length);
+      const label =
+        songRecognitionDevices.value.find(device => device.deviceId === deviceId)?.label ??
+        (shazamAudioSource.value.deviceId === deviceId ? shazamAudioSource.value.label : null);
+      source = { kind: SongRecognitionSourceKind.Device, deviceId, label };
+    } else if (value === SongRecognitionSourceKind.DefaultMic) {
+      source = { kind: SongRecognitionSourceKind.DefaultMic, deviceId: null, label: null };
+    } else {
+      source = { kind: SongRecognitionSourceKind.PcAudio, deviceId: null, label: null };
+    }
+
+    shazamAudioSource.value = source;
+    store.set("integrations.shazamAudioSource", source);
+  }
+});
+
+// A saved device that is not in the list stays selectable, marked as not connected
+const shazamSavedDeviceNotConnected = computed(() => {
+  const source = shazamAudioSource.value;
+  if (source.kind !== SongRecognitionSourceKind.Device || source.deviceId === null) return false;
+  return !songRecognitionDevices.value.some(device => device.deviceId === source.deviceId);
+});
+
+const shazamAudioSourceOptions = computed(() => {
+  const options: { value: string; label: string }[] = [];
+  if (shazamPcAudioAvailable) options.push({ value: SongRecognitionSourceKind.PcAudio, label: "PC audio" });
+  options.push({ value: SongRecognitionSourceKind.DefaultMic, label: "System default microphone" });
+  for (const device of songRecognitionDevices.value) options.push({ value: shazamDeviceOptionValue(device.deviceId), label: device.label });
+  if (shazamSavedDeviceNotConnected.value) {
+    const source = shazamAudioSource.value;
+    options.push({
+      value: shazamDeviceOptionValue(source.deviceId ?? ""),
+      label: `${source.label ?? source.deviceId}${SHAZAM_NOT_CONNECTED_SUFFIX}`
+    });
+  }
+  return options;
 });
 
 const discordPresenceStatusDisplayOptions: Record<DiscordActivityStatusDisplayType, string> = {
@@ -318,6 +404,7 @@ async function settingsChanged() {
   store.set("integrations.lastFMEnabled", lastFMEnabled.value);
   store.set("lastfm.scrobblePercent", scrobblePercent.value);
   store.set("integrations.enhancedMediaServiceEnabled", enhancedMediaServiceEnabled.value);
+  store.set("integrations.shazamEnabled", shazamEnabled.value);
 
   store.set("shortcuts.playPause", shortcutPlayPause.value);
   store.set("shortcuts.next", shortcutNext.value);
@@ -355,10 +442,99 @@ function textSettingChanged(key: string, value: unknown) {
   pendingTextSettings.set(key, { value, timeout: setTimeout(() => saveTextSetting(key), TEXT_SETTING_SAVE_DELAY_MS) });
 }
 
-window.addEventListener("beforeunload", saveAllTextSettings);
-onBeforeUnmount(() => {
-  window.removeEventListener("beforeunload", saveAllTextSettings);
+// The API key is encrypted before it is saved, so it follows the same typing pause on its own
+let shazamApiKeySaveTimeout: ReturnType<typeof setTimeout> | null = null;
+// The last plaintext key that was saved or loaded. null when a stored key could not be decrypted, so nothing is skipped
+const loadedShazamApiKey = shazamApiKey.value.trim();
+let lastSavedShazamApiKey: string | null = integrations.shazamApiKey && loadedShazamApiKey === "" ? null : loadedShazamApiKey;
+
+// The encryption runs in the main process, so the save can still be in flight when the window is asked to close
+let shazamApiKeySavesInFlight: Promise<void>[] = [];
+
+function saveShazamApiKey(): Promise<void> {
+  const save = saveShazamApiKeyNow().finally(() => {
+    shazamApiKeySavesInFlight = shazamApiKeySavesInFlight.filter(inFlight => inFlight !== save);
+  });
+  shazamApiKeySavesInFlight.push(save);
+  return save;
+}
+
+async function saveShazamApiKeyNow() {
+  if (shazamApiKeySaveTimeout !== null) {
+    clearTimeout(shazamApiKeySaveTimeout);
+    shazamApiKeySaveTimeout = null;
+  }
+  if (!safeStorageAvailable.value) return;
+
+  const apiKey = shazamApiKey.value.trim();
+  // Each encryption gives a different ciphertext, so saving the same key again would restart the integration for nothing
+  if (apiKey === lastSavedShazamApiKey) return;
+
+  const previous = lastSavedShazamApiKey;
+  lastSavedShazamApiKey = apiKey;
+  try {
+    store.set("integrations.shazamApiKey", apiKey === "" ? null : await safeStorage.encryptString(apiKey));
+  } catch (error) {
+    lastSavedShazamApiKey = previous;
+    console.error("Failed to save the Shazam API key", error);
+  }
+}
+
+function shazamApiKeyTyped() {
+  if (shazamApiKeySaveTimeout !== null) clearTimeout(shazamApiKeySaveTimeout);
+  shazamApiKeySaveTimeout = setTimeout(saveShazamApiKey, TEXT_SETTING_SAVE_DELAY_MS);
+}
+
+function saveAllPendingSettings() {
   saveAllTextSettings();
+  if (shazamApiKeySaveTimeout !== null) saveShazamApiKey();
+}
+
+const SHAZAM_API_KEY_CLOSE_WAIT_MS = 2000;
+let closingAfterShazamApiKeySave = false;
+let closeWaitTimedOut = false;
+
+async function closeAfterShazamApiKeySave() {
+  closingAfterShazamApiKeySave = true;
+  let waitTimeout: ReturnType<typeof setTimeout> | undefined;
+  try {
+    await Promise.race([
+      (async () => {
+        if (shazamApiKeySaveTimeout !== null) await saveShazamApiKey();
+        await Promise.all(shazamApiKeySavesInFlight);
+      })(),
+      new Promise<void>(resolve => {
+        waitTimeout = setTimeout(() => {
+          closeWaitTimedOut = true;
+          console.error("The Shazam API key was not saved within 2000 ms, closing anyway");
+          resolve();
+        }, SHAZAM_API_KEY_CLOSE_WAIT_MS);
+      })
+    ]);
+  } finally {
+    clearTimeout(waitTimeout);
+    closingAfterShazamApiKeySave = false;
+  }
+  window.ytmd.closeWindow();
+}
+
+function onBeforeUnload(event: BeforeUnloadEvent) {
+  saveAllTextSettings();
+  if (closeWaitTimedOut) return;
+
+  const keySavePending = shazamApiKeySaveTimeout !== null || shazamApiKeySavesInFlight.length > 0;
+  if (!keySavePending && !closingAfterShazamApiKeySave) return;
+
+  // Stop this close, finish the save, then close again
+  event.preventDefault();
+  event.returnValue = "";
+  if (!closingAfterShazamApiKeySave) closeAfterShazamApiKeySave();
+}
+
+window.addEventListener("beforeunload", onBeforeUnload);
+onBeforeUnmount(() => {
+  window.removeEventListener("beforeunload", onBeforeUnload);
+  saveAllPendingSettings();
 });
 
 async function settingChangedRequiresRestart() {
@@ -994,6 +1170,64 @@ window.ytmd.handleUpdateDownloaded(() => {
             beta
             @change="settingChangedRequiresRestart"
           />
+          <YTMDSetting
+            v-model="shazamEnabled"
+            type="checkbox"
+            name="Shazam"
+            description="Identify the song that is playing and search for it on YouTube Music"
+            :disabled="!safeStorageAvailable"
+            disabled-message="This integration cannot be enabled due to safeStorage being unavailable"
+            @change="settingsChanged"
+          />
+          <YTMDSetting
+            v-if="shazamEnabled && safeStorageAvailable"
+            type="custom"
+            indented
+            name="API key"
+          >
+            <input
+              v-model="shazamApiKey"
+              class="shazam-api-key-input tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              type="password"
+              aria-label="API key"
+              autocomplete="off"
+              spellcheck="false"
+              @input="shazamApiKeyTyped"
+              @change="saveShazamApiKey"
+            >
+            <a
+              class="shazam-api-key-link"
+              :href="SHAZAM_API_KEY_URL"
+              target="_blank"
+            >Get an API key</a>
+          </YTMDSetting>
+          <YTMDSetting
+            v-if="shazamEnabled"
+            type="custom"
+            indented
+            name="Audio source"
+          >
+            <select
+              v-model="shazamAudioSourceValue"
+              class="setting-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+            >
+              <option
+                v-for="option of shazamAudioSourceOptions"
+                :key="option.value"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+          </YTMDSetting>
+          <div
+            v-if="shazamEnabled && shazamSavedDeviceNotConnected"
+            class="setting indented"
+          >
+            <p class="appearance-warning tw:text-ytmd-text-muted">
+              The system default microphone is used until it is connected.
+            </p>
+          </div>
         </div>
 
         <div
@@ -1537,6 +1771,20 @@ window.ytmd.handleUpdateDownloaded(() => {
 
 .appearance-warning {
   margin: 0;
+}
+
+.shazam-api-key-input {
+  width: 216px;
+  padding: 8px;
+  border-radius: 4px;
+  border-width: 1px;
+  border-style: solid;
+}
+
+.shazam-api-key-link {
+  margin-left: 8px;
+  color: var(--ytmd-color-accent);
+  white-space: nowrap;
 }
 
 .setting-select {
