@@ -78,7 +78,7 @@ PC で流れている曲 (ほかのアプリの動画、配信、ゲームなど
 ### 設定画面 (Integrations タブの Shazam の欄)
 - 項目は英語: `Shazam` のトグル、`API key` (password の入力欄。横に `Get an API key` のリンクで https://rapidapi.com/apidojo/api/shazam を外部のブラウザで開く)、`Audio source` の選択。
 - 入力された API Key は、保存のときに safeStorage で暗号化する。表示は伏せたまま。
-- `Audio source` の選択肢は、`PC audio` (Linux では出さない)・`System default microphone`・入力デバイスの 1 台ずつ (`default` と `communications` の仮の ID は除く)。
+- `Audio source` の選択肢は、`PC audio` (Windows だけで出す。macOS と Linux では出さない)・`System default microphone`・入力デバイスの 1 台ずつ (`default` と `communications` の仮の ID は除く)。
   - デバイスの一覧は、設定画面では取らない。録音するアプリ画面が `enumerateDevices` の `audioinput` を取り (つながりが変わるたび、`devicechange` で取り直す)、メインの MemoryStore を通して設定画面に渡す。Chromium の deviceId は origin ごとに違う値になるので、録る画面と同じところで取った ID を保存するため。
 - 選んでいるデバイスが一覧に無いときは、そのデバイスの `label` に `(not connected)` を付けて選択肢に残し、「録るときはシステムの既定のマイクを使う」と添える。
 - safeStorage が使えないときは、トグルを押せなくし、理由を出す (companion サーバーの欄と同じ扱い)。
@@ -98,7 +98,7 @@ PC で流れている曲 (ほかのアプリの動画、配信、ゲームなど
 ### Shazam API の契約
 - `POST https://shazam.p.rapidapi.com/songs/v2/detect`
 - ヘッダー: `X-RapidAPI-Key: <API Key>`、`X-RapidAPI-Host: shazam.p.rapidapi.com`、`Content-Type: text/plain`
-- 本文: 44.1kHz・モノラル・符号付き 16bit リトルエンディアンの PCM を base64 にした文字列。5 秒で約 441KB。
+- 本文: 44.1kHz・モノラル・符号付き 16bit リトルエンディアンの PCM を base64 にした文字列。元の PCM は 5 秒で約 441,000 バイト、base64 にした本文は約 588,000 文字。
 - 応答: `track` があれば一致。`track.title` が曲名、`track.subtitle` がアーティスト。`track` が無ければ見つからない。
 - HTTP の状態の扱い: 401・403 → キーが違う、429 → 回数の上限、そのほかの 4xx・5xx・通信の失敗・15 秒の打ち切り → 通信エラー。
 
@@ -124,7 +124,7 @@ PC で流れている曲 (ほかのアプリの動画、配信、ゲームなど
 純粋な関数だけを置く。テストの境界はここ (Testing Decisions を参照)。
 - **音の変換**: 録った音 (Float32 のサンプル列と、その標本化周波数・チャンネル数) を受け、44.1kHz・モノラル・16bit の PCM の base64 を返す。複数チャンネルは平均してモノラルにし、周波数は 44.1kHz に変える。範囲を超える値は丸める。
 - **応答の解釈**: HTTP の状態と JSON (または通信の失敗・打ち切り) を受け、「検索の文字列」か「結果の種類」(見つからない / キーが違う / 回数の上限 / 通信エラー) を返す。曲名かアーティストの片方しか無いときは、ある方だけで検索の文字列を作る。
-- **音の元の決定**: 設定の音の元・今つながっている入力デバイスの一覧・OS を受け、実際に録る元 (PC の音 / 既定のマイク / ある 1 台) を返す。Device がつながっていなければ既定のマイク。Linux で PC の音が設定されていたら既定のマイク。
+- **音の元の決定**: 設定の音の元・今つながっている入力デバイスの一覧・OS を受け、実際に録る元 (PC の音 / 既定のマイク / ある 1 台) を返す。Device がつながっていなければ既定のマイク。Windows 以外 (macOS と Linux) で PC の音が設定されていたら既定のマイク。
 - **聞き取りの状態の決定**: 今の状態と出来事 (押された・録り終えた・録れなかった・応答が来た・知らせの時間が過ぎた・OFF になった) を受け、次の状態と、メインがすること (録音を頼む・取り消す・問い合わせる・一時停止する・再生に戻す・検索する) を返す。
 
 ## Testing Decisions
