@@ -300,6 +300,7 @@ app.on("ready", async () => {
       maximized: configStore.get("state.windowMaximized")
     },
     views: [mainView],
+    keyboardShortcuts: { closeWindow: true, toggleFullScreen: true },
     url: app.isPackaged ? "ytmd-app://titlebar" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/titlebar/index.html",
     electronOptions: {
       width: windowBounds?.width ?? 1280 / scaleFactor,
@@ -374,6 +375,7 @@ app.on("ready", async () => {
       name: "Settings",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://settings" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/settings/index.html",
       electronOptions: {
         width: 800,
@@ -433,6 +435,7 @@ app.on("ready", async () => {
       name: "Miniplayer",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://miniplayer" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/miniplayer/index.html",
       electronOptions: {
         width: windowBounds?.width ?? 600 / scaleFactor,
@@ -696,6 +699,7 @@ app.on("ready", async () => {
       name: "Changelog",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://changelog" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/changelog/index.html",
       electronOptions: {
         width: 800,
