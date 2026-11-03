@@ -17,8 +17,8 @@ export class YTMHook {
     const mapSet = Map.prototype.set;
     Object.defineProperty(Map.prototype, "set", {
       value: function (key, value) {
-        if (key.name && key.name === "PLAYER_CONTROLLER_TOKEN") {
-          if (value.useClass) {
+        if (key?.name === "PLAYER_CONTROLLER_TOKEN") {
+          if (value?.useClass) {
             const OriginalClass = value.useClass;
 
             value.useClass = new Proxy(OriginalClass, {
@@ -34,8 +34,8 @@ export class YTMHook {
           }
         }
 
-        if (key.name && key.name === "STATE_STORE_TOKEN") {
-          if (value.useFactory) {
+        if (key?.name === "STATE_STORE_TOKEN") {
+          if (value?.useFactory) {
             const originalFactory = value.useFactory;
 
             value.useFactory = new Proxy(originalFactory, {
