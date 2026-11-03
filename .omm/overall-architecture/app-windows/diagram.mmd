@@ -1,0 +1,40 @@
+graph LR
+    main-process["Main Process\nsrc/main/"]
+    titlebar["Titlebar Window\nsrc/renderer/windows/titlebar/"]
+    main-view["Main View (Loading)\nsrc/renderer/windows/main/"]
+    background-video["Background Video View\nsrc/renderer/windows/background-video/"]
+    settings["Settings Window\nsrc/renderer/windows/settings/"]
+    miniplayer["Miniplayer Window\nsrc/renderer/windows/miniplayer/"]
+    updater["Updater Window\nsrc/renderer/windows/updater/"]
+    changelog["Changelog Window\nsrc/renderer/windows/changelog/"]
+    authorize-companion["Authorize Companion Window\nsrc/renderer/windows/authorize-companion/"]
+    components["Shared Components\nsrc/renderer/components/"]
+    store-ipc["Store IPC\nsrc/renderer/store-ipc/"]
+
+    main-process -->|"ytmd-app:// か Vite dev server で読み込む"| titlebar
+    titlebar -->|"windowControls:* / window:open* / ytmView:switchFocus / app:restartApplicationForUpdate を送る"| main-process
+    main-process -->|"ytmView:statusChanged を送り、executeJavaScript で録音を呼ぶ"| main-view
+    main-view -->|"ytmView:reload / appView:hide を送る"| main-process
+    main-process -->|"backgroundVideo:state を送る"| background-video
+    settings -->|"safeStorage:* / app:* / lastfm:authenticate を送る"| main-process
+    main-process -->|"autoUpdater:* で更新の状態を送る"| settings
+    miniplayer -->|"remoteControl:execute で YTM 画面を操作する"| main-process
+    main-process -->|"autoUpdater:* で進み具合を送る"| updater
+    changelog -->|"changelog:getReleaseMetadata を invoke"| main-process
+    authorize-companion -->|"companionAuthorization:result:id で結果を返す"| main-process
+    titlebar -->|"memoryStore を preload で使う"| store-ipc
+    main-view -->|"memoryStore を preload で使う"| store-ipc
+    settings -->|"configStore / memoryStore を preload で使う"| store-ipc
+    changelog -->|"configStore を preload で使う"| store-ipc
+    store-ipc -->|"configStore:* / memoryStore:* の IPC"| main-process
+    titlebar -->|"TitleBar を表示"| components
+    settings -->|"TitleBar / YTMDSetting / KeybindInput"| components
+    changelog -->|"TitleBar を表示"| components
+    authorize-companion -->|"TitleBar を表示"| components
+    miniplayer -->|"RangeInput でシークと音量"| components
+    main-view -->|"YTMViewLoading を表示"| components
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class main-process external
+    class store-ipc store

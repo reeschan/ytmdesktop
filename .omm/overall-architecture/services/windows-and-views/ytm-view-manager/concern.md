@@ -1,0 +1,1 @@
+- `ready()` は 250ms ごとの `setInterval` で `hooksReady` を待ち、期限が無い。`ytmView:ready` が来ないと待ち続ける (ThemeManager の CSS 注入もこれを待つ)。

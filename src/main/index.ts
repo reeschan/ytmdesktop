@@ -245,6 +245,26 @@ app.on("ready", async () => {
     app.relaunch();
     app.quit();
   });
+
+  // Installs an update that was downloaded while the app was running
+  function restartApplicationForUpdate() {
+    if (!autoUpdater.isUpdateDownloaded()) return;
+
+    // Hide to tray would otherwise stop the main window from closing and the install from quitting the app
+    windowManager.forceWindowClosures();
+    autoUpdater.quitAndInstall();
+  }
+
+  // The settings window shows the update state while it is open
+  function sendUpdateStateToSettings(channel: string) {
+    if (windowManager.hasWindow("Settings")) windowManager.getWindow("Settings").webContents?.send(channel);
+  }
+  autoUpdater.on("checking", () => sendUpdateStateToSettings("autoUpdater:checkingForUpdate"));
+  autoUpdater.on("available", () => sendUpdateStateToSettings("autoUpdater:updateAvailable"));
+  autoUpdater.on("not-available", () => sendUpdateStateToSettings("autoUpdater:updateNotAvailable"));
+  autoUpdater.on("downloaded", () => sendUpdateStateToSettings("autoUpdater:updateDownloaded"));
+  // The settings window has no error state, so a failed check is shown as no update
+  autoUpdater.on("error", () => sendUpdateStateToSettings("autoUpdater:updateNotAvailable"));
   //#endregion
 
   //#region Main Window
@@ -419,6 +439,11 @@ app.on("ready", async () => {
       const playerStateStore = serviceHost.getService(PlayerStateStore);
       return playerStateStore.getState();
     });
+
+    settingsWindow.ipcOn("app:checkForUpdates", () => {
+      if (!autoUpdater.isDisabled()) void autoUpdater.checkForUpdates(false);
+    });
+    settingsWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
   });
 
   mainWindow.ipcOn("window:openMiniplayer", () => {
@@ -512,11 +537,17 @@ app.on("ready", async () => {
     if (ytmView) void ytmView.webContents?.loadURL("https://music.youtube.com/");
   });
 
+  mainWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
+
+  // Keyboard navigation moves between the titlebar and the YTM view
   mainWindow.ipcOn("ytmView:switchFocus", (_event, context: unknown) => {
-    if (context === FocusContext.Ytm) {
-      ytmViewManager.getView()?.webContents?.focus();
-    } else if (context === FocusContext.Main) {
-      mainView.webContents?.focus();
+    const ytmWebContents = ytmViewManager.getView()?.webContents;
+    if (!ytmWebContents) return;
+
+    if (context === FocusContext.Ytm && mainWindow.webContents?.isFocused()) {
+      ytmWebContents.focus();
+    } else if (context === FocusContext.Main && ytmWebContents.isFocused()) {
+      mainWindow.webContents?.focus();
     }
   });
   //#endregion

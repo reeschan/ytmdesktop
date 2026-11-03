@@ -1,0 +1,24 @@
+graph LR
+    enhanced-media-service["EnhancedMediaService\nsrc/main/integrations/enhanced-media-service/"]
+    taskbar-manager["TaskbarManager\nsrc/main/services/taskbarmanager/"]
+    shortcut-manager["ShortcutManager\nsrc/main/services/shortcutmanager/"]
+    tray["トレイ\nsrc/main/index.ts"]
+    notifications["NowPlayingNotifications\nsrc/main/integrations/notifications/"]
+    protocol-manager["ProtocolManager\nsrc/main/services/protocolmanager/"]
+    login-item["ログイン時の起動\nsrc/main/services/configstore/"]
+    media-controls["OS のメディア操作\n(外部・SMTC / MPRIS ほか)"]
+    os-shell["OS のシェル\n(外部・タスクバー・トレイ・通知・キー)"]
+    ytm-image-host["サムネイルの画像サーバー\n(外部・YTM のサムネイル URL)"]
+
+    enhanced-media-service -->|"xosms で曲の情報と状態を出す"| media-controls
+    media-controls -->|"ボタンとシークを返す"| enhanced-media-service
+    taskbar-manager -->|"setThumbarButtons と setProgressBar"| os-shell
+    shortcut-manager -->|"globalShortcut.register"| os-shell
+    tray -->|"Tray とコンテキストメニュー"| os-shell
+    notifications -->|"Notification を出す"| os-shell
+    notifications -->|"https.get でサムネイルを取る"| ytm-image-host
+    protocol-manager -->|"setAsDefaultProtocolClient で ytmd を登録"| os-shell
+    login-item -->|"setLoginItemSettings"| os-shell
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class media-controls,os-shell,ytm-image-host external

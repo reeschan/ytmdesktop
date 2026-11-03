@@ -1,0 +1,22 @@
+graph LR
+    integration-base["Integration 基底クラス\nsrc/main/integrations/integration.ts"]
+    companion-server["Companion Server\nsrc/main/integrations/companion-server/"]
+    discord-presence["Discord Presence\nsrc/main/integrations/discord-presence/"]
+    last-fm["Last.fm\nsrc/main/integrations/last-fm/"]
+    notifications["曲の通知\nsrc/main/integrations/notifications/"]
+    volume-ratio["音量カーブ\nsrc/main/integrations/volume-ratio/"]
+    custom-css["カスタム CSS\nsrc/main/integrations/custom-css/"]
+    enhanced-media-service["OS のメディア操作\nsrc/main/integrations/enhanced-media-service/"]
+    song-recognition["曲の聞き取り\nsrc/main/integrations/song-recognition/"]
+
+    companion-server -->|"継承。PlayerStateStore・ProtectedAPIManager・ConfigStore・MemoryStore を使う"| integration-base
+    discord-presence -->|"継承。PlayerStateStore・ConfigStore・MemoryStore を使う"| integration-base
+    last-fm -->|"継承。PlayerStateStore・ConfigStore・MemoryStore を使う"| integration-base
+    notifications -->|"継承。PlayerStateStore を使う"| integration-base
+    volume-ratio -->|"継承。YTMViewManager と executeYTMScript を使う"| integration-base
+    custom-css -->|"継承。YTMViewManager・ThemeManager・ConfigStore を使う"| integration-base
+    enhanced-media-service -->|"継承。PlayerStateStore・ProtectedAPIManager・ConfigStore を使う"| integration-base
+    song-recognition -->|"継承。PlayerStateStore・ProtectedAPIManager・YTMViewManager・ConfigStore・MemoryStore を使う"| integration-base
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class integration-base entry

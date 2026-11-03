@@ -1,0 +1,3 @@
+- preload は先頭で `window.location.hostname !== "music.youtube.com"` なら `[YTMDFastFail]` の例外を投げて止まる (Google のログイン画面などでは何もしない)。このとき main は完了フラグを `LocationNotApplicable` にして Ready 扱いにする。
+- ページのスクリプトは YouTube Music と同じ main world で動くので、ページから来るデータは信用しない。preload は曲の聞き取りの `Press` を `event.source === window` のときだけ受け、背景動画の報告は真偽値に直してから送る。
+- ページのスクリプトの中で YTM のイベントに付けたハンドラーは、自分のエラーを YTM に投げ返さないように try/catch で包む (playerstatestore.ts のコメント)。

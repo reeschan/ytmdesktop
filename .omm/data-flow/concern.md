@@ -1,0 +1,4 @@
+- 再生状態は YTM の内部構造 (`playerPage.playerOverlay...`、`queue.items[].playlistPanelVideoRenderer` など) に強く依存する。YouTube Music の更新で形が変わると、ページ側の送り出しか `PlayerStateStore` の変換が壊れる。
+- `PlayerStateStore` は進み具合 (`onVideoProgress`) が来るたびに `state-changed` を出し、毎回 Miniplayer・Settings への IPC、ウィンドウのタイトル、`StateManager.updateState` まで走る。受け手は自分で間引く必要がある (Discord は 1 秒のデバウンス、通知は曲 ID の比較)。
+- `RemoteControl` の `postMessage` は、ポートがまだ結ばれていないと黙って捨てられる (`this.port?.postMessage`)。YTM 画面の読み込み中や再生成の間の操作は届かない。
+- `ConfigStore` は `onDidAnyChange` のたびに全ウィンドウへ状態全体を送る。設定の変更は頻度が低い前提に立っている。

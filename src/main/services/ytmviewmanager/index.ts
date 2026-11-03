@@ -11,6 +11,11 @@ import { MemoryStoreSchema } from "~shared/store/schema";
 import AppWindowManager from "../windowmanager";
 import { YtmStartupIpc } from "~shared/ytm-startup";
 
+// The packaged and development builds keep separate sessions for the YTM view
+function getYTMViewPartition(): string {
+  return app.isPackaged ? "persist:ytmview" : "persist:ytmview-dev";
+}
+
 export type YTMViewManagerEventMap = {
   "status-changed": [];
   "view-recreated": [];
@@ -96,7 +101,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
     });
 
     //#region Permission handlers
-    session.fromPartition("persist:ytmview").setPermissionCheckHandler((webContents, permission) => {
+    session.fromPartition(getYTMViewPartition()).setPermissionCheckHandler((webContents, permission) => {
       if (webContents == this.ytmView?.webContents) {
         if (permission === "fullscreen") {
           return true;
@@ -105,7 +110,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
 
       return false;
     });
-    session.fromPartition("persist:ytmview").setPermissionRequestHandler((webContents, permission, callback) => {
+    session.fromPartition(getYTMViewPartition()).setPermissionRequestHandler((webContents, permission, callback) => {
       if (webContents == this.ytmView?.webContents) {
         if (permission === "fullscreen") {
           return callback(true);
@@ -160,7 +165,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
         webPreferences: {
           sandbox: true,
           contextIsolation: true,
-          partition: app.isPackaged ? "persist:ytmview" : "persist:ytmview-dev",
+          partition: getYTMViewPartition(),
           preload: path.join(__dirname, `../renderer/windows/ytmview/preload.cjs`),
           devTools: !app.isPackaged ? true : configStore.get("developer.enableDevTools"),
           autoplayPolicy:

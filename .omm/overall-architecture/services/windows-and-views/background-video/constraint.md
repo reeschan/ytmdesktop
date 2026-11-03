@@ -1,0 +1,4 @@
+- YTM 画面への CSS の入れ替えは ThemeManager と同じく、新しい CSS を入れてから古いキーを消す順で、1 本の Promise の列 (`ytmQueue`) で 1 つずつ行う。
+- 透明化の CSS はセレクターを重ねて (`#guide-wrapper#guide-wrapper`・`body:is(body)` など) テーマの `!important` より詳細度を上げ、どちらが後に入っても勝つようにしている。さらに `ytm-theme-applied` を受けて入れ直す。
+- 透明にするセレクターは music.youtube.com の DOM に合わせた決め打ち (コード上は 2026-11-02 に確認とある)。
+- YTM 画面のビューは Service の初期化後に作られるので、`status-changed` を待って掴み、`view-recreated` で状態を捨てて掴み直す。

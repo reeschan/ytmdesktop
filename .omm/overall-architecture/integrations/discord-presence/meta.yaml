@@ -1,0 +1,13 @@
+created: 2026-11-03T06:11:42.021Z
+updated: 2026-11-03T06:11:43.405Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: discord-presence
+children:
+  - discord-app
+  - ipc
+  - minimal-discord-client
+  - presence
+parentPath:
+  - integrations

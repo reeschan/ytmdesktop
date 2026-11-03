@@ -1,0 +1,28 @@
+graph TD
+    bootstrap["起動前の準備\nsrc/main/index.ts (ready 前)"]
+    updater-check["更新の確認\nsrc/main/index.ts (Updater ウィンドウ)"]
+    app-ipc["safeStorage と app の IPC\nsrc/main/index.ts"]
+    main-window["メインウィンドウと mainView\nsrc/main/index.ts"]
+    tray["トレイ\nsrc/main/index.ts"]
+    ytm-view-wiring["YTM 画面の接続\nsrc/main/index.ts (ready 後半)"]
+    child-windows["子ウィンドウ\nsrc/main/index.ts (Settings・Miniplayer・Changelog)"]
+    app-events["アプリのイベント\nsrc/main/index.ts (open-url・shutdown・quit)"]
+    util["util\nsrc/main/util.ts"]
+    manager["Manager\nsrc/main/manager.ts"]
+
+    bootstrap -->|"ready で Initialized に進めて Updater を開く"| updater-check
+    updater-check -->|"更新なしなら PostInitialized に進めて v1ConfigMigration"| util
+    updater-check -->|"続けて safeStorage を確かめ IPC を登録"| app-ipc
+    app-ipc -->|"続けて mainView とメインウィンドウを作る"| main-window
+    main-window -->|"window:openSettings / window:openMiniplayer で開く"| child-windows
+    main-window -->|"Updater を閉じた後にトレイを作る"| tray
+    tray -->|"mainWindow.ready() を待って YTM 画面を作り付ける"| ytm-view-wiring
+    ytm-view-wiring -->|"AppReady の後、版が変わっていれば Changelog を開く"| child-windows
+    main-window -->|"getIconPath でアイコンを得る"| util
+    child-windows -->|"getIconPath でアイコンを得る"| util
+    app-events -->|"quit で Terminated に進める"| bootstrap
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    classDef concern fill:#f38ba8,stroke:#f38ba8,color:#1e1e2e
+    class bootstrap entry
+    class manager concern

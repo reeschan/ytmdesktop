@@ -52,7 +52,12 @@ export default abstract class Integration {
    */
   public async [IntegrationManager.ENABLE]() {
     this.#isEnabled = true;
-    await this.onEnabled();
+    try {
+      await this.onEnabled();
+    } catch (error) {
+      this.#isEnabled = false;
+      throw error;
+    }
   }
 
   /**

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:16:56.887Z
+updated: 2026-11-03T06:16:56.888Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ipc-client
+children: []
+parentPath:
+  - discord-presence

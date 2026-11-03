@@ -7,7 +7,7 @@ import { FocusContext } from "~shared/types";
 const keyboardFocus = ref<HTMLElement>(null);
 const keyboardFocusZero = ref<HTMLElement>(null);
 
-const isMainWindow = ref<boolean>(window.ytmd.isMainWindow);
+const isMainWindow = ref<boolean>(window.ytmd.isMainWindow());
 
 onMounted(() => {
   window.onfocus = () => {
@@ -55,7 +55,6 @@ function openMiniplayer() {
       </button>
     </template>
   </TitleBar>
-  />
   <div
     ref="keyboardFocus"
     tabindex="32767"

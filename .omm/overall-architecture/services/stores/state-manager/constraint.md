@@ -1,0 +1,2 @@
+- WatchDog が `crash` を出すと `panicked` になり、以後の `updateState`・`forceWrite`・書き込みはすべて何もしない (コードのコメントは「Stops and prevents any state writing」)。
+- `onInitialized` の前の `updateState` は無視される。`currentState` は `onPostInitialized` で読むので、それより前の更新も反映されない。

@@ -1,0 +1,1 @@
+YTM 画面から見たメインプロセス。YTMViewManager がビューを作って `ytmView:ready` / `ytmView:errored` を受け、ProtectedAPIManager が `protectedApi:bindPort` でポートを受けて API ごとのポートを束ねる (PlayerStateStore が `PlayerState` を、ミニプレイヤー・トレイ・ショートカット・タスクバー・Companion Server などが `RemoteControl` を使う)。BackgroundVideoManager と曲の聞き取りの Integration がそれぞれの状態を送り、Integration は `executeYTMScript` でページにスクリプトを流す。

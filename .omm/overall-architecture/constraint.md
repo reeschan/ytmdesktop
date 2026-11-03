@@ -1,0 +1,4 @@
+- すべてのレンダラーは `sandbox: true` + `contextIsolation: true`。レンダラーからメインへは preload が公開する API (ipcRenderer) か MessagePort しか通らない。
+- YTM 画面は別の partition (`persist:ytmview`) で開くため、`ytmd-app://` プロトコルや既定セッションの設定はそのままでは届かない。
+- Service は必須の仕組みで、Integration は外せる任意の仕組み (`src/main/README.md`)。Integration は Service に依存してよいが、逆はしない。
+- YTM 画面の DOM とプレイヤーの内部 API は YouTube 側が変えうる。差し込むスクリプトはこれに追従する必要がある。

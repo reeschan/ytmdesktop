@@ -1,0 +1,4 @@
+- Companion Server は `0.0.0.0:9863` で待ち受け、CORS の `*` が既定で有効 (`companionServerCORSWildcardEnabled: true`)。守りはトークンとレート制限に頼る。
+- 通知は、YTM から来たサムネイルの URL を確かめずにメインプロセスから `https.get` で取りに行く。
+- Last.fm と自動更新は、ビルド時の環境変数が無いと黙って無効になる (ログだけ残る)。手元のビルドで動かないときはまずここを見る。
+- Shazam は RapidAPI の従量課金で、利用者の API Key で呼ぶ。15 秒で打ち切る。

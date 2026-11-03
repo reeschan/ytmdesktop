@@ -1,0 +1,9 @@
+created: 2026-11-03T06:15:42.476Z
+updated: 2026-11-03T06:15:57.841Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: setup-sequence
+children: []
+parentPath:
+  - ytm-view

@@ -1,0 +1,9 @@
+graph LR
+    state-manager["StateManager\nsrc/main/services/statemanager/"]
+    config-store["ConfigStore\nsrc/main/services/configstore/"]
+    memory-store["MemoryStore\nsrc/main/services/memorystore/"]
+
+    state-manager -->|"起動時に state を読み、30 秒後か 512 回目にまとめて set"| config-store
+
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class config-store,memory-store store

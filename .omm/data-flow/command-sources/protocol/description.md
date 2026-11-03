@@ -1,0 +1,1 @@
+`ytmd://` のリンク。`ProtocolManager` が既定のプロトコルクライアントとして登録し、`second-instance` (Windows / Linux) や `open-url` (macOS) で届いた URL を `handleYTMDProtocol` で読む。`ytmd://play/<videoId>/<playlistId>` だけを扱い、`RemoteControl` に `navigate` (`watchEndpoint`) を送る。

@@ -1,0 +1,4 @@
+- 外部とつながる連携機能は、ほとんどが Integration で、設定の `integrations.*Enabled` (曲の聞き取りは `integrations.shazamEnabled`) で有効になる。有効なときだけつながる。
+- 鍵や秘密の扱い: Companion Server のトークン、Last.fm のセッションキー、Shazam の API Key (利用者が設定画面で入れる) は `safeStorage` で暗号化して `ConfigStore` に置く。Last.fm の API キーと秘密は、ビルド時の環境変数 `LASTFM_API_KEY` / `LASTFM_API_SECRET` を `config/vite/main.ts` が埋め込む (無ければ有効にならない)。Discord のクライアント ID はコードに直書き。
+- 更新のフィードの持ち主とリポジトリも、ビルド時の環境変数 `YTMD_UPDATE_FEED_OWNER` / `YTMD_UPDATE_FEED_REPOSITORY` から埋め込む。
+- YTM 画面のページ内スクリプトは Material Symbols を Google Fonts (fonts.googleapis.com) から読む。これはページの中で完結するので、図には置いていない。

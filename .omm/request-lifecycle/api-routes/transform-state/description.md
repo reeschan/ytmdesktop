@@ -1,0 +1,1 @@
+アプリ内の `PlayerState` を API v1 の形 (`{ player, video, playlistId }`) に写す関数。`player` に再生状態・進み具合・音量・ミュート・広告中・キュー、`video` に曲の詳細と `metadataFilled` (= `hasFullMetadata`) を入れる。`/state`・realtime の `state-update`・名前付きパイプの IPC で同じものを使う。アプリ内の型を変えても API の形を保つための層。

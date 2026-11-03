@@ -1,0 +1,1 @@
+メインプロセス側。`src/main/index.ts` がミニプレイヤーのウィンドウを作り、`remoteControl:execute` を受けて `ProtectedAPIManager.createOrGetAPI("RemoteControl").postMessage("execute", ...)` で YTM 画面に流し、`playerStateStore:getState` に答える。PlayerStateStore (`src/main/services/playerstatestore/`) は状態が変わると `playerStateStore:stateChanged` をこのウィンドウに送る。

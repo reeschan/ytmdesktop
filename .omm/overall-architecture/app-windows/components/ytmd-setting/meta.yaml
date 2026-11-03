@@ -1,0 +1,10 @@
+created: 2026-11-03T06:13:30.370Z
+updated: 2026-11-03T06:13:41.423Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: ytmd-setting
+children: []
+parentPath:
+  - app-windows
+  - components

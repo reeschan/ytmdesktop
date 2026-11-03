@@ -1,0 +1,1 @@
+(外部) RapidAPI 経由の Shazam API (`https://shazam.p.rapidapi.com/songs/v2/detect`)。base64 の 16bit モノラル PCM (44.1kHz、5 秒) を受け、一致すれば `track.title` / `track.subtitle` を返す。API キーは利用者が RapidAPI で取り、設定画面で入れる。401 / 403 はキーが無効、429 は上限に達したものとして扱う。

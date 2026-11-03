@@ -668,6 +668,11 @@ export class AppWindow<
         this.sendWindowControlsStateIpc.bind(this),
       );
       browserWindow.on("restore", this.sendWindowControlsStateIpc.bind(this));
+      // The thumbar buttons are set only when they change, and Windows can drop them while the window is hidden
+      browserWindow.on("show", () => {
+        if (this.thumbarButtons.length > 0)
+          browserWindow.setThumbarButtons(this.thumbarButtons);
+      });
       browserWindow.on(
         "always-on-top-changed",
         this.sendWindowControlsStateIpc.bind(this),

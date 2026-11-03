@@ -1,0 +1,10 @@
+created: 2026-11-03T06:09:35.429Z
+updated: 2026-11-03T06:09:50.151Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: loading-screen
+children: []
+parentPath:
+  - app-windows
+  - main-view

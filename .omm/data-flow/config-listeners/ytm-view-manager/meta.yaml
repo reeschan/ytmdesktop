@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:11.999Z
+updated: 2026-11-03T06:13:12.000Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ytm-view-manager
+children: []
+parentPath:
+  - config-listeners

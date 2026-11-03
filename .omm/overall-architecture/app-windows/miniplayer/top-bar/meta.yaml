@@ -1,0 +1,10 @@
+created: 2026-11-03T06:12:06.336Z
+updated: 2026-11-03T06:12:06.337Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: top-bar
+children: []
+parentPath:
+  - app-windows
+  - miniplayer

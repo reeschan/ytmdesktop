@@ -1,0 +1,9 @@
+created: 2026-11-03T06:12:32.592Z
+updated: 2026-11-03T06:12:32.593Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: updater
+children: []
+parentPath:
+  - app-windows

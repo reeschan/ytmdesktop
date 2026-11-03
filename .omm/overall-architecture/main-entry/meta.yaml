@@ -1,0 +1,18 @@
+created: 2026-11-03T06:07:44.229Z
+updated: 2026-11-03T06:08:01.989Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: main-entry
+children:
+  - app-events
+  - app-ipc
+  - bootstrap
+  - child-windows
+  - main-window
+  - manager
+  - tray
+  - updater-check
+  - util
+  - ytm-view-wiring
+parentPath: []

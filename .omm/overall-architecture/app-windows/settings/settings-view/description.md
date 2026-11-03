@@ -1,0 +1,1 @@
+`Settings.vue`。左のサイドバー (General / Appearance / Playback / Integrations / Shortcuts / About) と、`currentTab` で切り替える中身からなる。設定項目は共通の `YTMDSetting` (checkbox / file / range / select / text / custom) で、ショートカットは `KeybindInput` で出す。すべての値を起動時に `store.get` で読み、`settingsChanged()` で `store.set` し、`store.onDidAnyChange` / `memoryStore.onStateChanged` で外からの変更を取り込む。

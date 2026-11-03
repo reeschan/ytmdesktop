@@ -1,0 +1,1 @@
+`detectSong(apiKey, pcm, signal)`: `SHAZAM_DETECT_URL` (`https://shazam.p.rapidapi.com/songs/v2/detect`) に `X-RapidAPI-Key` / `X-RapidAPI-Host` 付きで base64 の PCM を `text/plain` で POST し、`{ kind: Http, status, body }` を返す。例外は投げず、中断は Timeout、届かなければ NetworkError。応答の読み解きは `src/shared/song-recognition/response.ts` の `interpretShazamResponse` が行う。

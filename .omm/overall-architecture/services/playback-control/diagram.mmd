@@ -1,0 +1,13 @@
+graph LR
+    shortcut-manager["ShortcutManager\nsrc/main/services/shortcutmanager/"]
+    taskbar-manager["TaskbarManager\nsrc/main/services/taskbarmanager/"]
+    player-state-store["PlayerStateStore\nsrc/main/services/playerstatestore/"]
+    protected-api-manager["ProtectedAPIManager\nsrc/main/services/protectedapimanager/"]
+
+    shortcut-manager -->|"押されたら RemoteControl に execute を送る"| protected-api-manager
+    taskbar-manager -->|"サムバーのボタンで RemoteControl に execute を送る"| protected-api-manager
+    taskbar-manager -->|"state-changed を購読しボタンと進捗を作り直す"| player-state-store
+    player-state-store -->|"PlayerState API を作り update* を購読"| protected-api-manager
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class protected-api-manager entry

@@ -1,0 +1,12 @@
+created: 2026-11-03T06:08:37.743Z
+updated: 2026-11-03T06:08:42.006Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: stores
+children:
+  - config-store
+  - memory-store
+  - state-manager
+parentPath:
+  - services

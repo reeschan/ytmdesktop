@@ -65,32 +65,47 @@ export default class LastFM extends Integration {
     playerStateStore.on("state-changed", this.playerStateFunction);
     playerStateStore.on("player-signal", this.playerSignalFunction);
 
-    ipcMain.on("lastfm:authenticate", async () => {
-      const authStep = memoryStore.get("lastFMAuthenticationStep");
-      if (authStep === 0) {
-        memoryStore.set("lastFMAuthenticationStep", 1);
-
-        const token = await this.lastFMClient?.getToken();
-        memoryStore.set("lastFMToken", token);
-        void shell.openExternal(
-          `https://www.last.fm/api/auth/` + `?api_key=${encodeURIComponent(LASTFM_API_KEY)}` + `&token=${encodeURIComponent(token)}`
-        );
-      } else if (authStep === 1) {
-        if (!this.lastFMClient) return;
-
-        const sessionKey = await this.lastFMClient.getSession(memoryStore.get("lastFMToken") as string);
-        if (this.lastFMDetails) this.lastFMDetails.sessionKey = sessionKey;
-        void this.saveSettings();
-        memoryStore.set("lastFMAuthenticationStep", 2);
-      }
-    });
+    ipcMain.on("lastfm:authenticate", this.authenticateListener);
   }
 
   public onDisabled(): void {
     const playerStateStore = this.getService(PlayerStateStore);
     if (this.playerStateFunction) playerStateStore.off("state-changed", this.playerStateFunction);
     if (this.playerSignalFunction) playerStateStore.off("player-signal", this.playerSignalFunction);
+    ipcMain.off("lastfm:authenticate", this.authenticateListener);
   }
+
+  private authenticateListener = async () => {
+    const memoryStore = this.getService(MemoryStore<MemoryStoreSchema>);
+    const authStep = memoryStore.get("lastFMAuthenticationStep");
+    if (authStep === 0) {
+      memoryStore.set("lastFMAuthenticationStep", 1);
+
+      try {
+        const token = await this.lastFMClient?.getToken();
+        memoryStore.set("lastFMToken", token);
+        await shell.openExternal(
+          `https://www.last.fm/api/auth/` + `?api_key=${encodeURIComponent(LASTFM_API_KEY!)}` + `&token=${encodeURIComponent(token)}`
+        );
+      } catch (error) {
+        // A failure here (for example while offline) must not reject, as WatchDog treats that as a crash
+        log.warn("LastFM failed to start authentication", error);
+        memoryStore.set("lastFMAuthenticationStep", 0);
+      }
+    } else if (authStep === 1) {
+      if (!this.lastFMClient) return;
+
+      try {
+        const sessionKey = await this.lastFMClient.getSession(memoryStore.get("lastFMToken") as string);
+        if (this.lastFMDetails) this.lastFMDetails.sessionKey = sessionKey;
+        await this.saveSettings();
+        memoryStore.set("lastFMAuthenticationStep", 2);
+      } catch (error) {
+        // Stays on this step so the user can approve on last.fm and try again
+        log.warn("LastFM failed to get a session", error);
+      }
+    }
+  };
 
   private async getSettings(): Promise<StoreSchema["lastfm"]> {
     const configStore = this.getService(ConfigStore);

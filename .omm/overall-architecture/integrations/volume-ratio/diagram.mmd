@@ -1,0 +1,18 @@
+graph LR
+    controller["VolumeRatio\nsrc/main/integrations/volume-ratio/index.ts"]
+    enable-script["有効化スクリプト\nsrc/main/integrations/volume-ratio/script/enable.script.js"]
+    disable-script["無効化スクリプト\nsrc/main/integrations/volume-ratio/script/disable.script.js"]
+    force-update-volume-script["音量の当て直し\nsrc/main/integrations/volume-ratio/script/forceupdatevolume.script.js"]
+    ytm-media-element["YTM 画面の音声と動画\nHTMLMediaElement と playerApi"]
+
+    controller -->|"onEnabled と view-recreated で流す"| enable-script
+    controller -->|"onDisabled で流す"| disable-script
+    controller -->|"切り替えのたびに流す"| force-update-volume-script
+    enable-script -->|"volume の getter / setter を 3 乗のカーブに差し替える"| ytm-media-element
+    disable-script -->|"退避した元の記述子に戻す"| ytm-media-element
+    force-update-volume-script -->|"setVolume と SET_VOLUME で今の音量を当て直す"| ytm-media-element
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class ytm-media-element external
+    class controller entry

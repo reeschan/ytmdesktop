@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:20.430Z
+updated: 2026-11-03T06:11:20.431Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ipc-client
+children: []
+parentPath:
+  - integrations
+  - companion-server

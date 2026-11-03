@@ -1,0 +1,5 @@
+- `ServiceCollection` は、同じクラス名の Service を 2 回足すと例外、`dependencies` の Service が登録に無いと例外、循環依存があると例外を投げる。どれも `ServiceHost` の生成時 (`src/main/index.ts` のモジュール読み込み時) に起きる。
+- Service のキーは `service.name` (クラス名)。`getService` も名前で引く。
+- `Service.getDependency` は自分の `dependencies` に並べた Service しか返さない。並べずに取ると例外。`ServiceHost` 自体を持てるのは `ServiceHost.INJECT` を上書きした IntegrationManager だけ。
+- `runNextLifecycle` は各段で全 Service を同じ依存順に呼ぶ。`onTerminated` も逆順にはならない。
+- `onInitialized` などは同期で呼ばれ、戻り値の Promise は待たない。

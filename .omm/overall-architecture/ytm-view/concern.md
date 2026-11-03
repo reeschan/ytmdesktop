@@ -1,0 +1,2 @@
+- preload の先頭のコメントは「main に戻る関数は exposeInMainWorld に足す」と書いているが、今のコードは `exposeInMainWorld` を使わず、すべて `window.postMessage` で受けている。main world に `window.ytmd` は無い。
+- `ytmd-ready` の後の「前回の続きから再生」と音量スライダーの処理は preload に直接書かれていて、TODO で Protected API への移し替えが残っている。

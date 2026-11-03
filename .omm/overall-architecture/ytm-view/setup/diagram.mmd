@@ -1,0 +1,27 @@
+graph LR
+    styles["Styles\nsetup/styles.ts"]
+    navigation["Navigation Arrows\nsetup/navigation.ts"]
+    remote["Remote Control\nsetup/remote.ts"]
+    background-video["Background Video Canvas\nsetup/background-video.ts"]
+    song-recognition["Song Recognition Button\nsetup/song-recognition.ts"]
+    extras["Extras\nsetup/extras.ts"]
+    ytm-page["YTM Page Internals\nDOM / playerApi / ytmStateStore"]
+    preload-messages["Preload Messages\nwindow.postMessage"]
+    remote-control-api["RemoteControl API\nProtected API port"]
+
+    styles -->|"style と Material Symbols の link を head に足す"| ytm-page
+    navigation -->|"戻る・進むの矢印を置き history を動かす"| ytm-page
+    remote-control-api -->|"execute と getPlaylists を届ける"| remote
+    remote -->|"playerApi と dispatch、yt-navigate / yt-action で操作"| ytm-page
+    background-video -->|"video のフレームを奥の canvas に描く"| ytm-page
+    background-video -->|"Report を送り State を受ける"| preload-messages
+    song-recognition -->|"検索欄の横にアイコンを置き、検索文字を入れる"| ytm-page
+    song-recognition -->|"Press / Listening を送り State / Search を受ける"| preload-messages
+    extras -->|"プレイヤーバーのボタン、歌詞、cast の無効化"| ytm-page
+    styles -->|"ytmd- のクラスを定義して使わせる"| navigation
+    styles -->|"ytmd- のクラスを定義して使わせる"| extras
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class ytm-page external
+    class preload-messages external
+    class remote-control-api external

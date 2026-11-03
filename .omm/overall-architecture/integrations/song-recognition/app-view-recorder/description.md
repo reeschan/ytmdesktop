@@ -1,0 +1,1 @@
+(外部) mainView (ローディング画面のアプリ画面) の main world に置かれた録音器 `window.ytmdSongRecognitionRecorder` (`{ record, cancel }`、`src/renderer/windows/main/song-recognition-recorder.ts`)。音の元に合わせて `getDisplayMedia` (PC の音) か `getUserMedia` (マイク) で 5 秒録り、`src/shared/song-recognition/audio.ts` で 16bit モノラル PCM の base64 にして返す。

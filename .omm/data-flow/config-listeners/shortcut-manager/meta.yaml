@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:14.690Z
+updated: 2026-11-03T06:13:14.691Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: shortcut-manager
+children: []
+parentPath:
+  - config-listeners

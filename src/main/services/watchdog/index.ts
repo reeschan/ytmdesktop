@@ -10,6 +10,25 @@ function formatCause(cause: unknown): string {
   return inspect(cause);
 }
 
+/**
+ * Redacts URL paths from the string parts of a log message
+ *
+ * @returns False if the message should not be written at all
+ */
+export function sanitizeLogMessage(message: LogMessage): false | LogMessage {
+  for (let i = 0; i < message.data.length; i++) {
+    const data: unknown = message.data[i];
+
+    if (typeof data === "string") {
+      if (data.includes("Third-party cookie will be blocked.")) return false;
+
+      message.data[i] = data.replaceAll(/(?<=((https|http):\/\/)?.{1,64}(\..{1,64})?\..{1,64}\/)([\S]+)/gm, "[REDACTED]");
+    }
+  }
+
+  return message;
+}
+
 export type WatchDogEvent = "crash";
 export type WatchDogEventCallback = () => void | Promise<void>;
 export enum WatchDogApplicationState {
@@ -32,20 +51,6 @@ export default class WatchDog extends Service {
     return this._applicationState;
   }
 
-  private sanitizeMessage(message: LogMessage): false | LogMessage {
-    for (let i = 0; i < message.data.length; i++) {
-      const data = message.data[i];
-
-      if (data instanceof String) {
-        if (data.includes("Third-party cookie will be blocked.")) return false;
-
-        message.data[i] = data.replaceAll(/(?<=((https|http):\/\/)?.{1,64}(\..{1,64})?\..{1,64}\/)([\S]+)/gm, "[REDACTED]");
-      }
-    }
-
-    return message;
-  }
-
   public override onPreInitialized() {}
 
   public override onInitialized() {
@@ -61,7 +66,7 @@ export default class WatchDog extends Service {
     log.hooks.push((message, transport) => {
       if (transport !== log.transports.file) return message;
 
-      return this.sanitizeMessage(message);
+      return sanitizeLogMessage(message);
     });
 
     log.errorHandler.startCatching({
@@ -137,6 +142,6 @@ export default class WatchDog extends Service {
 
   public off(event: WatchDogEvent, callback: WatchDogEventCallback) {
     const index = this.eventCallbacks[event].indexOf(callback, 0);
-    if (index > -1) this.eventCallbacks[event] = this.eventCallbacks[event].splice(index, 1);
+    if (index > -1) this.eventCallbacks[event].splice(index, 1);
   }
 }

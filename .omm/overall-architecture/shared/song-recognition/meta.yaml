@@ -1,0 +1,14 @@
+created: 2026-11-03T06:16:41.671Z
+updated: 2026-11-03T06:16:42.809Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: song-recognition
+children:
+  - audio
+  - constants
+  - response
+  - source
+  - state
+parentPath:
+  - shared

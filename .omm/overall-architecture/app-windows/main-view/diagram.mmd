@@ -1,0 +1,19 @@
+graph LR
+    main-process["Main Process\nsrc/main/"]
+    preload["Preload\nwindows/main/preload.ts"]
+    renderer["Renderer Entry\nwindows/main/renderer.ts"]
+    loading-screen["Loading Screen\nwindows/main/Index.vue"]
+    song-recognition-recorder["Song Recognition Recorder\nwindows/main/song-recognition-recorder.ts"]
+
+    renderer -->|"createApp で Index.vue をマウント"| loading-screen
+    renderer -->|"マウント後に startSongRecognitionRecorder を呼ぶ"| song-recognition-recorder
+    loading-screen -->|"YTMViewLoading が ytmViewStatusChanged などを購読"| preload
+    song-recognition-recorder -->|"memoryStore.set で入力デバイス一覧を出す"| preload
+    preload -->|"memoryStore:set / ytmView:reload / appView:hide を送る"| main-process
+    main-process -->|"ytmView:statusChanged / ytmView:loadError / appView:show を送る"| preload
+    main-process -->|"executeJavaScript で record / cancel を呼ぶ"| song-recognition-recorder
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class main-process external
+    class renderer entry

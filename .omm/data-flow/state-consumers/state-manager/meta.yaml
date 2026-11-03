@@ -1,0 +1,9 @@
+created: 2026-11-03T06:12:10.091Z
+updated: 2026-11-03T06:12:10.093Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: state-manager
+children: []
+parentPath:
+  - state-consumers
