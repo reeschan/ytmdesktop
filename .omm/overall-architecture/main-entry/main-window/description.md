@@ -8,3 +8,5 @@
   - resize / move / maximize / unmaximize / close で `StateManager.updateState` に保存。`general.hideToTrayOnClose` なら close を止めて隠す。
   - `window:openSettings` / `window:openMiniplayer` (ipcOn) で子ウィンドウを開く。
   - `ytmView:navigateDefault` (ipcOn) で YTM 画面に `https://music.youtube.com/` を読み込み直す。
+  - `app:restartApplicationForUpdate` (ipcOn) で、ダウンロード済みの更新を入れる (タイトルバーの更新ボタン。中身は app-ipc の `restartApplicationForUpdate`)。
+  - `ytmView:switchFocus` (ipcOn): `"ytm"` ならタイトルバーから YTM 画面へ、`"main"` なら YTM 画面からタイトルバーへフォーカスを移す。今フォーカスがある側から呼ばれたときだけ動く。

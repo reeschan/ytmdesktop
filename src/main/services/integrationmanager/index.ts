@@ -29,6 +29,8 @@ export default class IntegrationManager extends EventEmitterService<IntegrationM
 
   private integrations: Integration[] = [];
   private enabledIntegrations: Integration[] = [];
+  // Integrations that failed to enable are not tried again until they are turned off and on
+  private failedIntegrations: Integration[] = [];
 
   #host!: ServiceHost;
 
@@ -111,14 +113,17 @@ export default class IntegrationManager extends EventEmitterService<IntegrationM
 
       if (!integration.isEnabled) {
         if (shouldBeEnabled) {
-          if (!this.enabledIntegrations.includes(integration)) {
+          if (!this.enabledIntegrations.includes(integration) && !this.failedIntegrations.includes(integration)) {
             log.info(`Enabling integration: ${integration.name}`);
 
-            await integration[IntegrationManager.ENABLE]();
-
-            this.enabledIntegrations.push(integration);
-            log.info(`Enabled integration: ${integration.name}`);
+            if (await this.enableIntegration(integration)) {
+              this.enabledIntegrations.push(integration);
+              log.info(`Enabled integration: ${integration.name}`);
+            }
           }
+        } else {
+          const failedIndex = this.failedIntegrations.indexOf(integration, 0);
+          if (failedIndex > -1) this.failedIntegrations.splice(failedIndex, 1);
         }
       } else {
         if (!shouldBeEnabled) {
@@ -140,13 +145,35 @@ export default class IntegrationManager extends EventEmitterService<IntegrationM
               if (newProperty != oldProperty) {
                 log.info(`Restarting enabled integration: ${integration.name} (dependent properties changed)`);
                 await integration[IntegrationManager.DISABLE]();
-                await integration[IntegrationManager.ENABLE]();
-                log.info(`Restarted enabled integration: ${integration.name} (dependent properties changed)`);
+                if (await this.enableIntegration(integration)) {
+                  log.info(`Restarted enabled integration: ${integration.name} (dependent properties changed)`);
+                } else {
+                  const index = this.enabledIntegrations.indexOf(integration, 0);
+                  if (index > -1) this.enabledIntegrations.splice(index, 1);
+                  break;
+                }
               }
             }
           }
         }
       }
+    }
+  }
+
+  /**
+   * Enables an integration, reporting a failure through the `enable-error` event instead of throwing
+   *
+   * @returns True if the integration was enabled
+   */
+  private async enableIntegration(integration: Integration): Promise<boolean> {
+    try {
+      await integration[IntegrationManager.ENABLE]();
+      return true;
+    } catch (error) {
+      log.error(`Failed to enable integration: ${integration.name}`, error);
+      this.failedIntegrations.push(integration);
+      this.emit("enable-error", integration, error instanceof Error ? error : new Error(String(error)));
+      return false;
     }
   }
 }

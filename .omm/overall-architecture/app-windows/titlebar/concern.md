@@ -1,3 +1,1 @@
-- `Index.vue` は `ref<boolean>(window.ytmd.isMainWindow)` と関数を呼ばずに入れているので、値は常に関数 (真) になる。この画面はメインウィンドウでしか使わないため、今は結果が変わらない。
-- テンプレートの `</TitleBar>` の後に `/>` の文字が残っている。
-- `switchFocus` / `ytmViewRecreate` / `restartApplicationForUpdate` のチャネルは main に受け手が無い (app-windows の concern を参照)。
+- `ytmViewRecreate` が送る `ytmView:recreate` は main に受け手が無い。今はどこからも呼ばれていない。

@@ -62,6 +62,7 @@ window.addEventListener("message", async event => {
     const state = await store.get("state");
     const continueWhereYouLeftOff = (await store.get("playback")).continueWhereYouLeftOff;
 
+    // On a /watch page the page scripts already send the video details when they hydrate the player state
     if (continueWhereYouLeftOff) {
       // The last page the user was on is already a page where it will be playing a song from (no point telling YTM to play it again)
       if (!window.location.pathname.startsWith("/watch")) {
@@ -79,15 +80,6 @@ window.addEventListener("message", async event => {
             })
           );
         }
-      } else {
-        (
-          await webFrame.executeJavaScript(`
-          (function() {
-            const playerApi = window.__YTMD_HOOK__.ytmPlayerController.playerApi;
-            if (playerApi.getPlayerResponse()) window.ytmd.sendVideoData(playerApi.getPlayerResponse().videoDetails, playerApi.getPlaylistId());
-          })
-        `)
-        )();
       }
     }
 

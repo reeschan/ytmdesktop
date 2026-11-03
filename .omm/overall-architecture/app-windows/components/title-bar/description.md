@@ -3,3 +3,4 @@
 - `window.navigator.windowControlsOverlay.visible` が真 (OS のウィンドウボタンを重ねて出している) のときは、自前の最小化・最大化・閉じるボタンを出さない。
 - `handleWindowEvents` で最大化・全画面を受け、全画面ではタイトルバーごと隠す。
 - `isMainWindow` のときは memoryStore の `ytmViewUnresponsive` を見て、タイトルに " (Unresponsive)" を付ける。
+- `isMainWindow` のときは memoryStore の `autoUpdaterDownloaded` を見て、更新がダウンロード済みなら「Update ready! Click to restart」のボタンを出す (`restartApplicationForUpdate`)。

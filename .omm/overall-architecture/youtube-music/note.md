@@ -1,1 +1,0 @@
-権限ハンドラー (`setPermissionCheckHandler` / `setPermissionRequestHandler`) は `session.fromPartition("persist:ytmview")` にだけ付いている。開発時のビューは `persist:ytmview-dev` を使うので、開発ビルドではこの制限が効かず、Electron の既定 (許可) になる (2026-11-03 に `src/main/services/ytmviewmanager/index.ts` で確認)。

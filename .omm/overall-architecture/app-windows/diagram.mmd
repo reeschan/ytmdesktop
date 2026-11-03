@@ -12,11 +12,12 @@ graph LR
     store-ipc["Store IPC\nsrc/renderer/store-ipc/"]
 
     main-process -->|"ytmd-app:// か Vite dev server で読み込む"| titlebar
-    titlebar -->|"windowControls:* と window:openSettings / openMiniplayer を送る"| main-process
+    titlebar -->|"windowControls:* / window:open* / ytmView:switchFocus / app:restartApplicationForUpdate を送る"| main-process
     main-process -->|"ytmView:statusChanged を送り、executeJavaScript で録音を呼ぶ"| main-view
     main-view -->|"ytmView:reload / appView:hide を送る"| main-process
     main-process -->|"backgroundVideo:state を送る"| background-video
-    settings -->|"safeStorage:* / app:relaunch / lastfm:authenticate を送る"| main-process
+    settings -->|"safeStorage:* / app:* / lastfm:authenticate を送る"| main-process
+    main-process -->|"autoUpdater:* で更新の状態を送る"| settings
     miniplayer -->|"remoteControl:execute で YTM 画面を操作する"| main-process
     main-process -->|"autoUpdater:* で進み具合を送る"| updater
     changelog -->|"changelog:getReleaseMetadata を invoke"| main-process

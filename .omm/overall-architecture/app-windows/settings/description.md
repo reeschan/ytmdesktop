@@ -10,7 +10,7 @@
 - `store` (store-ipc の Store) と `memoryStore` (MemoryStore)。
 - `safeStorage.encryptString` / `decryptString` → `safeStorage:*` (invoke)。
 - `restartApplication` → `app:relaunch`、`restartApplicationForUpdate` → `app:restartApplicationForUpdate`、`checkForUpdates` → `app:checkForUpdates`、`getAppVersion` → `app:getVersion`。
-- `isAppUpdateAvailable` / `isAppUpdateDownloaded` → `autoUpdater:isUpdate*` (invoke)。`handleCheckingForUpdate` などは `autoUpdater:checkingForUpdate` などを待つ。
+- `isAppUpdateAvailable` / `isAppUpdateDownloaded` → `autoUpdater:isUpdate*` (invoke)。`handleCheckingForUpdate` などは、設定ウィンドウが開いている間に main が送る `autoUpdater:checkingForUpdate` などを待つ。
 - `getTrueFilePath(file)`: `webUtils.getPathForFile` でファイルの実パスを返す。
 - `lastFMStepAuthenticate` → `lastfm:authenticate`。
 - `getPlayerState` → `playerStateStore:getState` (invoke)、`onPlayerStateChanged` → `playerStateStore:stateChanged` を受ける。

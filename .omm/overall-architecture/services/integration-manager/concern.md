@@ -1,2 +1,3 @@
-- `enable-error` イベントは型 (`IntegrationManagerEventMap`) と `src/main/index.ts` のリスナーにはあるが、`emit("enable-error", ...)` している箇所が無い。ENABLE の例外は `reconcileIntegrationEnableState` の Promise の reject になり、`onDidAnyChange` と `runHook` はその Promise を待たない。
+- `onDisabled` の例外は捕まえない。DISABLE で投げると `reconcileIntegrationEnableState` の Promise の reject になり (`onDidAnyChange` と `runHook` はその Promise を待たない)、WatchDog がクラッシュとして扱う。
+- 有効化に失敗した Integration は、設定でオフにしてオンにし直すまで有効化を試みない。失敗の原因 (例えば使用中のポート) が消えても、そのままでは戻らない。
 - 有効なままの Integration は、変わった `dependentStoreProperties` 1 つごとに DISABLE → ENABLE を繰り返す。1 回の設定変更で複数が変わると、その数だけ作り直す。

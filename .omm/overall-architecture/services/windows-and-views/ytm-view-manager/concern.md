@@ -1,2 +1,1 @@
-- ビューの partition は開発版で `persist:ytmview-dev` になるが、`onPostInitialized` の権限ハンドラー (`setPermissionCheckHandler` / `setPermissionRequestHandler`) は常に `session.fromPartition("persist:ytmview")` に付く。開発版の YTM 画面には、この fullscreen だけを許す制限が掛からない。
 - `ready()` は 250ms ごとの `setInterval` で `hooksReady` を待ち、期限が無い。`ytmView:ready` が来ないと待ち続ける (ThemeManager の CSS 注入もこれを待つ)。

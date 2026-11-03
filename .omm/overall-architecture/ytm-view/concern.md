@@ -1,3 +1,2 @@
-- 「前回の続きから再生」が有効で、開いたページが `/watch` のとき、preload は `window.ytmd.sendVideoData(...)` を呼ぶスクリプトを main world で動かす。しかし YTM 画面の preload は `contextBridge.exposeInMainWorld` を使っておらず、ページのスクリプトも `window.ytmd` を作らない (2026-11-03 にコードで確認、実行しては確かめていない)。この分岐は TypeError になり、`ytmd-ready` の後の処理 (音量スライダーの常時表示、`ytmView:executeScript` のリスナー登録) まで届かないと読める。
-- preload の先頭のコメントは「main に戻る関数は exposeInMainWorld に足す」と書いているが、今のコードはすべて `window.postMessage` で受けている。
+- preload の先頭のコメントは「main に戻る関数は exposeInMainWorld に足す」と書いているが、今のコードは `exposeInMainWorld` を使わず、すべて `window.postMessage` で受けている。main world に `window.ytmd` は無い。
 - `ytmd-ready` の後の「前回の続きから再生」と音量スライダーの処理は preload に直接書かれていて、TODO で Protected API への移し替えが残っている。
