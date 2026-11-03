@@ -186,7 +186,7 @@ export default class EnhancedMediaService extends Integration {
       if (state.videoDetails.durationSeconds !== this.lastDurationSeconds || state.videoProgress !== this.lastVideoProgress) {
         this.lastVideoProgress = state.videoProgress;
         this.lastDurationSeconds = state.videoDetails.durationSeconds;
-        this.mediaPlayer.setTimeline(state.videoDetails.durationSeconds, Math.max(0, Math.min(state.videoProgress, state.videoDetails.durationSeconds)));
+        void this.mediaPlayer.setTimeline(state.videoDetails.durationSeconds, Math.max(0, Math.min(state.videoProgress, state.videoDetails.durationSeconds)));
       }
 
       if (state.volume !== this.lastVolume) {
@@ -228,7 +228,7 @@ export default class EnhancedMediaService extends Integration {
       }
 
       if (needUpdate) {
-        this.mediaPlayer.update();
+        void this.mediaPlayer.update();
       }
     } else if (this.isEnabled && !state.videoDetails) {
       this.mediaPlayer.playbackStatus = "stopped";
@@ -244,10 +244,10 @@ export default class EnhancedMediaService extends Integration {
   public async onEnabled(): Promise<void> {
     await this.maybeCreateMediaPlayer();
 
-    this.mediaPlayer?.activate();
+    void this.mediaPlayer?.activate();
     //this.mediaPlayer.mediaType = MediaPlayerMediaType.Music;
     this.stateCallback = event => {
-      this.playerStateChanged(event);
+      void this.playerStateChanged(event);
     };
 
     const playerStateStore = this.getService(PlayerStateStore);
@@ -255,7 +255,7 @@ export default class EnhancedMediaService extends Integration {
   }
 
   public onDisabled(): void {
-    this.mediaPlayer?.deactivate();
+    void this.mediaPlayer?.deactivate();
     if (this.stateCallback) {
       const playerStateStore = this.getService(PlayerStateStore);
       playerStateStore.off("state-changed", this.stateCallback);

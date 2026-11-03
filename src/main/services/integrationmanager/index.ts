@@ -82,7 +82,7 @@ export default class IntegrationManager extends EventEmitterService<IntegrationM
       }
 
       case IntegrationManagerHook.AppReady: {
-        this.reconcileIntegrationEnableState();
+        void this.reconcileIntegrationEnableState();
         break;
       }
     }

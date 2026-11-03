@@ -256,8 +256,8 @@ export class AppView extends EventEmitter<AppViewEventMap> {
     log.debug(`AppView '${this.name}' created`);
 
     this.electronView = new WebContentsView(this.options.electronOptions);
-    if (this.options.url) this.electronView.webContents.loadURL(this.options.url);
-    else if (this.options.file) this.electronView.webContents.loadFile(this.options.file);
+    if (this.options.url) void this.electronView.webContents.loadURL(this.options.url);
+    else if (this.options.file) void this.electronView.webContents.loadFile(this.options.file);
     this.attachElectronViewEvents();
     if (this.parentWindow) this._attachToWindow(this.parentWindow, this.lastViewIndex);
   }

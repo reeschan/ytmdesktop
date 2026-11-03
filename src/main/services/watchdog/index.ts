@@ -99,7 +99,13 @@ export default class WatchDog extends Service {
 
           // Copy to Clipboard
           if (result === 0 || result === 2) {
-            clipboard.writeText(`YTMDesktop Crashed\n\n${dialogMessage}`);
+            // Written before exiting so the copy is not lost
+            try {
+              await clipboard.writeText(`YTMDesktop Crashed\n\n${dialogMessage}`);
+            } catch (clipboardError) {
+              log.warn("Could not copy the crash details to the clipboard");
+              log.error(clipboardError);
+            }
           }
         }
 
