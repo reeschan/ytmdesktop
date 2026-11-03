@@ -93,7 +93,7 @@ export default function init() {
     const state = ytmStore.getState();
     const videoDetails = structuredClone(playerApi.getPlayerResponse().videoDetails);
     const playlistId = playerApi.getPlaylistId();
-    let album: any | null = null;
+    let album: any = null;
     let hasFullMetadata = false;
 
     const selectedItemIndex = state.queue.items.findIndex(item => {

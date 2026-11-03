@@ -284,7 +284,7 @@ export class AppWindow<
     listener: (
       event: IpcMainInvokeEvent,
       ...args: unknown[]
-    ) => Promise<unknown> | unknown,
+    ) => unknown,
   ) {
     assert(
       this.windowType === "Browser",
