@@ -9,6 +9,32 @@ export enum OPCode {
   PONG = 4
 }
 
+const FRAME_HEADER_SIZE = 8;
+
+export interface DecodedFrame {
+  op: number;
+  json: unknown;
+}
+
+/**
+ * Reads one frame (a uint32 LE op code, a uint32 LE body length, then a JSON body) from a buffer.
+ * Returns null when the buffer is shorter than the header, shorter than the length the header announces, or the body is not valid JSON.
+ */
+export function decodeFrame(buffer: Buffer): DecodedFrame | null {
+  if (buffer.length < FRAME_HEADER_SIZE) return null;
+
+  const op = buffer.readUInt32LE(0);
+  const length = buffer.readUInt32LE(4);
+  if (buffer.length < FRAME_HEADER_SIZE + length) return null;
+
+  try {
+    const json: unknown = JSON.parse(buffer.toString("utf-8", FRAME_HEADER_SIZE, FRAME_HEADER_SIZE + length));
+    return { op, json };
+  } catch {
+    return null;
+  }
+}
+
 export default class IPCClient extends EventEmitter {
   private socket!: Socket;
 
@@ -30,17 +56,9 @@ export default class IPCClient extends EventEmitter {
       this.emit("error", error);
     });
     this.socket.on("data", (buffer: Buffer) => {
-      try {
-        const op = buffer.readInt32LE(0);
-        const length = buffer.readInt32LE(4);
-        const json = JSON.parse(buffer.toString("utf-8", 8, 8 + length));
-
-        this.emit("data", {
-          op,
-          json
-        });
-      } catch {
-        /* invalid json provided, ignore */
+      const frame = decodeFrame(buffer);
+      if (frame) {
+        this.emit("data", frame.op, frame.json);
       }
     });
   }

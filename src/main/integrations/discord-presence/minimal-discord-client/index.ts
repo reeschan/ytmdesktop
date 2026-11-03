@@ -44,6 +44,13 @@ export default class DiscordClient extends EventEmitter {
     this.clientId = clientId;
   }
 
+  // A socket error is followed by a close event, so only the first of the two does the cleanup.
+  private handleDisconnect = () => {
+    if (!this.connected) return;
+    this.connected = false;
+    this.emit("close");
+  };
+
   public connect() {
     if (this.connectionPromise) return this.connectionPromise;
     this.ipcClient.removeAllListeners();
@@ -64,14 +71,14 @@ export default class DiscordClient extends EventEmitter {
               ipcReject();
             });
             this.ipcClient.once("error", error => {
-              log.error("dipc: socket error connecting to discord", error);
+              log.debug("dipc: socket error connecting to discord", error);
             });
             this.ipcClient.once("connect", () => {
               log.debug("dipc: connected to discord at", ipcPath);
               this.ipcClient.removeAllListeners();
               ipcResolve();
             });
-            this.ipcClient.connect(getIPCPath(id));
+            this.ipcClient.connect(ipcPath);
           });
 
           this.connected = true;
@@ -84,9 +91,10 @@ export default class DiscordClient extends EventEmitter {
           );
           this.emit("connect");
 
-          this.ipcClient.on("close", () => {
-            this.connected = false;
-            this.emit("close");
+          this.ipcClient.on("close", this.handleDisconnect);
+          this.ipcClient.on("error", (error: unknown) => {
+            log.debug("dipc: socket error after connecting to discord", error);
+            this.handleDisconnect();
           });
           this.ipcClient.on("data", (op: OPCode, json: unknown) => {
             switch (op) {
