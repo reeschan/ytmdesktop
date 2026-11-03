@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:15.821Z
+updated: 2026-11-03T06:13:15.822Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: taskbar-manager
+children: []
+parentPath:
+  - config-listeners

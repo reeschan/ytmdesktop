@@ -1,0 +1,1 @@
+YouTube Music の DOM (要素名・セレクター)、内部の API (`PLAYER_CONTROLLER_TOKEN` / `STATE_STORE_TOKEN` で横取りする playerApi と状態ストア、`yt-navigate` / `yt-action` のイベント、`/youtubei/v1/browse`) は公開された仕様ではなく、予告なく変わる。変わると、フックの準備が終わらない (main が Hook Error のダイアログを出す) か、足した機能や CSS の一部が黙って効かなくなる。

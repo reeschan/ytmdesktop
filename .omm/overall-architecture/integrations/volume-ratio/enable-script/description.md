@@ -1,0 +1,1 @@
+`HTMLMediaElement.prototype.volume` の記述子を差し替える関数式。set は「スライダーの値 ^ 3」を本来の setter に渡し、get は 3 乗根を返す (誤差を避けるため、set した値を WeakMap に覚えて近ければそれを返す)。元の記述子は `window.HTMLMediaElement_volume` に退避する。指数 3 は PulseAudio と同じ。

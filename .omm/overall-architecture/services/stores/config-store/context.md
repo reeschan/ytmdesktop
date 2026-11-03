@@ -1,0 +1,3 @@
+- 移行 (`migrations`) は `conf` の版ごとの関数で、`>=2.0.0`・`>=2.0.1`・`>=2.0.7`・`>=2.1.0`・`>=2.2.0` がある。中身は「消えたキーを `delete` する」か「無いキーに既定値を `set` する」のどちらか。`beforeEachMigration` で移行元と移行先の版をログに出す。
+- `>=2.2.0` でテーマ (`appearance.theme` / `themeFilePath`)、背景動画 (`appearance.backgroundVideo*`)、Discord の表示テンプレート (`integrations.discordPresence*`)、曲の聞き取り (`integrations.shazam*`) の既定値を足す。
+- 1.x の設定からの移行は ConfigStore ではなく、`src/main/index.ts` が PostInitialized の後に呼ぶ `v1ConfigMigration` (`src/main/util.ts`) が行う。

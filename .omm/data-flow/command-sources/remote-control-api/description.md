@@ -1,0 +1,1 @@
+`ProtectedAPIManager.createOrGetAPI("RemoteControl")` が返す `ProtectedAPI`。送り手はどれも同じものを取り、`postMessage("execute", コマンド, ...引数)` を YTM 画面の `setup/remote.ts` へ流す。`getPlaylists` だけは `invokeMessage` で答えを待つ (30 秒で失敗)。ポートが結ばれていないときの `postMessage` は何もしない。

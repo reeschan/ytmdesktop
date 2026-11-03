@@ -1,0 +1,1 @@
+YouTube Music の内部の名前 (`PLAYER_CONTROLLER_TOKEN` / `STATE_STORE_TOKEN`) と、YTM がそれを `Map.set` で登録するという作りに頼っている。`Map.prototype.set` の差し替えは、YTM のスクリプトより先に動かないと間に合わないので、preload が読み込まれてすぐに入れる。YTM が作りを変えると `ready()` が終わらず、Early 以降の準備が進まない。

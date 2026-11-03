@@ -1,0 +1,1 @@
+- アイコンを差し替えるのは `nativeTheme` の `updated` のときだけで、設定の `appearance.trayIconStyle` (Linux だけ設定画面に出る) を変えても、その場ではアイコンが変わらない。

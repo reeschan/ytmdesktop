@@ -1,0 +1,19 @@
+created: 2026-11-03T06:10:27.821Z
+updated: 2026-11-03T06:10:43.559Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: settings
+children:
+  - about-tab
+  - appearance-tab
+  - general-tab
+  - integrations-tab
+  - main-process
+  - playback-tab
+  - preload
+  - settings-view
+  - shell
+  - shortcuts-tab
+parentPath:
+  - app-windows

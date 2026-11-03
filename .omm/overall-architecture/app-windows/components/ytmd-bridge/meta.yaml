@@ -1,0 +1,10 @@
+created: 2026-11-03T06:13:24.821Z
+updated: 2026-11-03T06:13:24.822Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ytmd-bridge
+children: []
+parentPath:
+  - app-windows
+  - components

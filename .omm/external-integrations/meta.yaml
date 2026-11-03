@@ -1,0 +1,23 @@
+created: 2026-11-03T06:14:27.395Z
+updated: 2026-11-03T06:18:00.226Z
+update_count: 8
+last_field: context
+git_commit: 30f091d
+git_branch: feature/grooving
+children:
+  - auto-updater
+  - companion-clients
+  - companion-server
+  - default-browser
+  - discord
+  - discord-presence
+  - google-accounts
+  - last-fm
+  - lastfm-api
+  - os
+  - os-integrations
+  - shazam
+  - song-recognition
+  - update-server
+  - youtube-music
+  - ytm-view-manager

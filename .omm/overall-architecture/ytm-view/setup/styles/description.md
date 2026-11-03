@@ -1,0 +1,1 @@
+`setup/styles.ts`。`createStyleSheet()` は、アプリが足す要素のための `<style>` (`.ytmd-history-back` / `.ytmd-history-forward`、`.ytmd-hidden`、`.ytmd-persist-volume-slider`、`.ytmd-player-bar-control.*`、`.ytmd-lyrics*` など) と、開いた検索欄の四角い枠を消す規則を `<head>` に足す。`createMaterialSymbolsLink()` は Google Fonts の Material Symbols Outlined の `<link>` を作る。setup-sequence はこの読み込みを待ってから Styles のフラグを立てる。

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:33.226Z
+updated: 2026-11-03T06:19:33.227Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: shortcut-manager
+children: []
+parentPath:
+  - os-integrations

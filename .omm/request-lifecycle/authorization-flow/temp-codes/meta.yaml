@@ -1,0 +1,9 @@
+created: 2026-11-03T06:22:53.807Z
+updated: 2026-11-03T06:22:53.808Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: temp-codes
+children: []
+parentPath:
+  - authorization-flow

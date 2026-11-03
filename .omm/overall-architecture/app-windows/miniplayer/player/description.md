@@ -1,0 +1,1 @@
+`Miniplayer.vue`。起動時に `playerStore.getState()` で状態を読み、`handleStateChanged` で更新する。曲が変わると一番大きいサムネイルを `body` の背景画像にし、長い曲名は横に流す (marquee)。シークバー (ドラッグでシーク)、前・再生/一時停止・次、リピートの切り替え、音量 (共通の `RangeInput`) とミュートを持ち、操作はすべて `executeCommandInYTMView` (`seekTo` / `previous` / `playPause` / `next` / `cycleRepeatMode` / `setVolume` / `mute` / `unmute`) で送る。

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:35.327Z
+updated: 2026-11-03T06:19:35.328Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: notifications
+children: []
+parentPath:
+  - os-integrations

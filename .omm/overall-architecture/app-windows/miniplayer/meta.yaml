@@ -1,0 +1,13 @@
+created: 2026-11-03T06:11:41.757Z
+updated: 2026-11-03T06:12:00.556Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: miniplayer
+children:
+  - main-process
+  - player
+  - preload
+  - top-bar
+parentPath:
+  - app-windows

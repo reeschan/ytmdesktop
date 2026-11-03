@@ -1,0 +1,9 @@
+created: 2026-11-03T06:23:28.171Z
+updated: 2026-11-03T06:23:28.172Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: playlists-route
+children: []
+parentPath:
+  - api-routes

@@ -1,0 +1,20 @@
+graph LR
+    host-sfc["Window SFCs\nsrc/renderer/windows/*/"]
+    ytmd-bridge["window.ytmd\nwindows/*/preload.ts"]
+    title-bar["TitleBar\ncomponents/TitleBar.vue"]
+    ytm-view-loading["YTMViewLoading\ncomponents/YTMViewLoading.vue"]
+    ytmd-setting["YTMDSetting\ncomponents/YTMDSetting.vue"]
+    keybind-input["KeybindInput\ncomponents/KeybindInput.vue"]
+    range-input["RangeInput\ncomponents/RangeInput.vue"]
+
+    host-sfc -->|"props とスロットで組み込む"| title-bar
+    host-sfc -->|"main の Index.vue が出す"| ytm-view-loading
+    host-sfc -->|"v-model で設定値を渡す"| ytmd-setting
+    host-sfc -->|"v-model でショートカットを渡す"| keybind-input
+    host-sfc -->|"v-model で数値を渡す"| range-input
+    title-bar -->|"windowControls と memoryStore を呼ぶ"| ytmd-bridge
+    ytm-view-loading -->|"YTM 画面の状態を購読し appViewHide を呼ぶ"| ytmd-bridge
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class host-sfc external
+    class ytmd-bridge external

@@ -1,0 +1,1 @@
+`Index.vue`。高さ 36px の上の帯に、前面固定の切り替え (`keep` / `keep_off`) と閉じるボタンを置き、その下に `Miniplayer.vue` を `<Suspense>` で出す。Wayland では前面固定をアプリから変えられないので、ボタンを無効にしてウィンドウマネージャーで固定するよう案内する。`handleWindowEvents` の `alwaysOnTop` でアイコンを切り替える。

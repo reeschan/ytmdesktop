@@ -1,0 +1,30 @@
+graph LR
+    main-process["Main Process\nsrc/main/"]
+    preload["YTM View Preload\nsrc/renderer/ytmview/preload.ts"]
+    setup-sequence["Setup Sequence\nytmview/scripts/index.ts"]
+    ytmhook["YTM Hook\nytmview/scripts/ytmhook.ts"]
+    protectedapimanager["Protected API Client\nytmview/scripts/protectedapimanager.ts"]
+    playerstatestore["Player State Reporter\nytmview/scripts/playerstatestore.ts"]
+    setup["Setup Features\nytmview/scripts/setup/"]
+    utils["Utils\nytmview/scripts/utils.ts"]
+
+    preload -->|"webFrame.executeJavaScript で IIFE を main world に入れる"| setup-sequence
+    setup-sequence -->|"init と ready を待って __YTMD_HOOK__ に出す"| ytmhook
+    setup-sequence -->|"init でポートを window.postMessage"| protectedapimanager
+    setup-sequence -->|"Hooks の段で initPlayerStateStore"| playerstatestore
+    setup-sequence -->|"Styles / Navigation / 背景動画 / 曲の聞き取り / Remote / Extras の順に呼ぶ"| setup
+    playerstatestore -->|"playerApi と ytmStateStore を読む"| ytmhook
+    playerstatestore -->|"PlayerState API に postMessage"| protectedapimanager
+    setup -->|"playerApi と ytmStateStore を使う"| ytmhook
+    setup -->|"RemoteControl API で命令を受ける"| protectedapimanager
+    setup -->|"getYTMTextRun"| utils
+    protectedapimanager -->|"MessagePort の Protected API"| main-process
+    setup-sequence -->|"ytmd-ready / ytmd-errored を window.postMessage"| preload
+    setup -->|"背景動画と曲の聞き取りの合図を window.postMessage"| preload
+    preload -->|"protectedApi:bindPort / ytmView:ready / backgroundVideo:ytmReport / songRecognition:press"| main-process
+    main-process -->|"ytmView:executeScript / backgroundVideo:ytmState / songRecognition:*"| preload
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class main-process external
+    class preload entry

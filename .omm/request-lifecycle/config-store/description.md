@@ -1,0 +1,1 @@
+トークンの一覧の置き場 (`integrations.companionServerAuthTokens`)。中身は `{ appId, appName, appVersion, id, token (SHA-256), metadata }` の配列の JSON を `safeStorage` で暗号化した hex。検証のたびに復号して読む。設定画面で消すと、CompanionServer が `onDidChange("integrations")` で気づいて、そのトークンの Socket.IO の接続を切る。

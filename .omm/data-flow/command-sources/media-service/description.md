@@ -1,0 +1,1 @@
+EnhancedMediaService の `xosms` の `MediaPlayer` が受ける OS のメディア操作。ボタン (`playpause` / `play` / `pause` / `stop` / `next` / `previous`) を対応するコマンドに (`stop` は `pause`)、位置の変更を `seekTo` (曲の長さの範囲内だけ) にして `RemoteControl` に送る。

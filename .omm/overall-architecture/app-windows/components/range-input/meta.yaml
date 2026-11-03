@@ -1,0 +1,10 @@
+created: 2026-11-03T06:13:32.835Z
+updated: 2026-11-03T06:13:32.836Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: range-input
+children: []
+parentPath:
+  - app-windows
+  - components

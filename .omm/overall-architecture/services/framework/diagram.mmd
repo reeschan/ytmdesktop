@@ -1,0 +1,9 @@
+graph LR
+    service-collection["ServiceCollection\nsrc/main/services/servicecollection.ts"]
+    service-host["ServiceHost\nsrc/main/services/servicehost.ts"]
+    service["Service / EventEmitterService\nsrc/main/services/service.ts"]
+
+    service-host -->|"getDependencyOrderedServices で依存順の一覧を得る"| service-collection
+    service-collection -->|"static dependencies をたどって並べる"| service
+    service-host -->|"生成して INJECT で自分を渡し、4 段のライフサイクルを呼ぶ"| service
+    service -->|"getDependency で依存先を getService する"| service-host

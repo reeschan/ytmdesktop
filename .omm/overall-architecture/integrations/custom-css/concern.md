@@ -1,0 +1,1 @@
+- エディターによっては保存を「別名で書いて置き換える」で行い、`fs.watch` に `rename` が来る。そのときは `appearance.customCSSPath` が `null` になり、利用者が選んだファイルの設定が消える。

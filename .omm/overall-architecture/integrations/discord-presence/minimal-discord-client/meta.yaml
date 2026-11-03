@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:59.676Z
+updated: 2026-11-03T06:12:01.827Z
+update_count: 2
+last_field: concern
+kind: nested-class
+title: minimal-discord-client
+children: []
+parentPath:
+  - integrations
+  - discord-presence

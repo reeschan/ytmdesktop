@@ -1,0 +1,2 @@
+- `sanitizeMessage` は `data instanceof String` で文字列かを判定している。ふつうの文字列 (プリミティブ) はこれに当たらないため、URL の `[REDACTED]` 置き換えと「Third-party cookie will be blocked.」の除外は、`new String()` で包んだ値にしか効かない。
+- `off()` は `this.eventCallbacks[event] = this.eventCallbacks[event].splice(index, 1)` としており、`splice` の戻り値 (取り除いた要素) で配列を置き換える。外したいコールバックだけが残る。

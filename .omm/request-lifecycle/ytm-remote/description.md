@@ -1,0 +1,1 @@
+YTM 画面の中で `RemoteControl` を受ける `setup/remote.ts`。`execute` のコマンドで `playerApi` やストアを操作し、`getPlaylists` には YTM に `addToPlaylistEndpoint` の要求を出して、プレイリストの `{ id, title }` の配列を返す (失敗すれば空の配列)。操作の結果は返さず、変わった状態はページの再生状態の送り出しを通って `PlayerStateStore` に戻る。

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:55.905Z
+updated: 2026-11-03T06:13:55.906Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: media-service
+children: []
+parentPath:
+  - command-sources

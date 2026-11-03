@@ -1,0 +1,1 @@
+曲の聞き取りの共有部品。定数と型 (`index.ts`) と、vitest のテスト付きの純関数 4 つ (audio・response・source・state)。main の Integration・mainView の録音器・YTM 画面のスクリプト・設定のアプリ画面が同じ定数と型を使う。仕様は `docs/specs/song-recognition.md`、決定は `docs/adr/0003-song-recognition-outside-ytm-view.md`。

@@ -1,0 +1,17 @@
+graph LR
+    scrobbler["LastFM\nsrc/main/integrations/last-fm/index.ts"]
+    last-fm-client["LastFMClient\nsrc/main/integrations/last-fm/last-fm-client/index.ts"]
+    schemas["Last.fm の型\nsrc/main/integrations/last-fm/schemas.ts"]
+    last-fm-api["Last.fm API\nws.audioscrobbler.com/2.0/"]
+    last-fm-auth-page["Last.fm の認可ページ\nwww.last.fm/api/auth/"]
+
+    scrobbler -->|"getToken・getSession・updateNowPlaying・scrobble"| last-fm-client
+    scrobbler -->|"shell.openExternal で token 付きで開く"| last-fm-auth-page
+    last-fm-client -->|"md5 で署名した POST (json)"| last-fm-api
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    classDef concern fill:#f38ba8,stroke:#f38ba8,color:#1e1e2e
+    class last-fm-api,last-fm-auth-page external
+    class scrobbler entry
+    class schemas concern

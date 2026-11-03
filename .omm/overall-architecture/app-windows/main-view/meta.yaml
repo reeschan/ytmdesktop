@@ -1,0 +1,14 @@
+created: 2026-11-03T06:09:06.858Z
+updated: 2026-11-03T06:13:50.869Z
+update_count: 4
+last_field: description
+kind: nested-class
+title: main-view
+children:
+  - loading-screen
+  - main-process
+  - preload
+  - renderer
+  - song-recognition-recorder
+parentPath:
+  - app-windows

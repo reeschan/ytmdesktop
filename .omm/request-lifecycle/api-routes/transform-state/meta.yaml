@@ -1,0 +1,9 @@
+created: 2026-11-03T06:23:31.953Z
+updated: 2026-11-03T06:23:31.954Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: transform-state
+children: []
+parentPath:
+  - api-routes

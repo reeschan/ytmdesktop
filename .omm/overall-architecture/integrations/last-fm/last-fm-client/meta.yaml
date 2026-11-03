@@ -1,0 +1,10 @@
+created: 2026-11-03T06:12:53.591Z
+updated: 2026-11-03T06:12:53.592Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: last-fm-client
+children: []
+parentPath:
+  - integrations
+  - last-fm

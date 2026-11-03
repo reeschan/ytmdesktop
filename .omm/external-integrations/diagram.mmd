@@ -1,0 +1,32 @@
+graph LR
+    ytm-view-manager["YTMViewManager\nsrc/main/services/ytmviewmanager/"]
+    discord-presence["DiscordPresence\nsrc/main/integrations/discord-presence/"]
+    last-fm["LastFM\nsrc/main/integrations/last-fm/"]
+    song-recognition["曲の聞き取り\nsrc/main/integrations/song-recognition/"]
+    companion-server["CompanionServer\nsrc/main/integrations/companion-server/"]
+    auto-updater["AutoUpdater\nsrc/main/services/autoupdater/"]
+    os-integrations["OS との連携\nsrc/main/ ほか"]
+    youtube-music["YouTube Music\n(外部・music.youtube.com)"]
+    google-accounts["Google のログイン\n(外部・accounts.google.com ほか)"]
+    default-browser["既定のブラウザー\n(外部・shell.openExternal)"]
+    discord["Discord\n(外部・ローカル IPC)"]
+    lastfm-api["Last.fm API\n(外部・ws.audioscrobbler.com)"]
+    shazam["Shazam API\n(外部・RapidAPI)"]
+    companion-clients["Companion のクライアント\n(外部・LAN とローカル)"]
+    update-server["update.electronjs.org\n(外部・GitHub Releases)"]
+    os["OS\n(外部・Windows / macOS / Linux)"]
+
+    ytm-view-manager -->|"WebContentsView で開いてページを包む"| youtube-music
+    ytm-view-manager -->|"ログインの遷移だけ許す"| google-accounts
+    ytm-view-manager -->|"許した外部リンクを開く"| default-browser
+    discord-presence -->|"名前付きパイプで SET_ACTIVITY"| discord
+    last-fm -->|"HTTPS で認証と scrobble"| lastfm-api
+    last-fm -->|"認可のページを開く"| default-browser
+    song-recognition -->|"録った音を HTTPS で送る"| shazam
+    companion-clients -->|"HTTP と Socket.IO とパイプで操作と購読"| companion-server
+    companion-server -->|"mDNS で _ytmdesktop._tcp を広告"| companion-clients
+    auto-updater -->|"Squirrel の更新フィードを読む"| update-server
+    os-integrations -->|"メディア操作・タスクバー・通知・ショートカット・トレイ"| os
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class youtube-music,google-accounts,default-browser,discord,lastfm-api,shazam,companion-clients,update-server,os external

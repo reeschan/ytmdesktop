@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:19.331Z
+updated: 2026-11-03T06:11:19.333Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: playback-tab
+children: []
+parentPath:
+  - app-windows
+  - settings

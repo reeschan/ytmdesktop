@@ -1,0 +1,10 @@
+created: 2026-11-03T06:08:57.679Z
+updated: 2026-11-03T06:09:16.251Z
+update_count: 3
+last_field: constraint
+kind: nested-class
+title: config-store
+children: []
+parentPath:
+  - services
+  - stores

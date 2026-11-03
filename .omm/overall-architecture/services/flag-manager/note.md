@@ -1,0 +1,3 @@
+- `onInitialized` は `async` だが、`ServiceHost` はライフサイクルの戻り値を待たない。登録し直すなら、IPC ハンドラーの登録がセッション ID ファイルの読み書きの後になる点に気を付ける。
+- `YTMD_UNLEASH_SERVER` が空だと `unleash` が作られず、`getFlags()` は `undefined` を返す (型は配列)。
+- `unleash-client` の import は `@ts-expect-error` で型エラーを抑えている。

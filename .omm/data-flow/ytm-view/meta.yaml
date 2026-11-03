@@ -1,0 +1,16 @@
+created: 2026-11-03T06:09:41.261Z
+updated: 2026-11-03T06:10:35.070Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: ytm-view
+children:
+  - main-process
+  - page-player-state
+  - page-protected-api
+  - preload
+  - remote
+  - scripts-index
+  - ytm-hook
+  - ytm-internals
+parentPath: []

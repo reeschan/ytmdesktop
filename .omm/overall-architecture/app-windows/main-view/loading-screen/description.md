@@ -1,0 +1,1 @@
+`Index.vue` は共通コンポーネント `YTMViewLoading` を出すだけ。YTMViewLoading が `window.ytmd` から YTM 画面の状態 (Loading / Hooking / Ready)・読み込みエラー・`ytmViewUnresponsive` (memoryStore) を受けて表示を変える。5 秒たっても Ready にならなければ「いつもより時間がかかっている」と出し、読み込みエラーなら内容と「Refresh YouTube Music」ボタン (`ytmViewReload`) を出す。応答が無いときは半透明の層をかぶせる。Ready になるとフェードで消え、`appViewHide()` を呼ぶ。

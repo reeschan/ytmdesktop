@@ -1,0 +1,10 @@
+created: 2026-11-03T06:15:02.854Z
+updated: 2026-11-03T06:15:02.855Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: force-update-volume-script
+children: []
+parentPath:
+  - integrations
+  - volume-ratio

@@ -1,0 +1,10 @@
+created: 2026-11-03T06:11:09.226Z
+updated: 2026-11-03T06:11:09.227Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: schemas
+children: []
+parentPath:
+  - integrations
+  - companion-server

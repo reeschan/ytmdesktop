@@ -1,0 +1,19 @@
+graph LR
+    ytm-page-icon["YTM 画面の聞き取りアイコン\nsongRecognition:* の IPC"]
+    controller["SongRecognition\nsrc/main/integrations/song-recognition/index.ts"]
+    media["録音と権限\nsrc/main/integrations/song-recognition/media.ts"]
+    shazam["Shazam への問い合わせ\nsrc/main/integrations/song-recognition/shazam.ts"]
+    app-view-recorder["mainView の録音器\nwindow.ytmdSongRecognitionRecorder"]
+    shazam-api["Shazam API (RapidAPI)\nshazam.p.rapidapi.com"]
+
+    ytm-page-icon -->|"songRecognition:press"| controller
+    controller -->|"songRecognition:state と songRecognition:search"| ytm-page-icon
+    controller -->|"recordOnAppView / cancelRecordingOnAppView"| media
+    media -->|"executeJavaScript で record(source) / cancel() を呼ぶ"| app-view-recorder
+    controller -->|"detectSong(apiKey, pcm, signal)"| shazam
+    shazam -->|"POST songs/v2/detect に base64 の PCM"| shazam-api
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class ytm-page-icon,app-view-recorder,shazam-api external
+    class controller entry

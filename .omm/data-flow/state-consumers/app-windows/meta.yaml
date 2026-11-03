@@ -1,0 +1,9 @@
+created: 2026-11-03T06:12:12.221Z
+updated: 2026-11-03T06:12:12.222Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: app-windows
+children: []
+parentPath:
+  - state-consumers

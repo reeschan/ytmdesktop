@@ -1,0 +1,9 @@
+created: 2026-11-03T06:23:00.008Z
+updated: 2026-11-03T06:23:00.009Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: token-list
+children: []
+parentPath:
+  - authorization-flow

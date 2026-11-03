@@ -1,0 +1,10 @@
+created: 2026-11-03T06:10:49.099Z
+updated: 2026-11-03T06:11:18.714Z
+update_count: 2
+last_field: constraint
+kind: nested-class
+title: protocol-manager
+children: []
+parentPath:
+  - services
+  - windows-and-views

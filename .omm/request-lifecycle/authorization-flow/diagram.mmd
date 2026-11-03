@@ -1,0 +1,30 @@
+graph LR
+    requester["クライアント\n(外部・トークンを持たない)"]
+    settings-toggle["受付のスイッチ\nsrc/renderer/windows/settings/Settings.vue"]
+    auth-window-flag["受付中の印\nsrc/main/integrations/companion-server/index.ts ほか"]
+    request-code["POST /auth/requestcode\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    temp-codes["一時コードの表\nsrc/main/integrations/companion-server/api-shared/auth.ts"]
+    request-token["POST /auth/request\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    authorize-window["認可の画面\nsrc/renderer/windows/authorize-companion/"]
+    token-issue["createAuthTokenAsync\nsrc/main/integrations/companion-server/api-shared/auth.ts"]
+    token-list["暗号化したトークンの一覧\n(ConfigStore の companionServerAuthTokens)"]
+
+    settings-toggle -->|"memoryStore:set で受付を開く"| auth-window-flag
+    requester -->|"appId と appName と appVersion"| request-code
+    request-code -->|"受付中かを読む"| auth-window-flag
+    request-code -->|"4 桁のコードを 60 秒置く"| temp-codes
+    request-code -->|"code を返す"| requester
+    requester -->|"appId と code"| request-token
+    request-token -->|"コードを照合して消す"| temp-codes
+    request-token -->|"BrowserWindow を開き最大 30 秒待つ"| authorize-window
+    authorize-window -->|"companionAuthorization:result で返事"| request-token
+    request-token -->|"許可なら発行を頼む"| token-issue
+    token-issue -->|"hash を足して safeStorage で暗号化"| token-list
+    request-token -->|"token を返し受付を閉じる"| requester
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class requester external
+    class settings-toggle entry
+    class token-list,temp-codes,auth-window-flag store

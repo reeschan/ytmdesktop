@@ -1,0 +1,2 @@
+- getter は読まれるたびに `console.log('manipulated volume from ...')` を出す。
+- `const HTMLMediaElement_volume = {get, set} = ...` は分割代入でページの global に `get` / `set` も作る。

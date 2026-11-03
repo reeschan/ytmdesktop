@@ -1,0 +1,1 @@
+`@fastify/error` の `createError` で作った API のエラー 14 種 (`INVALID_VOLUME`・`UNAUTHENTICATED`・`AUTHORIZATION_*`・`YOUTUBE_MUSIC_*` など) と、`isDefinedAPIError(error)`。`errorCodes` の配列に入っているコードだけがクライアントにそのまま返り、それ以外の 5xx はサーバーで「An internal server error occurred」に置き換わる。エラーを足すときは `errorCodes` にも足す。

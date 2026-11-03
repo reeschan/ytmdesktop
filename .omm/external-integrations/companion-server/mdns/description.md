@@ -1,0 +1,1 @@
+`multicast-dns` で立てる mDNS の応答 (`createMdnsServer`)。`_services._dns-sd._udp.local`、`_ytmdesktop._tcp.local` の PTR、`<ホスト名>._ytmdesktop._tcp.local` の SRV (ポート 9863) / TXT、`<ホスト名>.local` の A (外向きの IPv4 すべて) に答える。A レコードは有効化のときのネットワークの状態で固まる。
