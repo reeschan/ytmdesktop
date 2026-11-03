@@ -12,6 +12,8 @@ const ClassName = {
   Searching: "ytmd-song-recognition-searching"
 } as const;
 
+const CLOSED_SEARCH_BOX_WIDTH = "--ytmd-song-recognition-closed-search-box-width";
+
 const PHASE_CLASS_NAMES: Record<SongRecognitionPhase, string | null> = {
   [SongRecognitionPhase.Idle]: null,
   [SongRecognitionPhase.Recording]: ClassName.Recording,
@@ -25,6 +27,11 @@ const STYLE = `
     display: inline-flex;
     align-items: center;
     margin-left: 18px;
+  }
+
+  /* YTM takes the opened search box out of the flow, so the icon keeps the closed box's width in front of it */
+  ytmusic-search-box[opened] + .${ClassName.Container} {
+    margin-left: calc(var(${CLOSED_SEARCH_BOX_WIDTH}, 0px) + 18px);
   }
 
   .${ClassName.Container}.${ClassName.Hidden} {
@@ -128,6 +135,12 @@ export function createSongRecognitionButton() {
 
   container.append(icon, message);
   searchBox.after(container);
+
+  // Only the closed width is kept; the opened box is wider and placed elsewhere
+  new ResizeObserver(() => {
+    if (searchBox.hasAttribute("opened")) return;
+    container.style.setProperty(CLOSED_SEARCH_BOX_WIDTH, `${searchBox.getBoundingClientRect().width}px`);
+  }).observe(searchBox);
 
   function press() {
     window.postMessage({ op: SongRecognitionMessageOp.Press }, "*");
