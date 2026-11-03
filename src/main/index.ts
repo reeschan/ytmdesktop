@@ -628,6 +628,12 @@ app.on("ready", async () => {
   playerStateStore.on("state-changed", updateTrayTooltip);
   tray.setContextMenu(trayContextMenu);
   tray.on("click", () => {
+    if (windowManager.hasWindow("Miniplayer")) {
+      // Closing the miniplayer shows and focuses the main window once the YTM view is back in it
+      windowManager.getWindow("Miniplayer").closeWindow();
+      return;
+    }
+
     mainWindow.showAndFocus();
   });
 

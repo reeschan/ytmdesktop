@@ -24,6 +24,7 @@ export type MiniplayerVideoOptions = {
 export function startMiniplayerVideo(options: MiniplayerVideoOptions) {
   const { ytmView: view, mainWindow, miniplayerWindow, playerStateStore, onClose } = options;
   const electronMiniplayerWindow = miniplayerWindow._getElectronWindow();
+  const miniplayerWebContents = miniplayerWindow.webContents;
 
   // Id of the song whose video was last moved into view
   let mountedId: string | null = null;
@@ -123,6 +124,26 @@ export function startMiniplayerVideo(options: MiniplayerVideoOptions) {
     stop();
   };
 
+  // Runs before the window destroys itself without a close, while the view can still be detached from it
+  const rendererGoneListener = () => {
+    if (stopped) return;
+    stop();
+    // The queued tasks only run synchronous steps, so none is halfway through here
+    try {
+      if (view && view.getParentWindow() === miniplayerWindow) release(view);
+    } catch (error: unknown) {
+      // Not thrown on, so the listeners after this one still run
+      log.warn("Failed to move the YTM view back to the main window", error);
+    }
+  };
+
+  // The window is already destroyed here, so the view can no longer be detached from it
+  const windowClosedListener = () => {
+    if (stopped) return;
+    stop();
+    if (view && view.getParentWindow() === miniplayerWindow) log.warn("The miniplayer closed while the YTM view was still attached to it");
+  };
+
   function stop() {
     stopped = true;
     playerStateStore.off("state-changed", stateChangedListener);
@@ -130,6 +151,8 @@ export function startMiniplayerVideo(options: MiniplayerVideoOptions) {
     view?.off("ready", pageReplacedListener);
     miniplayerWindow.off("electronwindow-close", closeListener);
     electronMiniplayerWindow.off("close", windowCloseListener);
+    electronMiniplayerWindow.off("closed", windowClosedListener);
+    miniplayerWebContents?.off("render-process-gone", rendererGoneListener);
   }
 
   playerStateStore.on("state-changed", stateChangedListener);
@@ -137,6 +160,10 @@ export function startMiniplayerVideo(options: MiniplayerVideoOptions) {
   view?.on("ready", pageReplacedListener);
   miniplayerWindow.on("electronwindow-close", closeListener);
   electronMiniplayerWindow.on("close", windowCloseListener);
+  // A close does not come when the window is destroyed (for example after its renderer crashes), only closed does
+  electronMiniplayerWindow.on("closed", windowClosedListener);
+  // Put before the listener of the window that destroys it, so the view goes back first
+  miniplayerWebContents?.prependListener("render-process-gone", rendererGoneListener);
 
   // Decided once right away, no state change arrives while the song is paused
   void enqueue(runStep);
