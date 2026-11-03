@@ -608,7 +608,4 @@ const CompanionServerAPIv1: FastifyPluginCallback<CompanionServerAPIv1Options> =
   });
 };
 
-//// @ts-expect-error This is for ESM purposes so that Fastify isn't trying to use CJS require.cache to get the name
-//CompanionServerAPIv1[Symbol.for("fastify.display-name")] = "CompanionServerAPIv1";
-
 export default CompanionServerAPIv1;
