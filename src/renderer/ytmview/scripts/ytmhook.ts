@@ -13,6 +13,7 @@ export class YTMHook {
     const self = this;
 
     // This hook is designed to capture addProvider calls which contain the dependency injection into elements within YTM
+    // eslint-disable-next-line @typescript-eslint/unbound-method -- The original set is kept to be called with .call(this) below
     const mapSet = Map.prototype.set;
     Object.defineProperty(Map.prototype, "set", {
       value: function (key, value) {
