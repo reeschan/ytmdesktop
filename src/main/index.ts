@@ -506,6 +506,18 @@ app.on("ready", async () => {
   });
 
   mainWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
+
+  // Keyboard navigation moves between the titlebar and the YTM view
+  mainWindow.ipcOn("ytmView:switchFocus", (_event, context: "main" | "ytm") => {
+    const ytmWebContents = ytmViewManager.getView()?.webContents;
+    if (!ytmWebContents) return;
+
+    if (context === "ytm" && mainWindow.webContents?.isFocused()) {
+      ytmWebContents.focus();
+    } else if (context === "main" && ytmWebContents.isFocused()) {
+      mainWindow.webContents?.focus();
+    }
+  });
   //#endregion
 
   // Late updater window closure to prevent Electron from emitting window-all-closed before creating the main window
