@@ -16,7 +16,7 @@ export default class VolumeRatio extends Integration {
   private injected = false;
   private ytmViewRecreatedListener = () => {
     this.injected = false;
-    void this.onEnabled();
+    void this.inject();
   };
 
   public onSetup() {}
@@ -26,11 +26,16 @@ export default class VolumeRatio extends Integration {
 
     ytmViewManager.on("view-recreated", this.ytmViewRecreatedListener);
 
+    await this.inject();
+  }
+
+  private async inject() {
     if (!this.injected) {
-      await ytmViewManager.ready();
+      // Marked before waiting so a second call while waiting does not inject the script twice
+      this.injected = true;
+      await this.getService(YTMViewManager).ready();
       this.executeYTMScript(enableScript);
       this.forceUpdateVolume();
-      this.injected = true;
     }
   }
 
