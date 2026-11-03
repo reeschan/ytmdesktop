@@ -33,10 +33,16 @@ import { MemoryStoreSchema, TrayIconStyle } from "~shared/store/schema";
 import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
-import { VideoType } from "~shared/playerstatestore/types";
+import { PlayerState, VideoType } from "~shared/playerstatestore/types";
 import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
+import { buildTrayTooltip } from "~shared/tray-tooltip";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
+
+// Tray tooltip shown when nothing is playing
+const TRAY_IDLE_TOOLTIP = "YTMDesktop";
+// Windows only accepts tray tooltips shorter than 128 characters
+const WINDOWS_TRAY_TOOLTIP_MAX_LENGTH = 127;
 
 // How much of a restored window has to overlap a display on each axis for it to stay where it was saved
 const MINIMUM_VISIBLE_WINDOW_SIZE = 64;
@@ -587,7 +593,20 @@ app.on("ready", async () => {
       }
     }
   ]);
-  tray.setToolTip("YTMDesktop");
+  const trayTooltipMaxLength = process.platform === "win32" ? WINDOWS_TRAY_TOOLTIP_MAX_LENGTH : undefined;
+  let currentTrayTooltip: string | undefined;
+  // The state also changes on every progress update, so the tooltip is only set when its text changes
+  const updateTrayTooltip = (state: PlayerState) => {
+    const tooltip = buildTrayTooltip(
+      { title: state.videoDetails?.title, artist: state.videoDetails?.author },
+      { idleText: TRAY_IDLE_TOOLTIP, maxLength: trayTooltipMaxLength }
+    );
+    if (tooltip === currentTrayTooltip) return;
+    currentTrayTooltip = tooltip;
+    tray.setToolTip(tooltip);
+  };
+  updateTrayTooltip(playerStateStore.getState());
+  playerStateStore.on("state-changed", updateTrayTooltip);
   tray.setContextMenu(trayContextMenu);
   tray.on("click", () => {
     mainWindow.showAndFocus();
