@@ -46,7 +46,11 @@ export default class StateManager extends Service {
     this.forceWrite();
   }
 
-  public updateState(partialState: Partial<StoreSchema["state"]>) {
+  /**
+   * @param options.deferWrite Keeps the change in memory without scheduling a disk write, for values that change every second.
+   * The change is written with the next scheduled write or forceWrite.
+   */
+  public updateState(partialState: Partial<StoreSchema["state"]>, options: { deferWrite?: boolean } = {}) {
     if (this.panicked) return;
     if (!this._initialized) return;
 
@@ -55,6 +59,8 @@ export default class StateManager extends Service {
       if (!shallowEqual(this.currentState, newState)) {
         this.currentState = newState;
         this.diskStale = true;
+        if (options.deferWrite) return;
+
         this.stateUpdates++;
         // If a significant amount of changes to the state happen then we just force write it immediately
         if (this.stateUpdates >= 512) {

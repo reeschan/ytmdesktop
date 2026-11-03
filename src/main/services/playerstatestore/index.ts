@@ -393,10 +393,11 @@ export default class PlayerStateStore extends EventEmitterService<PlayerStateSto
     const stateManager = this.getDependency(StateManager);
     stateManager.updateState({
       lastVideoId: state.videoDetails?.id ?? "",
-      lastPlaylistId: state.playlistId ?? "",
-      // Whole seconds keep the number of state changes low; while an ad plays the previous position is kept
-      ...(this.adPlaying ? {} : { lastVideoProgress: Math.floor(this.videoProgress) })
+      lastPlaylistId: state.playlistId ?? ""
     });
+    // The position changes every second while playing, so it does not schedule a disk write and is written along with the next write.
+    // Whole seconds keep the number of state changes low; while an ad plays the previous position is kept
+    if (!this.adPlaying) stateManager.updateState({ lastVideoProgress: Math.floor(this.videoProgress) }, { deferWrite: true });
 
     this.emit("state-changed", this.getState());
   }

@@ -191,6 +191,75 @@ describe("StateManager", () => {
     expect(configStore.set).toHaveBeenLastCalledWith("state", expect.objectContaining({ lastVideoId: "video-b" }));
   });
 
+  describe("deferWrite", () => {
+    it("does not write while only the playback position changes, and forceWrite writes the last position", () => {
+      const { stateManager, configStore } = createStateManager();
+
+      for (let progress = 1; progress <= 120; progress++) {
+        stateManager.updateState({ lastVideoProgress: progress }, { deferWrite: true });
+        vi.advanceTimersByTime(1000);
+      }
+      vi.advanceTimersByTime(WRITE_DELAY_MS * 10);
+      expect(configStore.set).not.toHaveBeenCalled();
+
+      stateManager.forceWrite();
+      expect(configStore.set).toHaveBeenCalledTimes(1);
+      expect(configStore.set).toHaveBeenLastCalledWith("state", expect.objectContaining({ lastVideoProgress: 120 }));
+    });
+
+    it("does not count toward the 512 changes write", () => {
+      const { stateManager, configStore } = createStateManager();
+
+      for (let progress = 1; progress <= FORCED_WRITE_UPDATES * 2; progress++) {
+        stateManager.updateState({ lastVideoProgress: progress }, { deferWrite: true });
+      }
+
+      expect(configStore.set).not.toHaveBeenCalled();
+    });
+
+    it("is written along with the next normal update", () => {
+      const { stateManager, configStore } = createStateManager();
+
+      stateManager.updateState({ lastVideoProgress: 10 }, { deferWrite: true });
+      vi.advanceTimersByTime(WRITE_DELAY_MS);
+      stateManager.updateState({ lastVideoId: "video-a" });
+      vi.advanceTimersByTime(WRITE_DELAY_MS);
+
+      expect(configStore.set).toHaveBeenCalledTimes(1);
+      expect(configStore.set).toHaveBeenLastCalledWith("state", expect.objectContaining({ lastVideoId: "video-a", lastVideoProgress: 10 }));
+    });
+
+    it("is written with a pending normal update without moving its timer", () => {
+      const { stateManager, configStore } = createStateManager();
+
+      stateManager.updateState({ lastVideoId: "video-a" });
+      for (let progress = 1; progress < 30; progress++) {
+        vi.advanceTimersByTime(1000);
+        stateManager.updateState({ lastVideoProgress: progress }, { deferWrite: true });
+      }
+      expect(configStore.set).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1000);
+
+      expect(configStore.set).toHaveBeenCalledTimes(1);
+      expect(configStore.set).toHaveBeenLastCalledWith("state", expect.objectContaining({ lastVideoId: "video-a", lastVideoProgress: 29 }));
+
+      // The position updates after the write do not schedule another one
+      stateManager.updateState({ lastVideoProgress: 30 }, { deferWrite: true });
+      vi.advanceTimersByTime(WRITE_DELAY_MS * 2);
+      expect(configStore.set).toHaveBeenCalledTimes(1);
+    });
+
+    it("is written on termination", () => {
+      const { stateManager, configStore } = createStateManager();
+
+      stateManager.updateState({ lastVideoProgress: 90 }, { deferWrite: true });
+      stateManager.onTerminated();
+
+      expect(configStore.set).toHaveBeenCalledTimes(1);
+      expect(configStore.set).toHaveBeenLastCalledWith("state", expect.objectContaining({ lastVideoProgress: 90 }));
+    });
+  });
+
   it("does not write after a crash", () => {
     const { stateManager, configStore, watchDog } = createStateManager();
 
