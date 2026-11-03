@@ -17,6 +17,7 @@ import { ipcRenderer, webFrame } from "electron";
 import Store from "../store-ipc/store";
 import { StoreSchema } from "~shared/store/schema";
 import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBackgroundState } from "~shared/background-video";
+import { MiniplayerVideoIpc, MiniplayerVideoMessage } from "~shared/miniplayer-video";
 import { SongRecognitionIpc, SongRecognitionMessageOp, SongRecognitionViewState } from "~shared/song-recognition";
 import { YtmStartupIpc, YtmStartupMessage } from "~shared/ytm-startup";
 import { YTMViewSetupCompletionFlags } from "~shared/types";
@@ -34,6 +35,22 @@ function postBackgroundVideoState() {
 ipcRenderer.on(BackgroundVideoIpc.State, (_event, state: YtmBackgroundState) => {
   backgroundVideoState = state;
   postBackgroundVideoState();
+});
+
+// The last miniplayer message is kept, the page scripts may not be listening yet when it arrives
+let miniplayerVideoMessage: MiniplayerVideoMessage | null = null;
+function postMiniplayerVideoMessage() {
+  if (miniplayerVideoMessage) window.postMessage({ op: miniplayerVideoMessage }, "*");
+}
+
+ipcRenderer.on(MiniplayerVideoIpc.Mount, () => {
+  miniplayerVideoMessage = MiniplayerVideoMessage.Mount;
+  postMiniplayerVideoMessage();
+});
+
+ipcRenderer.on(MiniplayerVideoIpc.Release, () => {
+  miniplayerVideoMessage = MiniplayerVideoMessage.Release;
+  postMiniplayerVideoMessage();
 });
 
 let songRecognitionState: SongRecognitionViewState | null = null;
@@ -196,6 +213,7 @@ window.addEventListener("message", async event => {
     if (!backgroundVideoPageListening) {
       backgroundVideoPageListening = true;
       postBackgroundVideoState();
+      postMiniplayerVideoMessage();
     }
   }
 

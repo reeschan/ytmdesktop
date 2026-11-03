@@ -7,6 +7,7 @@ import { createMaterialSymbolsLink, createStyleSheet } from "./setup/styles";
 import { createNavigationMenuArrows } from "./setup/navigation";
 import initRemote from "./setup/remote";
 import { initBackgroundVideo } from "./setup/background-video";
+import { initMiniplayerVideo } from "./setup/miniplayer-video";
 import { createSongRecognitionButton } from "./setup/song-recognition";
 import { addTimedLyrics, createAdditionalPlayerBarControls, hideChromecastButton, overrideHistoryButtonDisplay } from "./setup/extras";
 
@@ -72,6 +73,12 @@ window.addEventListener("load", async () => {
     const font = createMaterialSymbolsLink();
     const fontWait = waitForFont(font, DEFAULT_FONT_TIMEOUT_MS);
     document.head.appendChild(font);
+    // Listens before the background video sends its first report, which makes the preload send the last miniplayer message again
+    try {
+      initMiniplayerVideo();
+    } catch (error) {
+      console.error("Failed to set up the miniplayer video", error);
+    }
     try {
       initBackgroundVideo();
     } catch (error) {
