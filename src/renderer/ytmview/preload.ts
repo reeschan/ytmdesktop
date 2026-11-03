@@ -48,6 +48,58 @@ ipcRenderer.on(SongRecognitionIpc.Search, (_event, query: string) => {
   window.postMessage({ op: SongRecognitionMessageOp.Search, query }, "*");
 });
 
+/**
+ * Seeks the player once to the given position, as soon as the given video is ready to play.
+ * Does nothing when the position is not a positive number, when the player is unavailable, or when another video is loaded first.
+ */
+async function seekVideoOnceReady(videoId: string, position: number) {
+  if (!videoId || !Number.isFinite(position) || position <= 0) return;
+
+  try {
+    (
+      await webFrame.executeJavaScript(`
+      (function() {
+        const playerApi = window.__YTMD_HOOK__?.ytmPlayerController?.playerApi;
+        if (!playerApi) return;
+
+        const targetVideoId = ${JSON.stringify(videoId)};
+        const position = ${position};
+        const PlayerState = { Playing: 1, Paused: 2, Cued: 5 };
+        const readyStates = [PlayerState.Playing, PlayerState.Paused, PlayerState.Cued];
+
+        // Returns true once the check is settled (seeked, or another video is loaded)
+        const trySeek = playerState => {
+          if (!readyStates.includes(playerState)) return false;
+          const currentVideoId = playerApi.getPlayerResponse()?.videoDetails?.videoId;
+          if (!currentVideoId) return false;
+          if (currentVideoId === targetVideoId) playerApi.seekTo(position);
+          return true;
+        };
+
+        try {
+          if (trySeek(playerApi.getPlayerState())) return;
+        } catch (err) {
+          console.error("[ytmd-err(seekVideoOnceReady)]", err);
+          return;
+        }
+
+        const onStateChange = playerState => {
+          try {
+            if (!trySeek(playerState)) return;
+          } catch (err) {
+            console.error("[ytmd-err(seekVideoOnceReady)]", err);
+          }
+          playerApi.removeEventListener("onStateChange", onStateChange);
+        };
+        playerApi.addEventListener("onStateChange", onStateChange);
+      })
+    `)
+    )();
+  } catch (err) {
+    console.error("[ytmd-err(seekVideoOnceReady)]", err);
+  }
+}
+
 let protectedApiBound = false;
 window.addEventListener("message", async event => {
   if (event.data === "ytmd-protected-api-port" && !protectedApiBound) {
@@ -89,6 +141,9 @@ window.addEventListener("message", async event => {
         `)
         )();
       }
+
+      // Existing config files may lack this key, so a missing value counts as the start of the video
+      await seekVideoOnceReady(state.lastVideoId, state.lastVideoProgress ?? 0);
     }
 
     const alwaysShowVolumeSlider = (await store.get("appearance")).alwaysShowVolumeSlider;
