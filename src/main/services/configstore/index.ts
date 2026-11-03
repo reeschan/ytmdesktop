@@ -43,13 +43,13 @@ export default class ConfigStore extends Service {
           customCSSPath: null,
           zoom: 100,
           trayIconStyle: TrayIconStyle.Auto,
-          theme: ThemeSelection.Default,
+          theme: ThemeSelection.Glass,
           themeFilePath: null,
-          backgroundVideoEnabled: false,
+          backgroundVideoEnabled: true,
           backgroundVideoSource: BackgroundVideoSource.Playing,
           backgroundVideoPath: null,
           backgroundVideoMaskOpacity: 60,
-          backgroundVideoMaskBlur: 0
+          backgroundVideoMaskBlur: 8
         },
         playback: {
           continueWhereYouLeftOff: true,
@@ -170,7 +170,7 @@ export default class ConfigStore extends Service {
         },
         ">=2.2.0": store => {
           if (!store.has("appearance.theme")) {
-            store.set("appearance.theme", ThemeSelection.Default);
+            store.set("appearance.theme", ThemeSelection.Glass);
           }
 
           if (!store.has("appearance.themeFilePath")) {
@@ -178,7 +178,7 @@ export default class ConfigStore extends Service {
           }
 
           if (!store.has("appearance.backgroundVideoEnabled")) {
-            store.set("appearance.backgroundVideoEnabled", false);
+            store.set("appearance.backgroundVideoEnabled", true);
           }
 
           if (!store.has("appearance.backgroundVideoSource")) {
@@ -194,7 +194,7 @@ export default class ConfigStore extends Service {
           }
 
           if (!store.has("appearance.backgroundVideoMaskBlur")) {
-            store.set("appearance.backgroundVideoMaskBlur", 0);
+            store.set("appearance.backgroundVideoMaskBlur", 8);
           }
 
           if (!store.has("integrations.discordPresenceDetailsTemplate")) {
