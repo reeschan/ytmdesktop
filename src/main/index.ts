@@ -2,7 +2,7 @@ import { app, clipboard, dialog, ipcMain, Menu, MenuItemConstructorOptions, nati
 import log from "electron-log";
 import { getIconPath, v1ConfigMigration } from "./util";
 import { AppView } from "./services/windowmanager/appview";
-import { YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
+import { FocusContext, YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
 import CompanionServer from "./integrations/companion-server";
 import CustomCSS from "./integrations/custom-css";
 import DiscordPresence from "./integrations/discord-presence";
@@ -33,9 +33,29 @@ import { MemoryStoreSchema, TrayIconStyle } from "~shared/store/schema";
 import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
-import { VideoType } from "~shared/playerstatestore/types";
+import { PlayerState, VideoType } from "~shared/playerstatestore/types";
+import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
+import { buildTrayTooltip } from "~shared/tray-tooltip";
+import { startMiniplayerVideo } from "./miniplayer-video";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
+
+// Tray tooltip shown when nothing is playing
+const TRAY_IDLE_TOOLTIP = "YTMDesktop";
+// Windows only accepts tray tooltips shorter than 128 characters
+const WINDOWS_TRAY_TOOLTIP_MAX_LENGTH = 127;
+
+// How much of a restored window has to overlap a display on each axis for it to stay where it was saved
+const MINIMUM_VISIBLE_WINDOW_SIZE = 64;
+
+// Saved bounds can point at a display that is no longer connected or has moved, so move them back onto a display when needed
+const getVisibleWindowBounds = (bounds: Electron.Rectangle): Electron.Rectangle =>
+  ensureBoundsAreVisible(
+    bounds,
+    screen.getAllDisplays().map(display => display.workArea),
+    screen.getDisplayMatching(bounds).workArea,
+    MINIMUM_VISIBLE_WINDOW_SIZE
+  );
 
 // Squirrel shortcut creation/removal
 // This is part of application installation/uninstallation process close the app immediately
@@ -249,7 +269,8 @@ app.on("ready", async () => {
 
   //#region Main Window
   const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-  const windowBounds = configStore.get("state.windowBounds");
+  const savedWindowBounds = configStore.get("state.windowBounds");
+  const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
   const mainView = new AppView({
     name: "Main",
@@ -300,6 +321,7 @@ app.on("ready", async () => {
       maximized: configStore.get("state.windowMaximized")
     },
     views: [mainView],
+    keyboardShortcuts: { closeWindow: true, toggleFullScreen: true },
     url: app.isPackaged ? "ytmd-app://titlebar" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/titlebar/index.html",
     electronOptions: {
       width: windowBounds?.width ?? 1280 / scaleFactor,
@@ -374,6 +396,7 @@ app.on("ready", async () => {
       name: "Settings",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://settings" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/settings/index.html",
       electronOptions: {
         width: 800,
@@ -430,13 +453,15 @@ app.on("ready", async () => {
     }
 
     const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-    const windowBounds = configStore.get("state.miniplayerWindowBounds");
+    const savedWindowBounds = configStore.get("state.miniplayerWindowBounds");
+    const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
     const mainWindowBounds = mainWindow._getElectronWindow().getBounds();
     const miniplayerWindow = windowManager.createWindow("Browser", {
       name: "Miniplayer",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://miniplayer" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/miniplayer/index.html",
       electronOptions: {
         width: windowBounds?.width ?? 600 / scaleFactor,
@@ -480,11 +505,18 @@ app.on("ready", async () => {
       });
     });
 
-    miniplayerWindow.once("electronwindow-close", () => {
-      stateManager.updateState({
-        miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
-      });
-      mainWindow.showAndFocus();
+    // Holds the first close until the YTM view is back in the main window, so the main window is shown with it
+    startMiniplayerVideo({
+      ytmView: ytmViewManager.getView(),
+      mainWindow,
+      miniplayerWindow,
+      playerStateStore,
+      onClose: () => {
+        stateManager.updateState({
+          miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
+        });
+        mainWindow.showAndFocus();
+      }
     });
 
     miniplayerWindow.ipcOn("remoteControl:execute", (event, command: string, ...args: unknown[]) => {
@@ -508,13 +540,13 @@ app.on("ready", async () => {
   mainWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
 
   // Keyboard navigation moves between the titlebar and the YTM view
-  mainWindow.ipcOn("ytmView:switchFocus", (_event, context: "main" | "ytm") => {
+  mainWindow.ipcOn("ytmView:switchFocus", (_event, context: unknown) => {
     const ytmWebContents = ytmViewManager.getView()?.webContents;
     if (!ytmWebContents) return;
 
-    if (context === "ytm" && mainWindow.webContents?.isFocused()) {
+    if (context === FocusContext.Ytm && mainWindow.webContents?.isFocused()) {
       ytmWebContents.focus();
-    } else if (context === "main" && ytmWebContents.isFocused()) {
+    } else if (context === FocusContext.Main && ytmWebContents.isFocused()) {
       mainWindow.webContents?.focus();
     }
   });
@@ -611,9 +643,28 @@ app.on("ready", async () => {
       }
     }
   ]);
-  tray.setToolTip("YTMDesktop");
+  const trayTooltipMaxLength = process.platform === "win32" ? WINDOWS_TRAY_TOOLTIP_MAX_LENGTH : undefined;
+  let currentTrayTooltip: string | undefined;
+  // The state also changes on every progress update, so the tooltip is only set when its text changes
+  const updateTrayTooltip = (state: PlayerState) => {
+    const tooltip = buildTrayTooltip(
+      { title: state.videoDetails?.title, artist: state.videoDetails?.author },
+      { idleText: TRAY_IDLE_TOOLTIP, maxLength: trayTooltipMaxLength }
+    );
+    if (tooltip === currentTrayTooltip) return;
+    currentTrayTooltip = tooltip;
+    tray.setToolTip(tooltip);
+  };
+  updateTrayTooltip(playerStateStore.getState());
+  playerStateStore.on("state-changed", updateTrayTooltip);
   tray.setContextMenu(trayContextMenu);
   tray.on("click", () => {
+    if (windowManager.hasWindow("Miniplayer")) {
+      // Closing the miniplayer shows and focuses the main window once the YTM view is back in it
+      windowManager.getWindow("Miniplayer").closeWindow();
+      return;
+    }
+
     mainWindow.showAndFocus();
   });
 
@@ -693,6 +744,7 @@ app.on("ready", async () => {
       name: "Changelog",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://changelog" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/changelog/index.html",
       electronOptions: {
         width: 800,

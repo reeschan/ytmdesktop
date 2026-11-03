@@ -1,6 +1,9 @@
+import { DEFAULT_POLL_INTERVALS, pollUntil } from "~shared/ytm-startup";
+
 export class YTMHook {
   private _ytmStateStore;
   private _ytmPlayerController;
+  private readyPromise?: Promise<boolean>;
   public get ytmStateStore(): any {
     return this._ytmStateStore;
   }
@@ -17,8 +20,8 @@ export class YTMHook {
     const mapSet = Map.prototype.set;
     Object.defineProperty(Map.prototype, "set", {
       value: function (key, value) {
-        if (key.name && key.name === "PLAYER_CONTROLLER_TOKEN") {
-          if (value.useClass) {
+        if (key?.name === "PLAYER_CONTROLLER_TOKEN") {
+          if (value?.useClass) {
             const OriginalClass = value.useClass;
 
             value.useClass = new Proxy(OriginalClass, {
@@ -34,8 +37,8 @@ export class YTMHook {
           }
         }
 
-        if (key.name && key.name === "STATE_STORE_TOKEN") {
-          if (value.useFactory) {
+        if (key?.name === "STATE_STORE_TOKEN") {
+          if (value?.useFactory) {
             const originalFactory = value.useFactory;
 
             value.useFactory = new Proxy(originalFactory, {
@@ -53,17 +56,17 @@ export class YTMHook {
     });
   }
 
-  public async ready(): Promise<void> {
-    if (this._ytmStateStore && this._ytmPlayerController) return Promise.resolve();
-
-    return new Promise<void>(resolve => {
-      const interval = setInterval(() => {
-        if (this._ytmStateStore && this._ytmPlayerController) {
-          resolve();
-          clearInterval(interval);
-        }
-      });
-    });
+  public ready(): Promise<boolean> {
+    if (!this.readyPromise) {
+      const controller = new AbortController();
+      const onPageHide = () => controller.abort();
+      window.addEventListener("pagehide", onPageHide, { once: true });
+      this.readyPromise = pollUntil(() => Boolean(this._ytmStateStore && this._ytmPlayerController), {
+        ...DEFAULT_POLL_INTERVALS,
+        signal: controller.signal
+      }).finally(() => window.removeEventListener("pagehide", onPageHide));
+    }
+    return this.readyPromise;
   }
 }
 

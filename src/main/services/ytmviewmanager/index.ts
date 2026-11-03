@@ -9,6 +9,7 @@ import StateManager from "../statemanager";
 import MemoryStore from "../memorystore";
 import { MemoryStoreSchema } from "~shared/store/schema";
 import AppWindowManager from "../windowmanager";
+import { YtmStartupIpc } from "~shared/ytm-startup";
 
 // The packaged and development builds keep separate sessions for the YTM view
 function getYTMViewPartition(): string {
@@ -404,12 +405,17 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
     this.setWindowOpenHandler();
 
     // YTM View IPC
-    this.ytmView.ipcOn("ytmView:ready", async (_event, setupCompletionFlags) => {
+    this.ytmView.ipcOn(YtmStartupIpc.Ready, async (_event, setupCompletionFlags) => {
       this.hooksReady = true;
       this.setupCompletionFlags = setupCompletionFlags;
       this.setStatus(YTMViewStatus.Ready);
     });
-    this.ytmView.ipcOn("ytmView:errored", (_event, error) => {
+    this.ytmView.ipcOn(YtmStartupIpc.SetupUpdated, (_event, flags: unknown) => {
+      if (typeof flags !== "number") return;
+      this.setupCompletionFlags = flags;
+      log.info("YTM view setup updated", flags);
+    });
+    this.ytmView.ipcOn(YtmStartupIpc.Errored, (_event, error) => {
       this.hookError = error;
     });
   }
@@ -444,6 +450,10 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
   }
 
   private setStatus(status: YTMViewStatus) {
+    if (status === YTMViewStatus.Loading || status === YTMViewStatus.Hooking) {
+      this._loadError = null;
+      this.getDependency(MemoryStore<MemoryStoreSchema>).set("ytmViewUnresponsive", false);
+    }
     this._status = status;
     this.emit("status-changed");
   }

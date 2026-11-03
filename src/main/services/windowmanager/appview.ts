@@ -8,6 +8,7 @@ export type AppViewEventMap = {
   // AppView related events
   "recreated": [];
   "ready": [];
+  "attached": [AppWindow<AppWindowType>];
 
   // WebContents proxied events
   "webcontents-enter-html-full-screen": [];
@@ -96,6 +97,11 @@ export type AppViewOptions = {
   electronOptions: WebContentsViewConstructorOptions;
 };
 
+/**
+ * Returns the bounds of a view from the content bounds of its parent window
+ */
+export type AppViewBoundsCalculator = (parentBounds: Rectangle) => Rectangle;
+
 export class AppView extends EventEmitter<AppViewEventMap> {
   private parentWindow?: AppWindow<AppWindowType> | null;
   private electronView?: WebContentsView | null;
@@ -105,6 +111,7 @@ export class AppView extends EventEmitter<AppViewEventMap> {
   private attachedParentEvents: {
     [eventName: string]: { (...args: unknown[]): void };
   } = {};
+  private boundsCalculator: AppViewBoundsCalculator | null = null;
   private viewReady = false;
   private lastViewIndex = -1;
   private ipcEventProxy = new EventEmitter();
@@ -143,6 +150,8 @@ export class AppView extends EventEmitter<AppViewEventMap> {
     if (!app.isPackaged) this.electronView?.webContents.openDevTools();
 
     log.debug(`AppView '${this.name}' attached to parent ${this.parentWindow.name} with index '${index ?? "end"}'`);
+
+    this.emit("attached", appWindow);
   }
 
   public _detachFromWindow(appWindow: AppWindow<AppWindowType>) {
@@ -247,6 +256,16 @@ export class AppView extends EventEmitter<AppViewEventMap> {
     this.parentWindowResize();
   }
 
+  /**
+   * Sets the function that decides the bounds of this view from its parent window, used instead of autoResize until it is cleared with null
+   *
+   * @param apply Whether to apply the bounds right away (for example false when the view is about to be attached to another window, which applies them on attach)
+   */
+  public setBoundsCalculator(calculator: AppViewBoundsCalculator | null, apply = true) {
+    this.boundsCalculator = calculator;
+    if (apply) this.parentWindowResize();
+  }
+
   private createElectronView() {
     // Silently ignore this call as the AppView is destroyed
     if (this.destroyed) {
@@ -330,6 +349,13 @@ export class AppView extends EventEmitter<AppViewEventMap> {
   }
 
   private parentWindowResize() {
+    if (this.boundsCalculator) {
+      if (this.electronView && this.parentWindow) {
+        this.electronView.setBounds(this.boundsCalculator(this.parentWindow._getElectronWindow().getContentBounds()));
+      }
+      return;
+    }
+
     if (this.options.viewState.autoResize && this.electronView && this.parentWindow) {
       const newBounds = this.electronView.getBounds();
       const parentBounds = this.parentWindow._getElectronWindow().getContentBounds();

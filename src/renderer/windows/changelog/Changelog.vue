@@ -30,6 +30,8 @@ const appVersion = await window.ytmd.getAppVersion();
 .changelog-container {
   height: 100%;
   padding: 16px;
+  overflow-y: auto;
+  box-sizing: border-box;
 }
 
 .updated-header {

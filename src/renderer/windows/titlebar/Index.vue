@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import TitleBar from "../../components/TitleBar.vue";
 import logo from "~assets/icons/ytmd_white.png";
+import { FocusContext } from "~shared/types";
 
 const keyboardFocus = ref<HTMLElement>(null);
 const keyboardFocusZero = ref<HTMLElement>(null);
@@ -15,10 +16,12 @@ onMounted(() => {
       keyboardFocusZero.value.focus();
       keyboardFocusZero.value.blur();
     }
+    // Hand keyboard focus to the YTM view so its keys (for example space for play/pause) work as soon as the window is active again
+    window.ytmd.switchFocus(FocusContext.Ytm);
   };
 
   keyboardFocus.value.onfocus = () => {
-    window.ytmd.switchFocus("ytm");
+    window.ytmd.switchFocus(FocusContext.Ytm);
   };
 
   window.ytmd.requestWindowState();

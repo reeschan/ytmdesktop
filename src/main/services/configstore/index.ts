@@ -90,6 +90,7 @@ export default class ConfigStore extends Service {
           lastUrl: "https://music.youtube.com/",
           lastPlaylistId: "",
           lastVideoId: "",
+          lastVideoProgress: 0,
           windowBounds: null,
           windowMaximized: false,
           miniplayerWindowBounds: null

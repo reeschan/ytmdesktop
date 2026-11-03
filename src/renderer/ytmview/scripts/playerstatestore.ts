@@ -1,5 +1,6 @@
 import ytmhook from "./ytmhook";
 import protectedapimanager from "./protectedapimanager";
+import { DEFAULT_POLL_INTERVALS, pollUntil } from "~shared/ytm-startup";
 
 function getLikeStatus() {
   try {
@@ -59,9 +60,9 @@ export default function init() {
 
     const videoId = playerApi.getPlayerResponse()?.videoDetails?.videoId;
     const defaultLikeStatus = getLikeStatus() ?? "UNKNOWN";
-    const storeLikeStatus = state.likeStatus.videos[videoId];
+    const storeLikeStatus = state.likeStatus?.videos?.[videoId];
 
-    const likeStatus = storeLikeStatus ? state.likeStatus.videos[videoId] : defaultLikeStatus;
+    const likeStatus = storeLikeStatus ? storeLikeStatus : defaultLikeStatus;
     const volume = state.player.volume;
     const adPlaying = state.player.adPlaying;
     const muted = state.player.muted;
@@ -91,32 +92,43 @@ export default function init() {
 
   async function sendVideoData() {
     const state = ytmStore.getState();
-    const videoDetails = structuredClone(playerApi.getPlayerResponse().videoDetails);
+    const playerResponse = playerApi.getPlayerResponse();
+    if (!playerResponse?.videoDetails) {
+      // The player has no data yet, so there is nothing to send
+      return;
+    }
+    const videoDetails = structuredClone(playerResponse.videoDetails);
     const playlistId = playerApi.getPlaylistId();
     let album: any = null;
     let hasFullMetadata = false;
 
-    const selectedItemIndex = state.queue.items.findIndex(item => {
-      return item.playlistPanelVideoRenderer?.selected ?? item.playlistPanelVideoWrapperRenderer.primaryRenderer.playlistPanelVideoRenderer.selected;
+    const selectedItemIndex = (state.queue?.items ?? []).findIndex(item => {
+      return item?.playlistPanelVideoRenderer?.selected ?? item?.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer?.selected;
     });
-    let currentItem = state.queue.items[selectedItemIndex];
+    let currentItem = state.queue?.items?.[selectedItemIndex];
     currentItem = currentItem?.playlistPanelVideoRenderer ?? currentItem?.playlistPanelVideoWrapperRenderer?.primaryRenderer?.playlistPanelVideoRenderer;
     if (currentItem !== null && currentItem !== undefined) {
       hasFullMetadata = true;
 
       // Fill out video details with better information
-      videoDetails.title = currentItem.title.runs.map(v => v.text).join(""); // Can contain featuring text which isn't in player response
-      videoDetails.thumbnail = structuredClone(currentItem.thumbnail); // Can contain more thumbnails than player response
+      const titleRuns = currentItem.title?.runs;
+      if (titleRuns) {
+        videoDetails.title = titleRuns.map(v => v.text).join(""); // Can contain featuring text which isn't in player response
+      }
+      if (currentItem.thumbnail) {
+        videoDetails.thumbnail = structuredClone(currentItem.thumbnail); // Can contain more thumbnails than player response
+      }
 
       // Maybe obtain the album information from a text run
-      for (let i = 0; i < currentItem.longBylineText.runs.length; i++) {
-        const item = currentItem.longBylineText.runs[i];
-        if (item.navigationEndpoint) {
+      const bylineRuns = currentItem.longBylineText?.runs ?? [];
+      for (let i = 0; i < bylineRuns.length; i++) {
+        const item = bylineRuns[i];
+        if (item?.navigationEndpoint) {
           if (
-            item.navigationEndpoint.browseEndpoint.browseEndpointContextSupportedConfigs.browseEndpointContextMusicConfig.pageType === "MUSIC_PAGE_TYPE_ALBUM"
+            item.navigationEndpoint.browseEndpoint?.browseEndpointContextSupportedConfigs?.browseEndpointContextMusicConfig?.pageType === "MUSIC_PAGE_TYPE_ALBUM"
           ) {
             album = {
-              id: item.navigationEndpoint.browseEndpoint.browseId,
+              id: item.navigationEndpoint.browseEndpoint?.browseId,
               text: item.text
             };
           }
@@ -125,9 +137,9 @@ export default function init() {
     }
 
     const defaultLikeStatus = getLikeStatus() ?? "UNKNOWN";
-    const storeLikeStatus = state.likeStatus.videos[videoDetails.videoId];
+    const storeLikeStatus = state.likeStatus?.videos?.[videoDetails.videoId];
 
-    const likeStatus = storeLikeStatus ? state.likeStatus.videos[videoDetails.videoId] : defaultLikeStatus;
+    const likeStatus = storeLikeStatus ? storeLikeStatus : defaultLikeStatus;
 
     // Check if offline then convert the thumbnail url to data url if possible
     //
@@ -215,17 +227,9 @@ export default function init() {
   }
 }
 
-export async function waitForYTMPlayerApiReady() {
-  const playerApi = ytmhook.ytmPlayerController.playerApi;
-
-  await new Promise<void>(resolve => {
-    const interval = setInterval(async () => {
-      const playerApiReady: boolean = playerApi.isReady();
-
-      if (playerApiReady) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, 250);
+export function waitForYTMPlayerApiReady(signal?: AbortSignal): Promise<boolean> {
+  return pollUntil(() => ytmhook.ytmPlayerController?.playerApi?.isReady?.() === true, {
+    ...DEFAULT_POLL_INTERVALS,
+    signal
   });
 }

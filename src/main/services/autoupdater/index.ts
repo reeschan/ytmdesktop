@@ -4,6 +4,7 @@ import Service, { EventEmitterService } from "../service";
 import { DependencyConstructor } from "~shared/types";
 import MemoryStore from "../memorystore";
 import { MemoryStoreSchema } from "~shared/store/schema";
+import { waitForFirstEvent } from "./wait-for-event";
 
 declare const YTMD_DISABLE_UPDATES: boolean;
 declare const YTMD_UPDATE_FEED_OWNER: string | null | undefined;
@@ -16,6 +17,27 @@ export interface AutoUpdaterEvents {
   "downloaded": [];
   "error": [];
 }
+
+/** Default time limit for waiting on an update check to complete, in milliseconds */
+export const UPDATE_CHECK_TIMEOUT_MS = 10_000;
+
+type UpdateCheckEndEvent = Extract<keyof AutoUpdaterEvents, "not-available" | "downloaded" | "error">;
+
+/** Events that tell an update was found, after which the download is waited on without a time limit */
+type UpdateFoundEvent = Extract<keyof AutoUpdaterEvents, "available">;
+
+const UPDATE_FOUND_EVENTS: readonly UpdateFoundEvent[] = ["available"];
+
+interface UpdateCheckOutcome {
+  downloaded: boolean;
+  timedOut: boolean;
+}
+
+const UPDATE_CHECK_OUTCOMES: Readonly<Record<UpdateCheckEndEvent, UpdateCheckOutcome>> = {
+  "not-available": { downloaded: false, timedOut: false },
+  "downloaded": { downloaded: true, timedOut: false },
+  "error": { downloaded: false, timedOut: false }
+};
 
 export enum AutoUpdaterState {
   Checking,
@@ -90,6 +112,11 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
       });
     }
 
+    // Keep a permanent "error" listener so emitting "error" never throws when no other listener is attached
+    this.on("error", () => {
+      log.debug("AutoUpdater error event emitted");
+    });
+
     autoUpdater.on("checking-for-update", () => {
       log.debug("AutoUpdater checking for updates...");
       this.state = AutoUpdaterState.Checking;
@@ -131,27 +158,34 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
   /**
    *
    * @param wait Wait for update check to complete
-   * @returns True if an update was downloaded or False if there isn't
+   * @param timeoutMs How long to wait to learn whether an update is available before giving up, in milliseconds.
+   * Once an update is found, the download is waited on without this limit.
+   * @returns True if an update was downloaded or False if there isn't (or the wait timed out)
    */
-  public async checkForUpdates(wait: boolean): Promise<boolean> {
+  public async checkForUpdates(wait: boolean, timeoutMs: number = UPDATE_CHECK_TIMEOUT_MS): Promise<boolean> {
     if (!this.initialized) throw new Error("AutoUpdater is not initialized!");
     if (this.invalidUpdateFeed) throw new Error("Update feed is marked invalid");
     if (!this.autoUpdaterEnabled) return false;
     // Electron downloads an update as soon as it finds one, so checking again would install it twice
     if (this.state === AutoUpdaterState.Available || this.state === AutoUpdaterState.Downloaded) return this.isUpdateDownloaded();
 
-    let waitPromise: Promise<boolean> | null = null;
+    let waitPromise: Promise<UpdateCheckOutcome> | null = null;
     if (wait) {
-      waitPromise = new Promise<boolean>(resolve => {
-        this.once("not-available", () => resolve(false));
-        this.once("downloaded", () => resolve(true));
-        this.once("error", () => resolve(false));
+      waitPromise = waitForFirstEvent<UpdateCheckEndEvent, UpdateCheckOutcome, UpdateFoundEvent>(this, UPDATE_CHECK_OUTCOMES, {
+        timeoutMs,
+        timeoutResult: { downloaded: false, timedOut: true },
+        clearTimeoutOn: UPDATE_FOUND_EVENTS
       });
     }
 
     autoUpdater.checkForUpdates();
-    if (waitPromise) return await waitPromise;
-    return false;
+    if (!waitPromise) return false;
+
+    const outcome = await waitPromise;
+    if (outcome.timedOut) {
+      log.warn(`AutoUpdater update check did not complete within ${timeoutMs}ms, continuing as no update available`);
+    }
+    return outcome.downloaded;
   }
 
   public isUpdateDownloaded() {
