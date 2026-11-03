@@ -1,1 +1,1 @@
-メインプロセス側。`src/main/index.ts` が設定ウィンドウを作り、ConfigStore / MemoryStore / PlayerStateStore のサービスと `safeStorage:*`・`app:relaunch`・`app:getVersion`・`lastfm:authenticate` などの IPC の受け手を持つ。
+メインプロセス側。`src/main/index.ts` が設定ウィンドウを作り、ConfigStore / MemoryStore / PlayerStateStore のサービスと `safeStorage:*`・`app:relaunch`・`app:getVersion`・`app:checkForUpdates`・`app:restartApplicationForUpdate`・`lastfm:authenticate` などの IPC の受け手を持つ。設定ウィンドウが開いている間は、AutoUpdater の状態を `autoUpdater:checkingForUpdate` などで送る。

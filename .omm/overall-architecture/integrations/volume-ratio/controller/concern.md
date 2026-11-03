@@ -1,1 +1,0 @@
-- `view-recreated` のリスナーが `onEnabled()` を呼び、`onEnabled()` は毎回 `ytmViewManager.on("view-recreated", 同じ関数)` を足す。中の EventEmitter は同じ関数の重複登録を許すので、YTM 画面が作り直されるたびにリスナーが 1 つずつ増える (`onDisabled` の `off` は 1 つしか外さない)。

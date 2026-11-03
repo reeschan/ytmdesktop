@@ -1,1 +1,0 @@
-- `IPCClient` は `emit("data", { op, json })` と 1 つのオブジェクトで出すが、`DiscordClient` は `on("data", (op, json) => ...)` と 2 つの引数で受けて `op` を `OPCode.PING` と比べている。`op` にはオブジェクトが入るので一致せず、PING に PONG を返す処理は動かない。

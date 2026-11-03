@@ -1,1 +1,0 @@
-- `integrationManager.on("enable-error", ...)` でダイアログを出すようにしているが、`IntegrationManager` は `enable-error` を型に宣言しているだけで emit していない。`onEnabled` が投げた例外は `reconcileIntegrationEnableState` から外へ出て、このダイアログは出ない。

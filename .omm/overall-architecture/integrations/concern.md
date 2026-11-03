@@ -1,3 +1,3 @@
 - `disableFlags` は各 Integration に書かれているが、`IntegrationManager` の FlagManager の処理がコメントアウトされていて、今は効かない。
-- `IntegrationManager` は `onEnabled` / `onDisabled` の例外を捕まえない。`enable-error` イベントも emit されない。例外を自分で捕まえているのは SongRecognition だけ。
-- 有効・無効の切り替えはどれも `IntegrationManager` が呼ぶが、後始末 (`ipcMain` のリスナー、`view-recreated` のリスナーなど) は各 Integration 任せで、漏れがある (last-fm・volume-ratio の concern を参照)。
+- `IntegrationManager` は `onEnabled` の例外を捕まえて `enable-error` を出すが、`onDisabled` の例外は捕まえない。DISABLE で投げると未処理の reject になり、WatchDog がクラッシュとして扱う。
+- 有効・無効の切り替えはどれも `IntegrationManager` が呼ぶが、後始末 (`ipcMain` のリスナー、`view-recreated` のリスナーなど) は各 Integration 任せで、基底クラスでは強制していない。
