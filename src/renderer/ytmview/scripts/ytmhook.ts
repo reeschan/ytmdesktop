@@ -1,6 +1,9 @@
+import { DEFAULT_POLL_INTERVALS, pollUntil } from "~shared/ytm-startup";
+
 export class YTMHook {
   private _ytmStateStore;
   private _ytmPlayerController;
+  private readyPromise?: Promise<boolean>;
   public get ytmStateStore(): any {
     return this._ytmStateStore;
   }
@@ -53,17 +56,17 @@ export class YTMHook {
     });
   }
 
-  public async ready(): Promise<void> {
-    if (this._ytmStateStore && this._ytmPlayerController) return Promise.resolve();
-
-    return new Promise<void>(resolve => {
-      const interval = setInterval(() => {
-        if (this._ytmStateStore && this._ytmPlayerController) {
-          resolve();
-          clearInterval(interval);
-        }
-      });
-    });
+  public ready(): Promise<boolean> {
+    if (!this.readyPromise) {
+      const controller = new AbortController();
+      const onPageHide = () => controller.abort();
+      window.addEventListener("pagehide", onPageHide, { once: true });
+      this.readyPromise = pollUntil(() => Boolean(this._ytmStateStore && this._ytmPlayerController), {
+        ...DEFAULT_POLL_INTERVALS,
+        signal: controller.signal
+      }).finally(() => window.removeEventListener("pagehide", onPageHide));
+    }
+    return this.readyPromise;
   }
 }
 

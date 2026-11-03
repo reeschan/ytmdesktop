@@ -1,5 +1,6 @@
 import ytmhook from "./ytmhook";
 import protectedapimanager from "./protectedapimanager";
+import { DEFAULT_POLL_INTERVALS, pollUntil } from "~shared/ytm-startup";
 
 function getLikeStatus() {
   try {
@@ -226,17 +227,9 @@ export default function init() {
   }
 }
 
-export async function waitForYTMPlayerApiReady() {
-  const playerApi = ytmhook.ytmPlayerController.playerApi;
-
-  await new Promise<void>(resolve => {
-    const interval = setInterval(async () => {
-      const playerApiReady: boolean = playerApi.isReady();
-
-      if (playerApiReady) {
-        clearInterval(interval);
-        resolve();
-      }
-    }, 250);
+export function waitForYTMPlayerApiReady(signal?: AbortSignal): Promise<boolean> {
+  return pollUntil(() => ytmhook.ytmPlayerController?.playerApi?.isReady?.() === true, {
+    ...DEFAULT_POLL_INTERVALS,
+    signal
   });
 }

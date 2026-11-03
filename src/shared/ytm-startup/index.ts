@@ -90,3 +90,17 @@ export function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<
   const finished = promise.then((value): TimeoutResult<T> => ({ done: true, value }));
   return Promise.race([finished, deadline]).finally(() => clearTimeout(timer));
 }
+export const YtmStartupMessage = {
+  Ready: "ytmd-ready",
+  Errored: "ytmd-errored",
+  SetupUpdated: "ytmd-setup-updated"
+} as const;
+export type YtmStartupMessage = (typeof YtmStartupMessage)[keyof typeof YtmStartupMessage];
+
+export const YtmStartupIpc = {
+  Ready: "ytmView:ready",
+  Errored: "ytmView:errored",
+  SetupUpdated: "ytmView:setupUpdated"
+} as const;
+export type YtmStartupIpc = (typeof YtmStartupIpc)[keyof typeof YtmStartupIpc];
+
