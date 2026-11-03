@@ -25,6 +25,10 @@ export type KeyboardShortcutInput = {
   meta: boolean;
   alt: boolean;
   shift: boolean;
+  /**
+   * True for the repeated key down inputs sent while a key is held down
+   */
+  isAutoRepeat: boolean;
 };
 
 const KEY_DOWN = "keyDown";
@@ -46,7 +50,7 @@ function isToggleFullScreen(input: KeyboardShortcutInput) {
 /**
  * Returns the keyboard shortcut a key input matches, or null when it matches none
  *
- * Only key down inputs match.
+ * Only key down inputs match, and repeated inputs while a key is held down do not.
  *
  * @param isMac Whether the platform uses the Command key (meta) in place of Control
  */
@@ -54,7 +58,7 @@ export function matchKeyboardShortcut(
   input: KeyboardShortcutInput,
   isMac: boolean,
 ): KeyboardShortcut | null {
-  if (input.type !== KEY_DOWN) return null;
+  if (input.type !== KEY_DOWN || input.isAutoRepeat) return null;
   if (isCloseWindow(input, isMac)) return KeyboardShortcut.CloseWindow;
   if (isToggleFullScreen(input)) return KeyboardShortcut.ToggleFullScreen;
   return null;

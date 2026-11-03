@@ -5,7 +5,7 @@ const NOT_MAC = false;
 const MAC = true;
 
 function keyDown(key: string, modifiers: Partial<Omit<KeyboardShortcutInput, "type" | "key">> = {}): KeyboardShortcutInput {
-  return { type: "keyDown", key, control: false, meta: false, alt: false, shift: false, ...modifiers };
+  return { type: "keyDown", key, control: false, meta: false, alt: false, shift: false, isAutoRepeat: false, ...modifiers };
 }
 
 function keyUp(key: string, modifiers: Partial<Omit<KeyboardShortcutInput, "type" | "key">> = {}): KeyboardShortcutInput {
@@ -85,6 +85,25 @@ describe("matchKeyboardShortcut", () => {
 
     it("does not match F11 on key up", () => {
       expect(matchKeyboardShortcut(keyUp("F11"), NOT_MAC)).toBeNull();
+    });
+  });
+
+  describe("auto repeat while a key is held down", () => {
+    it("does not match a repeated Ctrl+W on Windows and Linux", () => {
+      expect(
+        matchKeyboardShortcut(
+          { type: "keyDown", key: "w", control: true, meta: false, alt: false, shift: false, isAutoRepeat: true },
+          NOT_MAC
+        )
+      ).toBeNull();
+    });
+
+    it("does not match a repeated Cmd+W on macOS", () => {
+      expect(matchKeyboardShortcut(keyDown("w", { meta: true, isAutoRepeat: true }), MAC)).toBeNull();
+    });
+
+    it.each([NOT_MAC, MAC])("does not match a repeated F11 (isMac: %s)", isMac => {
+      expect(matchKeyboardShortcut(keyDown("F11", { isAutoRepeat: true }), isMac)).toBeNull();
     });
   });
 
