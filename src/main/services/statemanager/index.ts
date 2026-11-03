@@ -56,12 +56,14 @@ export default class StateManager extends Service {
         this.currentState = newState;
         this.diskStale = true;
         this.stateUpdates++;
-        if (this.diskWriteTimer) clearTimeout(this.diskWriteTimer);
         // If a significant amount of changes to the state happen then we just force write it immediately
         if (this.stateUpdates >= 512) {
+          this.clearDiskWriteTimer();
           this.write();
-        } else {
+        } else if (!this.diskWriteTimer) {
+          // The timer is not rearmed by later changes, so pending changes are written at most 30 seconds after the first one even while the state keeps changing
           this.diskWriteTimer = setTimeout(() => {
+            this.diskWriteTimer = null;
             this.write();
           }, 30 * 1000);
         }
@@ -73,8 +75,13 @@ export default class StateManager extends Service {
     if (this.panicked) return;
     if (!this._initialized) return;
 
-    if (this.diskWriteTimer) clearTimeout(this.diskWriteTimer);
+    this.clearDiskWriteTimer();
     this.write();
+  }
+
+  private clearDiskWriteTimer() {
+    if (this.diskWriteTimer) clearTimeout(this.diskWriteTimer);
+    this.diskWriteTimer = null;
   }
 
   private write() {
@@ -93,6 +100,6 @@ export default class StateManager extends Service {
    */
   private panic() {
     this.panicked = true;
-    if (this.diskWriteTimer) clearTimeout(this.diskWriteTimer);
+    this.clearDiskWriteTimer();
   }
 }
