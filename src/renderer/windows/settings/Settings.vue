@@ -1016,7 +1016,7 @@ window.ytmd.handleUpdateDownloaded(() => {
             class="setting indented"
           >
             <p class="discord-failure tw:text-ytmd-text-muted">
-              Discord connection could not be established after 30 attempts
+              Discord could not be found. YTMDesktop keeps trying to connect in the background.
             </p>
             <button @click="restartDiscordPresence">
               Retry
