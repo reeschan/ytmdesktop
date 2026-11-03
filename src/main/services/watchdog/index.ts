@@ -1,6 +1,14 @@
 import { app, clipboard, crashReporter, dialog } from "electron";
 import log, { LogMessage } from "electron-log";
+import { inspect } from "node:util";
 import Service from "../service";
+
+// Any value can be thrown as a cause, so objects are inspected instead of showing [object Object]
+function formatCause(cause: unknown): string {
+  if (cause === undefined || cause === null) return "Unknown";
+  if (typeof cause === "string" || cause instanceof Error) return cause.toString();
+  return inspect(cause);
+}
 
 export type WatchDogEvent = "crash";
 export type WatchDogEventCallback = () => void | Promise<void>;
@@ -78,7 +86,7 @@ export default class WatchDog extends Service {
 
         const dialogMessage =
           `Environment Details:\n    ${versions.app}\n    ${versions.electron}\n    ${versions.os}\n\n` +
-          `Name: ${error.name}\nMessage: ${error.message}\nCause: ${error.cause ?? "Unknown"}\n\n` +
+          `Name: ${error.name}\nMessage: ${error.message}\nCause: ${formatCause(error.cause)}\n\n` +
           `${error.stack}`;
 
         if (!app.isReady()) {
