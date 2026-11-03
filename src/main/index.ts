@@ -616,14 +616,14 @@ app.on("ready", async () => {
           });
       }
     } else {
-      await mainView.show(true);
+      mainView.show(true);
     }
   });
-  ytmViewManager.on("view-recreated", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("view-recreated", () => {
+    mainView.show(true);
   });
-  ytmViewManager.on("unresponsive", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("unresponsive", () => {
+    mainView.show(true);
   });
   ytmViewManager.on("responsive", async () => {
     await mainView.hide(true);
@@ -640,7 +640,7 @@ app.on("ready", async () => {
   serviceHost.getService(BackgroundVideoManager).attachToMainWindow(mainWindow);
 
   // This hides the main view if it was recreated and the YTMView is in a ready state
-  await mainView.on("recreated", async () => {
+  mainView.on("recreated", async () => {
     await ytmViewManager.ready();
     await mainView.hide(true);
   });

@@ -3,7 +3,7 @@ import log, { LogMessage } from "electron-log";
 import Service from "../service";
 
 export type WatchDogEvent = "crash";
-export type WatchDogEventCallback = () => void;
+export type WatchDogEventCallback = () => void | Promise<void>;
 export enum WatchDogApplicationState {
   Normal,
   Crashed
@@ -123,11 +123,11 @@ export default class WatchDog extends Service {
 
   public override onTerminated() {}
 
-  public on(event: WatchDogEvent, callback: () => void) {
+  public on(event: WatchDogEvent, callback: WatchDogEventCallback) {
     this.eventCallbacks[event].push(callback);
   }
 
-  public off(event: WatchDogEvent, callback: () => void) {
+  public off(event: WatchDogEvent, callback: WatchDogEventCallback) {
     const index = this.eventCallbacks[event].indexOf(callback, 0);
     if (index > -1) this.eventCallbacks[event] = this.eventCallbacks[event].splice(index, 1);
   }
