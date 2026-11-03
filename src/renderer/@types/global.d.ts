@@ -35,6 +35,7 @@ declare global {
       getCode(): string;
 
       // Main window specific
+      isMainWindow(): boolean;
       switchFocus(context: "main" | "ytm"): void;
 
       // YTM view specific
