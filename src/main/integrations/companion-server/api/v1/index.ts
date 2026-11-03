@@ -391,7 +391,7 @@ const CompanionServerAPIv1: FastifyPluginCallback<CompanionServerAPIv1Options> =
           additionalArguments: [requestId, authData.appName, request.body.code]
         }
       });
-      authorizationWindow.loadURL(
+      void authorizationWindow.loadURL(
         app.isPackaged ? "ytmd-app://authorize-companion" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/authorize-companion/index.html"
       );
       authorizationWindow.show();
@@ -601,7 +601,7 @@ const CompanionServerAPIv1: FastifyPluginCallback<CompanionServerAPIv1Options> =
 
   fastify.addHook("onClose", () => {
     // This should normally close on its own but we'll make sure it's closed out
-    fastify.io.close();
+    void fastify.io.close();
     playerStateStore.off("state-changed", stateStoreListener);
     playerStateStore.off("playlist-created", createPlaylistObservedListener);
     playerStateStore.off("playlist-deleted", deletePlaylistObservedListener);

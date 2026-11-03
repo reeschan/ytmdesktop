@@ -45,7 +45,7 @@ function openExternalFromYtmView(urlString: string) {
   domainSplit.reverse();
   const domain = `${domainSplit[1]}.${domainSplit[0]}`;
   if (domain === "google.com" || domain === "youtube.com" || domain === "googleusercontent.com" || domain === "ggpht.com") {
-    shell.openExternal(urlString);
+    void shell.openExternal(urlString);
   } else {
     log.warn(`Attempted to open ${urlString} from YTMView but was denied`);
   }
@@ -363,7 +363,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
         (url.hostname === "youtube.com" && url.pathname === "/musicpremium")
       ) {
         // This users region requires a premium subscription to use YTM
-        this.ytmView!.webContents!.loadURL(
+        void this.ytmView!.webContents!.loadURL(
           "https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F"
         );
       }

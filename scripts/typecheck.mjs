@@ -6,8 +6,7 @@ import path from "node:path";
 
 const KNOWN_FAILING_FILES = [
   "src/main/integrations/last-fm/index.ts",
-  "src/main/integrations/last-fm/last-fm-client/index.ts",
-  "src/main/integrations/companion-server/api-shared/auth.ts"
+  "src/main/integrations/last-fm/last-fm-client/index.ts"
 ];
 
 const require = createRequire(import.meta.url);

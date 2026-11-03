@@ -22,7 +22,7 @@ export default class CustomCSS extends Integration {
   private cssQueue: Promise<void> = Promise.resolve();
 
   private ytmViewRecreatedListener = () => {
-    this.enqueue(async () => {
+    void this.enqueue(async () => {
       this.injected = false;
       await this.injectCSSNow();
     });
@@ -30,7 +30,7 @@ export default class CustomCSS extends Integration {
 
   // Custom CSS is inserted again after the theme so it keeps winning over it
   private ytmThemeAppliedListener = () => {
-    this.updateCSS();
+    void this.updateCSS();
   };
 
   public onSetup() {}
@@ -43,15 +43,15 @@ export default class CustomCSS extends Integration {
     this.getService(ThemeManager).on("ytm-theme-applied", this.ytmThemeAppliedListener);
     this.storeListener = configStore.onDidChange("appearance", (newState, oldState) => {
       if (newState === undefined || oldState === undefined) {
-        this.updateCSS();
+        void this.updateCSS();
       } else {
         if (newState && (newState.customCSSEnabled && newState.customCSSPath !== oldState.customCSSPath)) {
-          this.updateCSS();
+          void this.updateCSS();
         }
       }
     });
 
-    this.injectCSS();
+    void this.injectCSS();
   }
 
   public onDisabled(): void {
@@ -68,7 +68,7 @@ export default class CustomCSS extends Integration {
       this.storeListener = null;
     }
 
-    this.removeCSS();
+    void this.removeCSS();
   }
 
   public async updateCSS() {
@@ -128,7 +128,7 @@ export default class CustomCSS extends Integration {
     this.injected = false;
   }
 
-  private async watchCSSFile(newFile?: string) {
+  private watchCSSFile(newFile?: string) {
     // Reset the file listener if it exists
     if (this.currentWatcher) {
       this.currentWatcher.close();
@@ -141,13 +141,13 @@ export default class CustomCSS extends Integration {
     // and update the CSS when it changes
     this.currentWatcher = fs.watch(newFile, {}, (type, filename) => {
       if (type === "change") {
-        this.updateCSS();
+        void this.updateCSS();
       } else if (type === "rename") {
         if (filename) {
           const configStore = this.getService(ConfigStore);
 
           configStore.set("appearance.customCSSPath", null);
-          this.removeCSS();
+          void this.removeCSS();
           this.currentWatcher?.close();
         }
       }

@@ -93,7 +93,7 @@ export default function init() {
     const state = ytmStore.getState();
     const videoDetails = structuredClone(playerApi.getPlayerResponse().videoDetails);
     const playlistId = playerApi.getPlaylistId();
-    let album: any | null = null;
+    let album: any = null;
     let hasFullMetadata = false;
 
     const selectedItemIndex = state.queue.items.findIndex(item => {
@@ -142,7 +142,7 @@ export default function init() {
   }
 
   function hydrateApplicationState() {
-    sendStoreState();
+    void sendStoreState();
 
     const progressState = playerApi.getProgressState();
     playerStateApi.postMessage("updateVideoProgress", progressState.current);
@@ -150,7 +150,7 @@ export default function init() {
     const videoState = playerApi.getPlayerState();
     playerStateApi.postMessage("updateVideoState", videoState);
 
-    sendVideoData();
+    void sendVideoData();
   }
 
   // It is mandatory that try catch be used within these so that we handle errors for YTMD and not throw them back to YTM
@@ -176,7 +176,7 @@ export default function init() {
         }
 
         if (event.type === "dataloaded" || event.type === "dataupdated") {
-          sendVideoData();
+          void sendVideoData();
         }
       }
     } catch (err) {
@@ -184,11 +184,9 @@ export default function init() {
     }
   });
   ytmStore.subscribe(() => {
-    try {
-      sendStoreState();
-    } catch (err) {
+    sendStoreState().catch(err => {
       console.error("[ytmd-err(stateStore.subscribe)]", err);
-    }
+    });
   });
   window.addEventListener("yt-action", (e: any) => {
     if (e.detail.actionName === "yt-service-request") {

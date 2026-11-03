@@ -284,7 +284,7 @@ export class AppWindow<
     listener: (
       event: IpcMainInvokeEvent,
       ...args: unknown[]
-    ) => Promise<unknown> | unknown,
+    ) => unknown,
   ) {
     assert(
       this.windowType === "Browser",
@@ -466,8 +466,8 @@ export class AppWindow<
         (this.electronWindow as BrowserWindow).webContents.openDevTools();
 
       const browserWindow = this.electronWindow as BrowserWindow;
-      if (this.options.url) browserWindow.loadURL(this.options.url);
-      else if (this.options.file) browserWindow.loadFile(this.options.file);
+      if (this.options.url) void browserWindow.loadURL(this.options.url);
+      else if (this.options.file) void browserWindow.loadFile(this.options.file);
     }
 
     this.initialCreation = false;

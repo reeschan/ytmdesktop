@@ -72,7 +72,7 @@ export default class LastFM extends Integration {
 
         const token = await this.lastFMClient?.getToken();
         memoryStore.set("lastFMToken", token);
-        shell.openExternal(
+        void shell.openExternal(
           `https://www.last.fm/api/auth/` + `?api_key=${encodeURIComponent(LASTFM_API_KEY)}` + `&token=${encodeURIComponent(token)}`
         );
       } else if (authStep === 1) {
@@ -80,7 +80,7 @@ export default class LastFM extends Integration {
 
         const sessionKey = await this.lastFMClient.getSession(memoryStore.get("lastFMToken") as string);
         if (this.lastFMDetails) this.lastFMDetails.sessionKey = sessionKey;
-        this.saveSettings();
+        void this.saveSettings();
         memoryStore.set("lastFMAuthenticationStep", 2);
       }
     });
@@ -170,7 +170,7 @@ export default class LastFM extends Integration {
       return;
     }
 
-    this.maybeUpdateScrobble(state);
+    void this.maybeUpdateScrobble(state);
 
     // Media is actively playing accumulate playback time for scrobble & update now playing if needed
     if (state.videoDetails && state.trackState === VideoState.Playing) {

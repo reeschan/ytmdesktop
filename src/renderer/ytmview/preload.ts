@@ -144,4 +144,4 @@ window.addEventListener("message", async event => {
   }
 });
 
-webFrame.executeJavaScript(scriptsRaw);
+void webFrame.executeJavaScript(scriptsRaw);

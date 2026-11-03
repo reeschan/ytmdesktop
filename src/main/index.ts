@@ -103,7 +103,7 @@ serviceHost.runNextLifecycle();
 const integrationManager = serviceHost.getService(IntegrationManager);
 integrationManager.on("enable-error", (integration, error) => {
   const dialogMessage = `The '${integration.name}' integration failed to be enabled and will be unavailable.\n\n` + `${error.stack}`;
-  dialog.showMessageBox({
+  void dialog.showMessageBox({
     title: "Integration Error",
     message: "An integration could not be enabled",
     detail: dialogMessage,
@@ -188,7 +188,7 @@ app.on("ready", async () => {
   // At this stage the next lifecycle is PostInitialized
   serviceHost.runNextLifecycle();
 
-  v1ConfigMigration(serviceHost.getService(ConfigStore));
+  void v1ConfigMigration(serviceHost.getService(ConfigStore));
 
   //#region safeStorage setup and checks
   if (!await safeStorage.isAsyncEncryptionAvailable()) {
@@ -384,7 +384,7 @@ app.on("ready", async () => {
     });
     settingsWindow.setWindowOpenHandler(details => {
       if (details.url === "https://github.com/ytmdesktop/ytmdesktop" || details.url === "https://ytmdesktop.github.io/" || details.url === SHAZAM_API_KEY_URL) {
-        shell.openExternal(details.url);
+        void shell.openExternal(details.url);
       }
 
       return {
@@ -477,7 +477,7 @@ app.on("ready", async () => {
 
   mainWindow.ipcOn("ytmView:navigateDefault", () => {
     const ytmView = ytmViewManager.getView();
-    if (ytmView) ytmView.webContents?.loadURL("https://music.youtube.com/");
+    if (ytmView) void ytmView.webContents?.loadURL("https://music.youtube.com/");
   });
   //#endregion
 
@@ -601,7 +601,7 @@ app.on("ready", async () => {
         const dialogMessage =
           `Features from YTMDesktop may not be present or function correctly\n\nThis usually means there's a bug and a bug report should be filed on the GitHub\n\nHook log:\n${setFlags.map(flag => `    ${flag}... OK\n`).join("")}${unsetFlags.map(flag => `    ${flag}... FAIL\n`).join("")}\n` +
           `${hookError?.stack}`;
-        dialog
+        void dialog
           .showMessageBox({
             title: "Hook Error",
             message: "YTMDesktop could not hook YouTube Music",
@@ -611,19 +611,19 @@ app.on("ready", async () => {
           })
           .then(result => {
             if (result.response === 0) {
-              clipboard.writeText(`${dialogMessage}`);
+              void clipboard.writeText(`${dialogMessage}`);
             }
           });
       }
     } else {
-      await mainView.show(true);
+      mainView.show(true);
     }
   });
-  ytmViewManager.on("view-recreated", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("view-recreated", () => {
+    mainView.show(true);
   });
-  ytmViewManager.on("unresponsive", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("unresponsive", () => {
+    mainView.show(true);
   });
   ytmViewManager.on("responsive", async () => {
     await mainView.hide(true);
@@ -640,7 +640,7 @@ app.on("ready", async () => {
   serviceHost.getService(BackgroundVideoManager).attachToMainWindow(mainWindow);
 
   // This hides the main view if it was recreated and the YTMView is in a ready state
-  await mainView.on("recreated", async () => {
+  mainView.on("recreated", async () => {
     await ytmViewManager.ready();
     await mainView.hide(true);
   });
@@ -704,7 +704,7 @@ app.on("ready", async () => {
       }
     });
     changelogWindow.setWindowOpenHandler(details => {
-      shell.openExternal(details.url);
+      void shell.openExternal(details.url);
 
       return {
         action: "deny"
@@ -712,11 +712,11 @@ app.on("ready", async () => {
     });
     changelogWindow.webContents?.on("will-navigate", event => {
       event.preventDefault();
-      shell.openExternal(event.url);
+      void shell.openExternal(event.url);
     });
     changelogWindow.webContents?.on("will-redirect", event => {
       event.preventDefault();
-      shell.openExternal(event.url);
+      void shell.openExternal(event.url);
     });
     changelogWindow.on("electronwindow-close", () => {
       configStore.set("metadata.appVersion", app.getVersion());

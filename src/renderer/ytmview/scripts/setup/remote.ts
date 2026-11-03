@@ -98,7 +98,7 @@ export default function init() {
           ? state.likeStatus.videos[videoId]
           : defaultLikeStatus;
 
-        let serviceEvent: any | null = null;
+        let serviceEvent: any = null;
 
         const ytmusicAppElement = document.querySelector("ytmusic-app");
         if (likeStatus === "LIKE") {
@@ -185,7 +185,7 @@ export default function init() {
           ? state.likeStatus.videos[videoId]
           : defaultLikeStatus;
 
-        let serviceEvent: any | null = null;
+        let serviceEvent: any = null;
 
         const ytmusicAppElement = document.querySelector("ytmusic-app");
         if (likeStatus === "DISLIKE") {
@@ -341,7 +341,7 @@ export default function init() {
           useAutoMix = true;
         }
 
-        let song: any | null = null;
+        let song: any = null;
         if (!useAutoMix) {
           song = queue.items[index];
         } else {
