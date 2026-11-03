@@ -18,6 +18,8 @@ import Store from "../store-ipc/store";
 import { StoreSchema } from "~shared/store/schema";
 import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBackgroundState } from "~shared/background-video";
 import { SongRecognitionIpc, SongRecognitionMessageOp, SongRecognitionViewState } from "~shared/song-recognition";
+import { YtmStartupIpc, YtmStartupMessage } from "~shared/ytm-startup";
+import { YTMViewSetupCompletionFlags } from "~shared/types";
 
 import scriptsRaw from "./scripts?raw";
 
@@ -100,6 +102,45 @@ async function seekVideoOnceReady(videoId: string, position: number) {
   }
 }
 
+let startupReadySeen = false;
+let sessionRestoreStarted = false;
+
+async function restoreLastSession() {
+  try {
+    const state = await store.get("state");
+    const continueWhereYouLeftOff = (await store.get("playback")).continueWhereYouLeftOff;
+    if (!continueWhereYouLeftOff) return;
+
+    if (!window.location.pathname.startsWith("/watch")) {
+      const getLoadedVideoId = await webFrame.executeJavaScript(`
+        (function() {
+          const playerApi = window.__YTMD_HOOK__?.ytmPlayerController?.playerApi;
+          if (!playerApi) return undefined;
+          return playerApi.getVideoData?.()?.video_id ?? null;
+        })
+      `);
+      const loadedVideoId = getLoadedVideoId();
+      if (loadedVideoId === undefined || loadedVideoId || !state.lastVideoId) return;
+      document.dispatchEvent(
+        new CustomEvent("yt-navigate", {
+          detail: { endpoint: { watchEndpoint: { videoId: state.lastVideoId, playlistId: state.lastPlaylistId } } }
+        })
+      );
+    }
+
+    await seekVideoOnceReady(state.lastVideoId, state.lastVideoProgress ?? 0);
+  } catch (err) {
+    console.error("[ytmd-err(restoreLastSession)]", err);
+  }
+}
+
+function onCompletions(completions: number) {
+  if (!sessionRestoreStarted && (completions & YTMViewSetupCompletionFlags.Hooks) !== 0) {
+    sessionRestoreStarted = true;
+    void restoreLastSession();
+  }
+}
+
 let protectedApiBound = false;
 window.addEventListener("message", async event => {
   if (event.data === "ytmd-protected-api-port" && !protectedApiBound) {
@@ -107,50 +148,9 @@ window.addEventListener("message", async event => {
     protectedApiBound = true;
   }
 
-  if (event.data.op && event.data.op === "ytmd-ready") {
-    ipcRenderer.send("ytmView:ready", event.data.completions);
-
-    // TODO: Move all the below be part of the ProtectedAPI system within this block
-    const state = await store.get("state");
-    const continueWhereYouLeftOff = (await store.get("playback")).continueWhereYouLeftOff;
-
-    if (continueWhereYouLeftOff) {
-      // The last page the user was on is already a page where it will be playing a song from (no point telling YTM to play it again)
-      if (!window.location.pathname.startsWith("/watch")) {
-        if (state.lastVideoId) {
-          document.dispatchEvent(
-            new CustomEvent("yt-navigate", {
-              detail: {
-                endpoint: {
-                  watchEndpoint: {
-                    videoId: state.lastVideoId,
-                    playlistId: state.lastPlaylistId
-                  }
-                }
-              }
-            })
-          );
-        }
-      } else {
-        (
-          await webFrame.executeJavaScript(`
-          (function() {
-            const playerApi = window.__YTMD_HOOK__.ytmPlayerController.playerApi;
-            if (playerApi.getPlayerResponse()) window.ytmd.sendVideoData(playerApi.getPlayerResponse().videoDetails, playerApi.getPlaylistId());
-          })
-        `)
-        )();
-      }
-
-      // Existing config files may lack this key, so a missing value counts as the start of the video
-      await seekVideoOnceReady(state.lastVideoId, state.lastVideoProgress ?? 0);
-    }
-
-    const alwaysShowVolumeSlider = (await store.get("appearance")).alwaysShowVolumeSlider;
-    if (alwaysShowVolumeSlider) {
-      document.querySelector("ytmusic-app-layout>ytmusic-player-bar #volume-slider")?.classList.add("ytmd-persist-volume-slider");
-    }
-
+  if (event.data.op === YtmStartupMessage.Ready && typeof event.data.completions === "number" && !startupReadySeen) {
+    startupReadySeen = true;
+    ipcRenderer.send(YtmStartupIpc.Ready, event.data.completions);
     store.onDidAnyChange(newState => {
       if (newState.appearance.alwaysShowVolumeSlider) {
         const volumeSlider = document.querySelector("#volume-slider");
@@ -168,10 +168,21 @@ window.addEventListener("message", async event => {
     ipcRenderer.on("ytmView:executeScript", async (_event, script) => {
       (await webFrame.executeJavaScript(script))();
     });
+
+    const alwaysShowVolumeSlider = (await store.get("appearance")).alwaysShowVolumeSlider;
+    if (alwaysShowVolumeSlider) {
+      document.querySelector("ytmusic-app-layout>ytmusic-player-bar #volume-slider")?.classList.add("ytmd-persist-volume-slider");
+    }
+    onCompletions(event.data.completions);
   }
 
-  if (event.data.op && event.data.op === "ytmd-errored") {
-    ipcRenderer.send("ytmView:errored", event.data.error);
+  if (event.data.op === YtmStartupMessage.SetupUpdated && typeof event.data.completions === "number") {
+    ipcRenderer.send(YtmStartupIpc.SetupUpdated, event.data.completions);
+    onCompletions(event.data.completions);
+  }
+
+  if (event.data.op === YtmStartupMessage.Errored) {
+    ipcRenderer.send(YtmStartupIpc.Errored, event.data.error);
   }
 
   if (event.data.op && event.data.op === BackgroundVideoMessage.Report) {

@@ -19,13 +19,14 @@ const ytmViewLoadingStatusMessage = computed(() => {
   }
 });
 const ytmViewLoadTimedOut = ref(false);
-const ytmViewLoadError = ref(null);
+const ytmViewLoadError = ref<{ code: number; description: string } | null>(null);
 
 let ytmViewTimeout = setTimeout(() => {
   ytmViewLoadTimedOut.value = true;
 }, 5 * 1000);
 
 window.ytmd.ytmViewStatusChanged((status: YTMViewStatus) => {
+  if (status !== YTMViewStatus.LoadFailed) ytmViewLoadError.value = null;
   if (status !== YTMViewStatus.Ready) {
     ytmViewLoadTimedOut.value = false;
     clearTimeout(ytmViewTimeout);
