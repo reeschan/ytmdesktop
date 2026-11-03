@@ -5,6 +5,15 @@ export type WindowsEventArguments = {
   alwaysOnTop: boolean;
 };
 
+/**
+ * Where keyboard focus can be moved inside a window that holds several views
+ */
+export const FocusContext = {
+  Main: "main",
+  Ytm: "ytm"
+} as const;
+export type FocusContext = (typeof FocusContext)[keyof typeof FocusContext];
+
 export enum YTMViewStatus {
   Loading,
   Hooking,

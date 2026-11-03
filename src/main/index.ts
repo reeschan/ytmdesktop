@@ -2,7 +2,7 @@ import { app, clipboard, dialog, ipcMain, Menu, MenuItemConstructorOptions, nati
 import log from "electron-log";
 import { getIconPath, v1ConfigMigration } from "./util";
 import { AppView } from "./services/windowmanager/appview";
-import { YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
+import { FocusContext, YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
 import CompanionServer from "./integrations/companion-server";
 import CustomCSS from "./integrations/custom-css";
 import DiscordPresence from "./integrations/discord-presence";
@@ -499,6 +499,14 @@ app.on("ready", async () => {
   mainWindow.ipcOn("ytmView:navigateDefault", () => {
     const ytmView = ytmViewManager.getView();
     if (ytmView) void ytmView.webContents?.loadURL("https://music.youtube.com/");
+  });
+
+  mainWindow.ipcOn("ytmView:switchFocus", (_event, context: unknown) => {
+    if (context === FocusContext.Ytm) {
+      ytmViewManager.getView()?.webContents?.focus();
+    } else if (context === FocusContext.Main) {
+      mainView.webContents?.focus();
+    }
   });
   //#endregion
 
