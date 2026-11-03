@@ -73,7 +73,7 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
       return this.state == AutoUpdaterState.Available;
     });
     ipcMain.handle("autoUpdater:isUpdateDownloaded", () => {
-      return this.state == AutoUpdaterState.Downloaded;
+      return this.isUpdateDownloaded();
     });
 
     if (this.isDisabled()) {
@@ -137,6 +137,8 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
     if (!this.initialized) throw new Error("AutoUpdater is not initialized!");
     if (this.invalidUpdateFeed) throw new Error("Update feed is marked invalid");
     if (!this.autoUpdaterEnabled) return false;
+    // Electron downloads an update as soon as it finds one, so checking again would install it twice
+    if (this.state === AutoUpdaterState.Available || this.state === AutoUpdaterState.Downloaded) return this.isUpdateDownloaded();
 
     let waitPromise: Promise<boolean> | null = null;
     if (wait) {
@@ -150,6 +152,10 @@ export default class AutoUpdater extends EventEmitterService<AutoUpdaterEvents> 
     autoUpdater.checkForUpdates();
     if (waitPromise) return await waitPromise;
     return false;
+  }
+
+  public isUpdateDownloaded() {
+    return this.state === AutoUpdaterState.Downloaded;
   }
 
   public quitAndInstall() {
