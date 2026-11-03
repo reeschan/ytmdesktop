@@ -36,6 +36,7 @@ import ProtectedAPIManager from "./services/protectedapimanager";
 import { PlayerState, VideoType } from "~shared/playerstatestore/types";
 import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
 import { buildTrayTooltip } from "~shared/tray-tooltip";
+import { startMiniplayerVideo } from "./miniplayer-video";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
 
@@ -479,11 +480,18 @@ app.on("ready", async () => {
       });
     });
 
-    miniplayerWindow.once("electronwindow-close", () => {
-      stateManager.updateState({
-        miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
-      });
-      mainWindow.showAndFocus();
+    // Holds the first close until the YTM view is back in the main window, so the main window is shown with it
+    startMiniplayerVideo({
+      ytmView: ytmViewManager.getView(),
+      mainWindow,
+      miniplayerWindow,
+      playerStateStore,
+      onClose: () => {
+        stateManager.updateState({
+          miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
+        });
+        mainWindow.showAndFocus();
+      }
     });
 
     miniplayerWindow.ipcOn("remoteControl:execute", (event, command: string, ...args: unknown[]) => {
