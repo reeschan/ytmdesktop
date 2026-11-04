@@ -18,6 +18,8 @@ import Store from "../store-ipc/store";
 import { StoreSchema } from "~shared/store/schema";
 import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBackgroundState } from "~shared/background-video";
 import { SongRecognitionIpc, SongRecognitionMessageOp, SongRecognitionViewState } from "~shared/song-recognition";
+import { GroovingIpc, GroovingMessageOp, GroovingViewState, isGroovingSignal, isGroovingViewState } from "~shared/grooving";
+import { SettingsTab } from "~shared/types";
 
 import scriptsRaw from "./scripts?raw";
 
@@ -46,6 +48,18 @@ ipcRenderer.on(SongRecognitionIpc.State, (_event, state: SongRecognitionViewStat
 
 ipcRenderer.on(SongRecognitionIpc.Search, (_event, query: string) => {
   window.postMessage({ op: SongRecognitionMessageOp.Search, query }, "*");
+});
+
+// Only the state main sends for the screen goes to the page, never the settings (they hold the encrypted keys)
+let groovingState: GroovingViewState | null = null;
+function postGroovingState() {
+  if (groovingState) window.postMessage({ op: GroovingMessageOp.State, state: groovingState }, "*");
+}
+
+ipcRenderer.on(GroovingIpc.State, (_event, state: unknown) => {
+  if (!isGroovingViewState(state)) return;
+  groovingState = state;
+  postGroovingState();
 });
 
 let protectedApiBound = false;
@@ -141,6 +155,20 @@ window.addEventListener("message", async event => {
   // The page started listening, so the last state is sent again
   if (event.data.op && event.data.op === SongRecognitionMessageOp.Listening) {
     postSongRecognitionState();
+  }
+
+  // Grooving: only the page's own main world may signal, ask for the last state or open the settings
+  if (event.source === window && event.data?.op === GroovingMessageOp.Signal) {
+    if (isGroovingSignal(event.data.signal)) ipcRenderer.send(GroovingIpc.Signal, event.data.signal);
+  }
+
+  // The page started listening, so the last state is sent again
+  if (event.source === window && event.data?.op === GroovingMessageOp.Ready) {
+    postGroovingState();
+  }
+
+  if (event.source === window && event.data?.op === GroovingMessageOp.OpenSettings) {
+    ipcRenderer.send("window:openSettings", SettingsTab.Integrations);
   }
 });
 

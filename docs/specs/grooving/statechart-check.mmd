@@ -1,0 +1,135 @@
+stateDiagram-v2
+    state "Grooving" as All {
+        state "Flow" as Flow {
+            Closed: Closed
+            NeedKey: Key guidance
+            Consent: Asking consent
+            Setup: Choosing mood
+            Collect: Collecting candidates
+            PairWait: Waiting for pair
+            PairRetry: Retrying pair
+            Choose: Choosing from pair
+            ListWait: Making list
+            ListRetry: Retrying list
+            CollectFailed: Collecting failed
+            PairFailed: Pair failed
+            ListFailed: List failed
+            Done: List ready
+            Saving: Saving
+            Saved: Saved
+            [*] --> Closed
+            Closed --> NeedKey: press Grooving without key
+            Closed --> Consent: press Grooving without consent
+            Closed --> Setup: press Grooving ready
+            NeedKey --> Closed: open settings
+            NeedKey --> Closed: close
+            Consent --> Setup: agree
+            Consent --> Setup: use without history
+            Consent --> Closed: decline
+            Setup --> Collect: start
+            Collect --> PairWait: candidates ready
+            Collect --> CollectFailed: cannot collect
+            PairWait --> Choose: pair arrives
+            PairWait --> PairRetry: unusable answer
+            PairWait --> PairFailed: LLM unreachable
+            PairRetry --> Choose: pair arrives
+            PairRetry --> PairFailed: unusable answer
+            PairRetry --> PairFailed: LLM unreachable
+            Choose --> Choose: pick with prefetch ready
+            Choose --> PairWait: pick with prefetch pending
+            Choose --> PairWait: neither with pairs left
+            Choose --> ListWait: pick last pair
+            Choose --> ListWait: neither on last pair
+            ListWait --> Done: list arrives
+            ListWait --> ListRetry: unusable answer
+            ListWait --> ListFailed: LLM unreachable
+            ListRetry --> Done: list arrives
+            ListRetry --> ListFailed: unusable answer
+            ListRetry --> ListFailed: LLM unreachable
+            CollectFailed --> Collect: retry
+            PairFailed --> PairWait: retry
+            ListFailed --> ListWait: retry
+            Done --> Saving: save
+            Saving --> Saved: saved
+            Saving --> Done: cannot save
+            Done --> Setup: again
+            Saved --> Setup: again
+            Setup --> Closed: leave
+            Collect --> Closed: leave
+            PairWait --> Closed: leave
+            PairRetry --> Closed: leave
+            Choose --> Closed: leave
+            ListWait --> Closed: leave
+            ListRetry --> Closed: leave
+            CollectFailed --> Closed: leave
+            PairFailed --> Closed: leave
+            ListFailed --> Closed: leave
+            Done --> Closed: leave
+            Saving --> Closed: leave
+            Saved --> Closed: leave
+        }
+        --
+        state "Preview" as Preview {
+            Quiet: No preview
+            Playing: Previewing
+            [*] --> Quiet
+            Quiet --> Playing: start preview [choosing]
+            %% when Choose
+            Playing --> Playing: preview the other song
+            Playing --> Quiet: 15 seconds pass
+            Playing --> Quiet: stop preview
+            Playing --> Quiet: pick with prefetch ready
+            Playing --> Quiet: pick with prefetch pending
+            Playing --> Quiet: neither with pairs left
+            Playing --> Quiet: pick last pair
+            Playing --> Quiet: neither on last pair
+            Playing --> Quiet: leave
+        }
+        --
+        state "Queue" as Queue {
+            Orig: Original queue
+            ThisList: This run's list
+            PrevList: Earlier run's list
+            [*] --> Orig
+            Orig --> ThisList: list arrives [making list]
+            %% when ListWait, ListRetry
+            PrevList --> ThisList: list arrives [making list]
+            %% when ListWait, ListRetry
+            ThisList --> PrevList: press Grooving without key [closed]
+            %% when Closed
+            ThisList --> PrevList: press Grooving without consent [closed]
+            %% when Closed
+            ThisList --> PrevList: press Grooving ready [closed]
+            %% when Closed
+            ThisList --> PrevList: again [list ready or saved]
+            %% when Done, Saved
+        }
+    }
+
+    %% never PreviewWhileClosed: Closed & Previewing -- 閉じているのに、試聴が続いていない
+    %% never PreviewWhileKeyGuidance: Key guidance & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileConsent: Asking consent & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileSetup: Choosing mood & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileCollect: Collecting candidates & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhilePairWait: Waiting for pair & Previewing -- 組を選んだら、試聴は終わっている
+    %% never PreviewWhilePairRetry: Retrying pair & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileListWait: Making list & Previewing -- 最後の組を選んだら、試聴は終わっている
+    %% never PreviewWhileListRetry: Retrying list & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileCollectFailed: Collecting failed & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhilePairFailed: Pair failed & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileListFailed: List failed & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileDone: List ready & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileSaving: Saving & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileSaved: Saved & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never QueueEarlyKeyGuidance: Key guidance & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyConsent: Asking consent & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlySetup: Choosing mood & This run's list -- もう一度始めたら、前の回のリストはこの回のものではない
+    %% never QueueEarlyCollect: Collecting candidates & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyPairWait: Waiting for pair & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyPairRetry: Retrying pair & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyChoose: Choosing from pair & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyListWait: Making list & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyListRetry: Retrying list & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyCollectFailed: Collecting failed & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyPairFailed: Pair failed & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never QueueEarlyListFailed: List failed & This run's list -- リストが届く前に、キューが置き換わっていない

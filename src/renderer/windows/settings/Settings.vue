@@ -16,6 +16,18 @@ import {
   SongRecognitionSourceSetting
 } from "~shared/song-recognition";
 import { isPcAudioAvailable } from "~shared/song-recognition/source";
+import {
+  GROOVING_API_KEY_URLS,
+  GROOVING_DEFAULT_MODELS,
+  GROOVING_PROVIDER_LABELS,
+  GroovingConsent,
+  GroovingConsentChoice,
+  GroovingLanguage,
+  GroovingProvider,
+  GroovingUsage
+} from "~shared/grooving";
+import { groovingMonth } from "~shared/grooving/usage";
+import { SettingsTab } from "~shared/types";
 import logo from "~assets/icons/ytmd.png";
 
 declare const YTMD_GIT_COMMIT_HASH: string | undefined;
@@ -30,7 +42,9 @@ const processVersions = window.ytmd.processVersions;
 const isDarwin = window.ytmd.isDarwin;
 const isLinux = window.ytmd.isLinux;
 
-const currentTab = ref(1);
+// Opened from the YTM view with ?tab=integrations when an API key is missing
+const initialTab = new URLSearchParams(location.search).get("tab") === SettingsTab.Integrations ? 4 : 1;
+const currentTab = ref(initialTab);
 const requiresRestart = ref(false);
 const checkingForUpdate = ref(false);
 const updateAvailable = ref(await window.ytmd.isAppUpdateAvailable());
@@ -113,8 +127,31 @@ const lastFMEnabled = ref<boolean>(integrations.lastFMEnabled);
 const enhancedMediaServiceEnabled = ref<boolean>(integrations.enhancedMediaServiceEnabled);
 // The values below can be missing in a settings file saved by an older version
 const shazamEnabled = ref<boolean>(integrations.shazamEnabled ?? false);
-const shazamApiKey = ref<string>(await decryptShazamApiKey(integrations.shazamApiKey));
+const shazamApiKey = ref<string>(await decryptApiKey(integrations.shazamApiKey));
 const shazamAudioSource = ref<SongRecognitionSourceSetting>(integrations.shazamAudioSource ?? DEFAULT_SONG_RECOGNITION_SOURCE);
+const groovingProviders = Object.values(GroovingProvider);
+const groovingProvider = ref<GroovingProvider>(integrations.groovingProvider ?? GroovingProvider.Gemini);
+// One plaintext key per provider, so switching the provider never clears another provider's key
+const groovingApiKeys = ref<Record<GroovingProvider, string>>({
+  [GroovingProvider.Gemini]: await decryptApiKey(integrations.groovingApiKeys?.[GroovingProvider.Gemini]),
+  [GroovingProvider.Anthropic]: await decryptApiKey(integrations.groovingApiKeys?.[GroovingProvider.Anthropic]),
+  [GroovingProvider.OpenAI]: await decryptApiKey(integrations.groovingApiKeys?.[GroovingProvider.OpenAI])
+});
+const groovingModels = ref<Record<GroovingProvider, string>>({
+  [GroovingProvider.Gemini]: integrations.groovingModels?.[GroovingProvider.Gemini] ?? "",
+  [GroovingProvider.Anthropic]: integrations.groovingModels?.[GroovingProvider.Anthropic] ?? "",
+  [GroovingProvider.OpenAI]: integrations.groovingModels?.[GroovingProvider.OpenAI] ?? ""
+});
+const groovingLanguages = Object.values(GroovingLanguage);
+// Each language is shown in its own language, so a reader of either can find theirs
+const GROOVING_LANGUAGE_LABELS: Record<GroovingLanguage, string> = {
+  auto: "Auto",
+  en: "English",
+  ja: "日本語"
+};
+const groovingLanguage = ref<GroovingLanguage>(integrations.groovingLanguage ?? GroovingLanguage.Auto);
+const groovingConsent = ref<GroovingConsent | null>(integrations.groovingConsent ?? null);
+const groovingUsage = ref<GroovingUsage | null>(integrations.groovingUsage ?? null);
 
 const shortcutPlayPause = ref<string>(shortcuts.playPause);
 const shortcutNext = ref<string>(shortcuts.next);
@@ -172,6 +209,11 @@ store.onDidAnyChange(async newState => {
   shazamEnabled.value = newState.integrations.shazamEnabled ?? false;
   // The API key input is not synced back here: it saves while typing, and an older echoed value would overwrite newer text
   shazamAudioSource.value = newState.integrations.shazamAudioSource ?? DEFAULT_SONG_RECOGNITION_SOURCE;
+  groovingProvider.value = newState.integrations.groovingProvider ?? GroovingProvider.Gemini;
+  // The Grooving API key and model inputs are not synced back here, for the same reason as the Shazam API key
+  groovingLanguage.value = newState.integrations.groovingLanguage ?? GroovingLanguage.Auto;
+  groovingConsent.value = newState.integrations.groovingConsent ?? null;
+  groovingUsage.value = newState.integrations.groovingUsage ?? null;
 
   shortcutPlayPause.value = newState.shortcuts.playPause;
   shortcutNext.value = newState.shortcuts.next;
@@ -242,7 +284,7 @@ memoryStore.onStateChanged(newState => {
   songRecognitionDevices.value = newState.songRecognitionDevices ?? [];
 });
 
-async function decryptShazamApiKey(encrypted: string | null | undefined): Promise<string> {
+async function decryptApiKey(encrypted: string | null | undefined): Promise<string> {
   if (!encrypted || !safeStorageAvailable.value) return "";
 
   try {
@@ -485,9 +527,127 @@ function shazamApiKeyTyped() {
   shazamApiKeySaveTimeout = setTimeout(saveShazamApiKey, TEXT_SETTING_SAVE_DELAY_MS);
 }
 
+// Each grooving API key is encrypted before it is saved. Every provider has its own timer, last saved value and in-flight saves,
+// so typing in one provider's key never cancels or overwrites another provider's key
+type GroovingKeySaver = {
+  timeout: ReturnType<typeof setTimeout> | null;
+  // The last plaintext key that was saved or loaded. null when a stored key could not be decrypted, so nothing is skipped
+  lastSaved: string | null;
+  inFlight: Promise<void>[];
+};
+
+function createGroovingKeySaver(provider: GroovingProvider): GroovingKeySaver {
+  const loaded = groovingApiKeys.value[provider].trim();
+  return { timeout: null, lastSaved: integrations.groovingApiKeys?.[provider] && loaded === "" ? null : loaded, inFlight: [] };
+}
+
+const groovingKeySavers: Record<GroovingProvider, GroovingKeySaver> = {
+  [GroovingProvider.Gemini]: createGroovingKeySaver(GroovingProvider.Gemini),
+  [GroovingProvider.Anthropic]: createGroovingKeySaver(GroovingProvider.Anthropic),
+  [GroovingProvider.OpenAI]: createGroovingKeySaver(GroovingProvider.OpenAI)
+};
+
+function saveGroovingApiKey(provider: GroovingProvider): Promise<void> {
+  const saver = groovingKeySavers[provider];
+  const save = saveGroovingApiKeyNow(provider).finally(() => {
+    saver.inFlight = saver.inFlight.filter(inFlight => inFlight !== save);
+  });
+  saver.inFlight.push(save);
+  return save;
+}
+
+async function saveGroovingApiKeyNow(provider: GroovingProvider) {
+  const saver = groovingKeySavers[provider];
+  if (saver.timeout !== null) {
+    clearTimeout(saver.timeout);
+    saver.timeout = null;
+  }
+  if (!safeStorageAvailable.value) return;
+
+  const apiKey = groovingApiKeys.value[provider].trim();
+  // Each encryption gives a different ciphertext, so saving the same grooving key again would only cause a needless change
+  if (apiKey === saver.lastSaved) return;
+
+  const previous = saver.lastSaved;
+  saver.lastSaved = apiKey;
+  try {
+    store.set(`integrations.groovingApiKeys.${provider}`, apiKey === "" ? null : await safeStorage.encryptString(apiKey));
+  } catch (error) {
+    saver.lastSaved = previous;
+    console.error(`Failed to save the ${GROOVING_PROVIDER_LABELS[provider]} API key`, error);
+  }
+}
+
+function groovingApiKeyTyped(provider: GroovingProvider) {
+  const saver = groovingKeySavers[provider];
+  if (saver.timeout !== null) clearTimeout(saver.timeout);
+  saver.timeout = setTimeout(() => saveGroovingApiKey(provider), TEXT_SETTING_SAVE_DELAY_MS);
+}
+
+function groovingModelTyped(provider: GroovingProvider) {
+  // An empty model means the default model, which is stored as null
+  const model = groovingModels.value[provider].trim();
+  textSettingChanged(`integrations.groovingModels.${provider}`, model === "" ? null : model);
+}
+
+function groovingProviderChanged() {
+  store.set("integrations.groovingProvider", groovingProvider.value);
+}
+
+function groovingLanguageChanged() {
+  store.set("integrations.groovingLanguage", groovingLanguage.value);
+}
+
+function resetGroovingConsent() {
+  groovingConsent.value = null;
+  store.set("integrations.groovingConsent", null);
+}
+
+const groovingConsentText = computed(() => {
+  switch (groovingConsent.value?.choice) {
+    case GroovingConsentChoice.ShareHistory:
+      return "Shared";
+    case GroovingConsentChoice.NoHistory:
+      return "Not shared";
+    default:
+      return "Not answered yet";
+  }
+});
+
+// Usage saved in an earlier month counts as 0 for this month.
+// Tokens of models not in the price table have no cost, so the cost is unknown when all tokens are unpriced, and a lower bound when some are
+const groovingUsageText = computed(() => {
+  const usage = groovingUsage.value;
+  const thisMonth = usage && usage.month === groovingMonth() ? usage : null;
+  const inputTokens = thisMonth?.inputTokens ?? 0;
+  const outputTokens = thisMonth?.outputTokens ?? 0;
+  const estimatedUsd = thisMonth?.estimatedUsd ?? 0;
+  // Missing in usage saved by an older version
+  const unpricedTokens = thisMonth?.unpricedTokens ?? 0;
+  const totalTokens = inputTokens + outputTokens;
+  const tokensText = `${inputTokens.toLocaleString("en-US")} input / ${outputTokens.toLocaleString("en-US")} output tokens`;
+  if (unpricedTokens === 0) return `${tokensText}, about $${estimatedUsd.toFixed(4)}`;
+  if (totalTokens > 0 && unpricedTokens >= totalTokens) return `${tokensText}, cost unknown`;
+  return `${tokensText}, about $${estimatedUsd.toFixed(4)} + unknown`;
+});
+
+function groovingKeySavePending(): boolean {
+  return groovingProviders.some(provider => groovingKeySavers[provider].timeout !== null || groovingKeySavers[provider].inFlight.length > 0);
+}
+
+async function flushGroovingKeySaves() {
+  for (const provider of groovingProviders) {
+    if (groovingKeySavers[provider].timeout !== null) saveGroovingApiKey(provider);
+  }
+  await Promise.all(groovingProviders.flatMap(provider => groovingKeySavers[provider].inFlight));
+}
+
 function saveAllPendingSettings() {
   saveAllTextSettings();
   if (shazamApiKeySaveTimeout !== null) saveShazamApiKey();
+  for (const provider of groovingProviders) {
+    if (groovingKeySavers[provider].timeout !== null) saveGroovingApiKey(provider);
+  }
 }
 
 const SHAZAM_API_KEY_CLOSE_WAIT_MS = 2000;
@@ -502,6 +662,7 @@ async function closeAfterShazamApiKeySave() {
       (async () => {
         if (shazamApiKeySaveTimeout !== null) await saveShazamApiKey();
         await Promise.all(shazamApiKeySavesInFlight);
+        await flushGroovingKeySaves();
       })(),
       new Promise<void>(resolve => {
         waitTimeout = setTimeout(() => {
@@ -522,7 +683,7 @@ function onBeforeUnload(event: BeforeUnloadEvent) {
   saveAllTextSettings();
   if (closeWaitTimedOut) return;
 
-  const keySavePending = shazamApiKeySaveTimeout !== null || shazamApiKeySavesInFlight.length > 0;
+  const keySavePending = shazamApiKeySaveTimeout !== null || shazamApiKeySavesInFlight.length > 0 || groovingKeySavePending();
   if (!keySavePending && !closingAfterShazamApiKeySave) return;
 
   // Stop this close, finish the save, then close again
@@ -1228,6 +1389,109 @@ window.ytmd.handleUpdateDownloaded(() => {
               The system default microphone is used until it is connected.
             </p>
           </div>
+          <div class="setting">
+            <h3 class="grooving-heading">
+              Grooving
+            </h3>
+          </div>
+          <YTMDSetting
+            type="custom"
+            name="Provider"
+          >
+            <select
+              v-model="groovingProvider"
+              class="setting-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              aria-label="Provider"
+              @change="groovingProviderChanged"
+            >
+              <option
+                v-for="provider of groovingProviders"
+                :key="provider"
+                :value="provider"
+              >
+                {{ GROOVING_PROVIDER_LABELS[provider] }}
+              </option>
+            </select>
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
+            name="API key"
+            :disabled="!safeStorageAvailable"
+            disabled-message="The API key cannot be saved due to safeStorage being unavailable"
+          >
+            <input
+              :key="groovingProvider"
+              v-model="groovingApiKeys[groovingProvider]"
+              class="shazam-api-key-input tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              type="password"
+              aria-label="API key"
+              autocomplete="off"
+              spellcheck="false"
+              :disabled="!safeStorageAvailable"
+              @input="groovingApiKeyTyped(groovingProvider)"
+              @change="saveGroovingApiKey(groovingProvider)"
+            >
+            <a
+              class="shazam-api-key-link"
+              :href="GROOVING_API_KEY_URLS[groovingProvider]"
+              target="_blank"
+            >Get an API key</a>
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
+            name="Model"
+          >
+            <input
+              :key="groovingProvider"
+              v-model="groovingModels[groovingProvider]"
+              class="shazam-api-key-input tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              type="text"
+              aria-label="Model"
+              autocomplete="off"
+              spellcheck="false"
+              :placeholder="GROOVING_DEFAULT_MODELS[groovingProvider]"
+              @input="groovingModelTyped(groovingProvider)"
+            >
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
+            name="Language"
+            description="Language of the Grooving screen. Auto follows YouTube Music's language."
+          >
+            <select
+              v-model="groovingLanguage"
+              class="setting-select tw:bg-ytmd-surface tw:text-ytmd-text tw:border-ytmd-border"
+              aria-label="Language"
+              @change="groovingLanguageChanged"
+            >
+              <option
+                v-for="language of groovingLanguages"
+                :key="language"
+                :value="language"
+              >
+                {{ GROOVING_LANGUAGE_LABELS[language] }}
+              </option>
+            </select>
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
+            name="History sharing"
+          >
+            <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingConsentText }}</span>
+            <button
+              class="tw:bg-ytmd-surface tw:text-ytmd-text"
+              :disabled="groovingConsent === null"
+              @click="resetGroovingConsent"
+            >
+              Reset
+            </button>
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
+            name="This month"
+          >
+            <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingUsageText }}</span>
+          </YTMDSetting>
         </div>
 
         <div
@@ -1785,6 +2049,16 @@ window.ytmd.handleUpdateDownloaded(() => {
   margin-left: 8px;
   color: var(--ytmd-color-accent);
   white-space: nowrap;
+}
+
+.grooving-heading {
+  margin: 12px 0 0;
+  font-size: 1.1em;
+  font-weight: bold;
+}
+
+.grooving-value {
+  margin-right: 8px;
 }
 
 .setting-select {

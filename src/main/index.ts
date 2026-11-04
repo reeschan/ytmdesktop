@@ -1,8 +1,21 @@
-import { app, clipboard, dialog, ipcMain, Menu, MenuItemConstructorOptions, nativeTheme, powerMonitor, safeStorage, screen, shell, Tray } from "electron";
+import {
+  app,
+  clipboard,
+  dialog,
+  ipcMain,
+  Menu,
+  MenuItemConstructorOptions,
+  nativeTheme,
+  powerMonitor,
+  safeStorage,
+  screen,
+  shell,
+  Tray
+} from "electron";
 import log from "electron-log";
 import { getIconPath, v1ConfigMigration } from "./util";
 import { AppView } from "./services/windowmanager/appview";
-import { YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
+import { SettingsTab, YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
 import CompanionServer from "./integrations/companion-server";
 import CustomCSS from "./integrations/custom-css";
 import DiscordPresence from "./integrations/discord-presence";
@@ -13,6 +26,7 @@ import EnhancedMediaService from "./integrations/enhanced-media-service";
 import SongRecognition from "./integrations/song-recognition";
 import { installSongRecognitionMediaHandlers } from "./integrations/song-recognition/media";
 import { SHAZAM_API_KEY_URL } from "~shared/song-recognition";
+import { GROOVING_API_KEY_URLS } from "~shared/grooving";
 import path from "node:path";
 import electronSquirrelStartup from "electron-squirrel-startup";
 import { ServiceHost } from "./services/servicehost";
@@ -33,6 +47,7 @@ import { MemoryStoreSchema, TrayIconStyle } from "~shared/store/schema";
 import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
+import Grooving from "./services/grooving";
 import { VideoType } from "~shared/playerstatestore/types";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
@@ -59,6 +74,7 @@ serviceCollection.addServices([
   ShortcutManager,
   TaskbarManager,
   ProtocolManager,
+  Grooving,
   // This will always go last as it depends on every service since it's an optional system and integrations can perform work with any service
   IntegrationManager
 ]);
@@ -111,7 +127,16 @@ integrationManager.on("enable-error", (integration, error) => {
     buttons: ["Okay"]
   });
 });
-integrationManager.createIntegrations([CompanionServer, DiscordPresence, LastFM, NowPlayingNotifications, VolumeRatio, CustomCSS, EnhancedMediaService, SongRecognition]);
+integrationManager.createIntegrations([
+  CompanionServer,
+  DiscordPresence,
+  LastFM,
+  NowPlayingNotifications,
+  VolumeRatio,
+  CustomCSS,
+  EnhancedMediaService,
+  SongRecognition
+]);
 integrationManager.runHook(IntegrationManagerHook.AppBeforeReady);
 
 let tray: Tray;
@@ -166,7 +191,7 @@ app.on("ready", async () => {
   autoUpdater.once("not-available", autoUpdaterCallbacks.notAvailable);
   autoUpdater.once("downloaded", autoUpdaterCallbacks.downloaded);
   autoUpdater.once("error", autoUpdaterCallbacks.error);
-  if (!autoUpdater.isDisabled() && await autoUpdater.checkForUpdates(true)) {
+  if (!autoUpdater.isDisabled() && (await autoUpdater.checkForUpdates(true))) {
     autoUpdater.quitAndInstall();
     return;
   } else {
@@ -191,7 +216,7 @@ app.on("ready", async () => {
   v1ConfigMigration(serviceHost.getService(ConfigStore));
 
   //#region safeStorage setup and checks
-  if (!await safeStorage.isAsyncEncryptionAvailable()) {
+  if (!(await safeStorage.isAsyncEncryptionAvailable())) {
     memoryStore.set("safeStorageAvailable", false);
   } else {
     memoryStore.set("safeStorageAvailable", true);
@@ -202,7 +227,7 @@ app.on("ready", async () => {
 
     if (value) {
       const decrypt = await safeStorage.decryptStringAsync(Buffer.from(value, "hex"));
-      return decrypt.result
+      return decrypt.result;
     } else {
       return null;
     }
@@ -343,18 +368,27 @@ app.on("ready", async () => {
     }
   });
 
-  mainWindow.ipcOn("window:openSettings", () => {
+  const settingsExternalUrls = new Set<string>([
+    "https://github.com/ytmdesktop/ytmdesktop",
+    "https://ytmdesktop.github.io/",
+    SHAZAM_API_KEY_URL,
+    ...Object.values(GROOVING_API_KEY_URLS)
+  ]);
+
+  // The tab comes over IPC, so only a known value is passed on to the settings window
+  function openSettingsWindow(tab?: unknown) {
     if (windowManager.hasWindow("Settings")) {
       windowManager.getWindow("Settings").showAndFocus();
       return;
     }
 
+    const settingsUrl = app.isPackaged ? "ytmd-app://settings" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/settings/index.html";
     const mainWindowBounds = mainWindow._getElectronWindow().getBounds();
     const settingsWindow = windowManager.createWindow("Browser", {
       name: "Settings",
       autoRecreate: false,
       waitForViews: true,
-      url: app.isPackaged ? "ytmd-app://settings" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/settings/index.html",
+      url: tab === SettingsTab.Integrations ? `${settingsUrl}?tab=${SettingsTab.Integrations}` : settingsUrl,
       electronOptions: {
         width: 800,
         height: 600,
@@ -383,7 +417,7 @@ app.on("ready", async () => {
       }
     });
     settingsWindow.setWindowOpenHandler(details => {
-      if (details.url === "https://github.com/ytmdesktop/ytmdesktop" || details.url === "https://ytmdesktop.github.io/" || details.url === SHAZAM_API_KEY_URL) {
+      if (settingsExternalUrls.has(details.url)) {
         shell.openExternal(details.url);
       }
 
@@ -396,6 +430,10 @@ app.on("ready", async () => {
       const playerStateStore = serviceHost.getService(PlayerStateStore);
       return playerStateStore.getState();
     });
+  }
+
+  mainWindow.ipcOn("window:openSettings", (_event, tab?: unknown) => {
+    openSettingsWindow(tab);
   });
 
   mainWindow.ipcOn("window:openMiniplayer", () => {
@@ -636,6 +674,10 @@ app.on("ready", async () => {
   ytmViewManager.createView();
   const ytmView = ytmViewManager.getView();
   if (ytmView) mainWindow.attachView(ytmView, 0);
+  // The YTM view sends this from its own webContents, which the main window's ipcOn does not hear
+  ytmView?.ipcOn("window:openSettings", (_event, tab?: unknown) => {
+    openSettingsWindow(tab);
+  });
   // Attached after the YTM view so the background video view sits below it
   serviceHost.getService(BackgroundVideoManager).attachToMainWindow(mainWindow);
 
@@ -688,19 +730,19 @@ app.on("ready", async () => {
         const res = await fetch(`${feedUrl}/win32/${configStore.get("metadata.appVersion")}`);
         if (res.ok && res.status != 204) {
           const json = await res.json();
-          return json
+          return json;
         }
 
         return {
           name: app.getVersion(),
           notes: "# Failed to retrieve changelog"
-        }
-      } catch(err) {
+        };
+      } catch (err) {
         log.warn("Failed to retrieve changelog", err);
         return {
           name: app.getVersion(),
           notes: "# Failed to retrieve changelog"
-        }
+        };
       }
     });
     changelogWindow.setWindowOpenHandler(details => {

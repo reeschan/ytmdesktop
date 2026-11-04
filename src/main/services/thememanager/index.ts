@@ -6,11 +6,13 @@ import { MemoryStoreSchema, ThemeSelection } from "~shared/store/schema";
 import {
   BUNDLED_THEME_SURFACE_BLUR,
   BundledTheme,
+  COLOR_ITEM_CSS_VARIABLES,
   COLOR_ITEMS,
   ColorItem,
   DEFAULT_THEME_COLORS,
   ResolvedTheme,
   resolveTheme,
+  SURFACE_BLUR_CSS_VARIABLE,
   ThemeColors,
   ThemeSource,
   ThemeSourceKind,
@@ -113,7 +115,10 @@ function toCssColorRules(rules: CssColorRule[], colors: ThemeColors, options: Cs
   const priority = options.important ? " !important" : "";
 
   return rules
-    .map(rule => `${rule.selector} { ${rule.declarations.map(declaration => `${declaration.property}: ${colors[declaration.item]}${priority};`).join(" ")} }`)
+    .map(
+      rule =>
+        `${rule.selector} { ${rule.declarations.map(declaration => `${declaration.property}: ${colors[declaration.item]}${priority};`).join(" ")} }`
+    )
     .join("\n");
 }
 
@@ -420,7 +425,10 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
   }
 
   private buildYTMThemeCss(): string {
-    const css = toCssColorRules(YTM_THEME_RULES, this.colors, YTM_THEME_RULE_OPTIONS);
+    // Lets the Grooving screen inside the YTM view follow the theme; the names do not clash with YTM's own, so no !important
+    const colorDeclarations = COLOR_ITEMS.map(item => `${COLOR_ITEM_CSS_VARIABLES[item]}: ${this.colors[item]};`).join(" ");
+    const variables = `:root { ${colorDeclarations} ${SURFACE_BLUR_CSS_VARIABLE}: ${this.surfaceBlur}px; }`;
+    const css = [variables, toCssColorRules(YTM_THEME_RULES, this.colors, YTM_THEME_RULE_OPTIONS)].join("\n");
     if (this.surfaceBlur <= 0) return css;
 
     // Comes after the color rules so it wins over the backgrounds they give the same surfaces

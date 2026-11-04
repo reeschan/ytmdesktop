@@ -51,6 +51,12 @@ export type DependencyConstructor<T> = Constructor<T> & {
   dependencies: DependencyConstructor<T>[];
 };
 
+// Settings tabs that can be opened by name: the value of ?tab= and of the window:openSettings IPC
+export const SettingsTab = {
+  Integrations: "integrations"
+} as const;
+export type SettingsTab = (typeof SettingsTab)[keyof typeof SettingsTab];
+
 export enum ProtectedAPIOpCode {
   ProvideAPIPort,
   Message,

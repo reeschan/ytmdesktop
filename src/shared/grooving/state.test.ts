@@ -1,0 +1,1087 @@
+import { describe, expect, it } from "vitest";
+import {
+  GroovingAnswer,
+  GroovingCandidate,
+  GroovingConsentChoice,
+  GroovingDirection,
+  GroovingFailureReason,
+  GroovingList,
+  GroovingMood,
+  GroovingMoodItem,
+  GroovingMoodSection,
+  GroovingPair,
+  GroovingStep,
+  GroovingTrackKind
+} from "~shared/grooving";
+import {
+  decideGrooving,
+  GroovingEffect,
+  GroovingEvent,
+  GroovingPrefetch,
+  GroovingSession,
+  GroovingState,
+  initialGroovingState,
+  toGroovingViewState
+} from "~shared/grooving/state";
+
+type Flow = GroovingState["flow"];
+
+const track = (videoId: string, kind: GroovingTrackKind): GroovingCandidate => ({
+  videoId,
+  title: `Title ${videoId}`,
+  artists: [`Artist ${videoId}`],
+  thumbnailUrl: null,
+  kind
+});
+const CANDIDATES: GroovingCandidate[] = [
+  track("a", GroovingTrackKind.Familiar),
+  track("b", GroovingTrackKind.New),
+  track("c", GroovingTrackKind.Familiar),
+  track("d", GroovingTrackKind.New),
+  track("e", GroovingTrackKind.Familiar),
+  track("f", GroovingTrackKind.New),
+  track("g", GroovingTrackKind.Familiar),
+  track("h", GroovingTrackKind.New)
+];
+const MOOD_ITEM: GroovingMoodItem = { name: "Chill", section: GroovingMoodSection.Moods, params: "chill-params" };
+const MOOD: GroovingMood = { kind: "item", item: MOOD_ITEM };
+const TEXT_MOOD: GroovingMood = { kind: "text", text: "rainy night" };
+const PAIR_1: GroovingPair = { left: "a", right: "b", reason: "tempo" };
+const PAIR_2: GroovingPair = { left: "c", right: "d", reason: "genre" };
+const PAIR_3: GroovingPair = { left: "e", right: "f", reason: "mood" };
+const LIST: GroovingList = { videoIds: ["a", "b", "c"], moodDescription: "Lo-fi for a rainy night" };
+
+const EMPTY_SESSION: GroovingSession = {
+  mood: MOOD,
+  direction: GroovingDirection.Mix,
+  rounds: 3,
+  historyShared: true,
+  candidates: [],
+  filledFromMood: false,
+  history: [],
+  shown: []
+};
+const sessionOf = (overrides: Partial<GroovingSession> = {}): GroovingSession => ({
+  ...EMPTY_SESSION,
+  candidates: CANDIDATES,
+  ...overrides
+});
+const stateOf = (flow: Flow, overrides: Partial<Omit<GroovingState, "flow">> = {}): GroovingState => ({
+  flow,
+  previewing: null,
+  queue: "original",
+  nextRequestId: 10,
+  ...overrides
+});
+
+// A session that is showing PAIR_1 as its first round
+const SHOWING = sessionOf({ shown: ["a", "b"] });
+// A session that is showing PAIR_3 as its last round (rounds 3)
+const SHOWING_LAST = sessionOf({
+  history: [
+    { pair: PAIR_1, answer: GroovingAnswer.Left },
+    { pair: PAIR_2, answer: GroovingAnswer.Right }
+  ],
+  shown: ["a", "b", "c", "d", "e", "f"]
+});
+const ANSWERED_ALL = sessionOf({ history: [...SHOWING_LAST.history, { pair: PAIR_3, answer: GroovingAnswer.Neither }], shown: SHOWING_LAST.shown });
+
+const pending = (requestId: string): GroovingPrefetch => ({ status: "pending", requestId });
+const ready = (pair: GroovingPair): GroovingPrefetch => ({ status: "ready", pair });
+const FAILED_PREFETCH: GroovingPrefetch = { status: "failed" };
+
+const CLOSED = stateOf({ kind: "closed" });
+const NEED_KEY = stateOf({ kind: "need-key" });
+const CONSENT = stateOf({ kind: "consent" });
+const SETUP = stateOf({ kind: "setup", historyShared: true });
+const SETUP_NO_HISTORY = stateOf({ kind: "setup", historyShared: false });
+const COLLECT = stateOf({ kind: "collect", session: EMPTY_SESSION });
+const PAIR_WAIT = stateOf({ kind: "pair-wait", session: sessionOf(), requestId: "r9", retry: false });
+const PAIR_RETRY = stateOf({ kind: "pair-wait", session: sessionOf(), requestId: "r9", retry: true });
+const chooseOf = (left: GroovingPrefetch | null, right: GroovingPrefetch | null, overrides: Partial<Omit<GroovingState, "flow">> = {}) =>
+  stateOf({ kind: "choose", session: SHOWING, pair: PAIR_1, prefetch: { left, right } }, overrides);
+const CHOOSE = chooseOf(pending("r7"), pending("r8"));
+const CHOOSE_PREVIEWING = chooseOf(pending("r7"), pending("r8"), { previewing: "a" });
+const CHOOSE_LAST = stateOf({ kind: "choose", session: SHOWING_LAST, pair: PAIR_3, prefetch: { left: null, right: null } });
+const LIST_WAIT = stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r9", retry: false });
+const LIST_RETRY = stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r9", retry: true });
+const FAILED_COLLECT = stateOf({ kind: "failed", session: EMPTY_SESSION, step: GroovingStep.Collect, reason: GroovingFailureReason.YtmUnreadable });
+const FAILED_PAIR = stateOf({ kind: "failed", session: SHOWING, step: GroovingStep.Pair, reason: GroovingFailureReason.Unusable });
+const FAILED_LIST = stateOf({ kind: "failed", session: ANSWERED_ALL, step: GroovingStep.List, reason: GroovingFailureReason.Network });
+const FAILED_NO_SESSION = stateOf({ kind: "failed", session: null, step: GroovingStep.Pair, reason: GroovingFailureReason.Network });
+const DONE = stateOf({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
+const DONE_SAVE_FAILED = stateOf({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false }, { queue: "this-run" });
+const SAVING = stateOf({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
+const SAVED = stateOf({ kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
+// The same states after the page could not replace the queue
+const queueFailedOf = (state: GroovingState): GroovingState =>
+  stateOf({ ...(state.flow as Extract<Flow, { list: GroovingList }>), queueFailed: true }, { queue: "this-run" });
+const DONE_QUEUE_FAILED = queueFailedOf(DONE);
+const DONE_BOTH_FAILED = queueFailedOf(DONE_SAVE_FAILED);
+const SAVING_QUEUE_FAILED = queueFailedOf(SAVING);
+const SAVED_QUEUE_FAILED = queueFailedOf(SAVED);
+const QUEUE_FAILED_STATES = [DONE_QUEUE_FAILED, DONE_BOTH_FAILED, SAVING_QUEUE_FAILED, SAVED_QUEUE_FAILED];
+
+const SAMPLE_STATES: GroovingState[] = [
+  CLOSED,
+  stateOf({ kind: "closed" }, { queue: "this-run" }),
+  stateOf({ kind: "closed" }, { queue: "earlier-run" }),
+  NEED_KEY,
+  CONSENT,
+  SETUP,
+  SETUP_NO_HISTORY,
+  stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }),
+  COLLECT,
+  PAIR_WAIT,
+  PAIR_RETRY,
+  CHOOSE,
+  CHOOSE_PREVIEWING,
+  chooseOf(ready(PAIR_2), FAILED_PREFETCH, { previewing: "b" }),
+  chooseOf(null, ready(PAIR_3)),
+  CHOOSE_LAST,
+  stateOf(CHOOSE_LAST.flow, { previewing: "e" }),
+  LIST_WAIT,
+  LIST_RETRY,
+  stateOf(LIST_WAIT.flow, { queue: "earlier-run" }),
+  FAILED_COLLECT,
+  FAILED_PAIR,
+  FAILED_LIST,
+  FAILED_NO_SESSION,
+  DONE,
+  DONE_SAVE_FAILED,
+  SAVING,
+  SAVED
+];
+
+const LOAD_MOODS: GroovingEffect = { type: "load-moods" };
+const PREVIEW_END: GroovingEffect = { type: "preview-end" };
+const SHARE: GroovingEvent = { type: "open", hasKey: true, consent: { choice: GroovingConsentChoice.ShareHistory, at: "2026-11-03T00:00:00Z" } };
+const NO_HISTORY: GroovingEvent = { type: "open", hasKey: true, consent: { choice: GroovingConsentChoice.NoHistory, at: "2026-11-03T00:00:00Z" } };
+const NO_CONSENT: GroovingEvent = { type: "open", hasKey: true, consent: null };
+const NO_KEY: GroovingEvent = { type: "open", hasKey: false, consent: null };
+const NO_KEY_SHARED: GroovingEvent = {
+  type: "open",
+  hasKey: false,
+  consent: { choice: GroovingConsentChoice.ShareHistory, at: "2026-11-03T00:00:00Z" }
+};
+const CLOSE: GroovingEvent = { type: "close" };
+const LEAVE: GroovingEvent = { type: "leave" };
+const start = (direction: GroovingDirection, mood: GroovingMood = MOOD, rounds: 3 | 5 | 10 = 3): GroovingEvent => ({
+  type: "start",
+  mood,
+  direction,
+  rounds
+});
+const answer = (value: GroovingAnswer): GroovingEvent => ({ type: "answer", answer: value });
+const pairArrived = (requestId: string, pair: GroovingPair): GroovingEvent => ({ type: "pair-arrived", requestId, pair });
+const pairUnusable = (requestId: string): GroovingEvent => ({ type: "pair-unusable", requestId });
+const pairFailed = (requestId: string, reason: GroovingFailureReason = GroovingFailureReason.RateLimited): GroovingEvent => ({
+  type: "pair-failed",
+  requestId,
+  reason
+});
+const listArrived = (requestId: string, list: GroovingList = LIST): GroovingEvent => ({ type: "list-arrived", requestId, list });
+const listUnusable = (requestId: string): GroovingEvent => ({ type: "list-unusable", requestId });
+const listFailed = (requestId: string): GroovingEvent => ({ type: "list-failed", requestId, reason: GroovingFailureReason.Network });
+const candidatesReady: GroovingEvent = { type: "candidates-ready", candidates: CANDIDATES, filledFromMood: true };
+const RETRY: GroovingEvent = { type: "retry" };
+const previewStart = (videoId: string): GroovingEvent => ({ type: "preview-start", videoId });
+const PREVIEW_ENDED: GroovingEvent = { type: "preview-ended" };
+const requestPair = (requestId: string, session: GroovingSession, assumed: GroovingAnswer | null = null): GroovingEffect => ({
+  type: "request-pair",
+  requestId,
+  session,
+  assumed
+});
+const requestList = (requestId: string, session: GroovingSession): GroovingEffect => ({ type: "request-list", requestId, session });
+
+// Every event, with the request ids the given state is waiting for and a stale one
+function eventsFor(state: GroovingState): GroovingEvent[] {
+  const ids = ["r999"];
+  const flow = state.flow;
+  if (flow.kind === "pair-wait" || flow.kind === "list-wait") ids.push(flow.requestId);
+  if (flow.kind === "choose") {
+    for (const prefetch of [flow.prefetch.left, flow.prefetch.right]) if (prefetch?.status === "pending") ids.push(prefetch.requestId);
+  }
+  const videoIds = flow.kind === "choose" ? [flow.pair.left, flow.pair.right, "zz"] : ["a", "zz"];
+  return [
+    SHARE,
+    NO_HISTORY,
+    NO_CONSENT,
+    NO_KEY,
+    { type: "consent", choice: GroovingConsentChoice.ShareHistory },
+    { type: "consent", choice: GroovingConsentChoice.NoHistory },
+    { type: "consent", choice: null },
+    start(GroovingDirection.Familiar),
+    start(GroovingDirection.Discover),
+    start(GroovingDirection.Mix),
+    candidatesReady,
+    { type: "collect-failed", reason: GroovingFailureReason.NotEnough },
+    ...ids.flatMap(id => [pairArrived(id, PAIR_2), pairUnusable(id), pairFailed(id), listArrived(id), listUnusable(id), listFailed(id)]),
+    answer(GroovingAnswer.Left),
+    answer(GroovingAnswer.Right),
+    answer(GroovingAnswer.Neither),
+    RETRY,
+    ...videoIds.map(previewStart),
+    PREVIEW_ENDED,
+    { type: "save" },
+    { type: "saved" },
+    { type: "save-failed" },
+    { type: "queue-failed" },
+    { type: "again" },
+    CLOSE,
+    LEAVE
+  ];
+}
+
+type Case = [string, GroovingState, GroovingEvent, GroovingState, GroovingEffect[]];
+
+const CASES: Case[] = [
+  // open
+  ["closed, open (no key)", CLOSED, NO_KEY, NEED_KEY, []],
+  ["closed, open (no key, answered)", CLOSED, NO_KEY_SHARED, NEED_KEY, []],
+  ["closed, open (not answered)", CLOSED, NO_CONSENT, CONSENT, []],
+  ["closed, open (share history)", CLOSED, SHARE, SETUP, [LOAD_MOODS]],
+  ["closed, open (no history)", CLOSED, NO_HISTORY, SETUP_NO_HISTORY, [LOAD_MOODS]],
+  [
+    "closed (this run's list), open",
+    stateOf({ kind: "closed" }, { queue: "this-run" }),
+    SHARE,
+    stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }),
+    [LOAD_MOODS]
+  ],
+  [
+    "closed (this run's list), open (no key)",
+    stateOf({ kind: "closed" }, { queue: "this-run" }),
+    NO_KEY,
+    stateOf({ kind: "need-key" }, { queue: "earlier-run" }),
+    []
+  ],
+  [
+    "closed (earlier run's list), open",
+    stateOf({ kind: "closed" }, { queue: "earlier-run" }),
+    NO_CONSENT,
+    stateOf({ kind: "consent" }, { queue: "earlier-run" }),
+    []
+  ],
+  // consent
+  ["consent, not now", CONSENT, { type: "consent", choice: null }, CLOSED, []],
+  [
+    "consent, share history",
+    CONSENT,
+    { type: "consent", choice: GroovingConsentChoice.ShareHistory },
+    SETUP,
+    [{ type: "store-consent", choice: GroovingConsentChoice.ShareHistory }, LOAD_MOODS]
+  ],
+  [
+    "consent, no history",
+    CONSENT,
+    { type: "consent", choice: GroovingConsentChoice.NoHistory },
+    SETUP_NO_HISTORY,
+    [{ type: "store-consent", choice: GroovingConsentChoice.NoHistory }, LOAD_MOODS]
+  ],
+  // start
+  [
+    "setup, start",
+    SETUP,
+    start(GroovingDirection.Mix),
+    COLLECT,
+    [{ type: "collect", request: { direction: GroovingDirection.Mix, historyShared: true, mood: MOOD } }]
+  ],
+  [
+    "setup (no history), start discover with words",
+    SETUP_NO_HISTORY,
+    start(GroovingDirection.Discover, TEXT_MOOD, 5),
+    stateOf({
+      kind: "collect",
+      session: { ...EMPTY_SESSION, mood: TEXT_MOOD, direction: GroovingDirection.Discover, rounds: 5, historyShared: false }
+    }),
+    [{ type: "collect", request: { direction: GroovingDirection.Discover, historyShared: false, mood: TEXT_MOOD } }]
+  ],
+  // collect
+  [
+    "collect, candidates ready",
+    COLLECT,
+    candidatesReady,
+    stateOf({ kind: "pair-wait", session: sessionOf({ filledFromMood: true }), requestId: "r10", retry: false }, { nextRequestId: 11 }),
+    [requestPair("r10", sessionOf({ filledFromMood: true }))]
+  ],
+  ["collect, collect failed", COLLECT, { type: "collect-failed", reason: GroovingFailureReason.YtmUnreadable }, FAILED_COLLECT, []],
+  // pair-arrived
+  [
+    "pair wait, pair arrived",
+    PAIR_WAIT,
+    pairArrived("r9", PAIR_1),
+    stateOf({ kind: "choose", session: SHOWING, pair: PAIR_1, prefetch: { left: pending("r10"), right: pending("r11") } }, { nextRequestId: 12 }),
+    [requestPair("r10", SHOWING, GroovingAnswer.Left), requestPair("r11", SHOWING, GroovingAnswer.Right)]
+  ],
+  [
+    "pair retry, pair arrived",
+    PAIR_RETRY,
+    pairArrived("r9", PAIR_1),
+    stateOf({ kind: "choose", session: SHOWING, pair: PAIR_1, prefetch: { left: pending("r10"), right: pending("r11") } }, { nextRequestId: 12 }),
+    [requestPair("r10", SHOWING, GroovingAnswer.Left), requestPair("r11", SHOWING, GroovingAnswer.Right)]
+  ],
+  [
+    "pair wait, last pair arrived (no prefetch)",
+    stateOf({ kind: "pair-wait", session: { ...SHOWING_LAST, shown: ["a", "b", "c", "d"] }, requestId: "r9", retry: false }),
+    pairArrived("r9", PAIR_3),
+    CHOOSE_LAST,
+    []
+  ],
+  ["choose, left prefetch arrived", CHOOSE, pairArrived("r7", PAIR_2), chooseOf(ready(PAIR_2), pending("r8")), []],
+  ["choose, right prefetch arrived", CHOOSE, pairArrived("r8", PAIR_3), chooseOf(pending("r7"), ready(PAIR_3)), []],
+  // pair-unusable / pair-failed
+  [
+    "pair wait, pair unusable",
+    PAIR_WAIT,
+    pairUnusable("r9"),
+    stateOf({ kind: "pair-wait", session: sessionOf(), requestId: "r10", retry: true }, { nextRequestId: 11 }),
+    [requestPair("r10", sessionOf())]
+  ],
+  [
+    "pair retry, pair unusable again",
+    PAIR_RETRY,
+    pairUnusable("r9"),
+    stateOf({ kind: "failed", session: sessionOf(), step: GroovingStep.Pair, reason: GroovingFailureReason.Unusable }),
+    []
+  ],
+  ["choose, left prefetch unusable", CHOOSE, pairUnusable("r7"), chooseOf(FAILED_PREFETCH, pending("r8")), []],
+  [
+    "pair wait, pair failed",
+    PAIR_WAIT,
+    pairFailed("r9"),
+    stateOf({ kind: "failed", session: sessionOf(), step: GroovingStep.Pair, reason: GroovingFailureReason.RateLimited }),
+    []
+  ],
+  [
+    "pair retry, pair failed",
+    PAIR_RETRY,
+    pairFailed("r9", GroovingFailureReason.InvalidKey),
+    stateOf({ kind: "failed", session: sessionOf(), step: GroovingStep.Pair, reason: GroovingFailureReason.InvalidKey }),
+    []
+  ],
+  ["choose, right prefetch failed", CHOOSE, pairFailed("r8"), chooseOf(pending("r7"), FAILED_PREFETCH), []],
+  // answer
+  [
+    "choose the last pair, answer",
+    CHOOSE_LAST,
+    answer(GroovingAnswer.Neither),
+    stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r10", retry: false }, { nextRequestId: 11 }),
+    [requestList("r10", ANSWERED_ALL)]
+  ],
+  [
+    "choose the last pair while previewing, answer",
+    stateOf(CHOOSE_LAST.flow, { previewing: "e" }),
+    answer(GroovingAnswer.Neither),
+    stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r10", retry: false }, { nextRequestId: 11 }),
+    [PREVIEW_END, requestList("r10", ANSWERED_ALL)]
+  ],
+  [
+    "choose, neither",
+    chooseOf(ready(PAIR_2), ready(PAIR_3)),
+    answer(GroovingAnswer.Neither),
+    stateOf(
+      { kind: "pair-wait", session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Neither }] }, requestId: "r10", retry: false },
+      { nextRequestId: 11 }
+    ),
+    [requestPair("r10", { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Neither }] })]
+  ],
+  [
+    "choose, left with its prefetch ready",
+    chooseOf(ready(PAIR_2), pending("r8")),
+    answer(GroovingAnswer.Left),
+    stateOf(
+      {
+        kind: "choose",
+        session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }], shown: ["a", "b", "c", "d"] },
+        pair: PAIR_2,
+        prefetch: { left: pending("r10"), right: pending("r11") }
+      },
+      { nextRequestId: 12 }
+    ),
+    [
+      requestPair("r10", { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }], shown: ["a", "b", "c", "d"] }, GroovingAnswer.Left),
+      requestPair("r11", { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }], shown: ["a", "b", "c", "d"] }, GroovingAnswer.Right)
+    ]
+  ],
+  [
+    "choose (second round), right with its prefetch ready, the next pair is the last",
+    stateOf({
+      kind: "choose",
+      session: sessionOf({ history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }], shown: ["a", "b", "c", "d"] }),
+      pair: PAIR_2,
+      prefetch: { left: FAILED_PREFETCH, right: ready(PAIR_3) }
+    }),
+    answer(GroovingAnswer.Right),
+    stateOf({ kind: "choose", session: SHOWING_LAST, pair: PAIR_3, prefetch: { left: null, right: null } }),
+    []
+  ],
+  [
+    "choose, right with its prefetch pending",
+    CHOOSE,
+    answer(GroovingAnswer.Right),
+    stateOf({ kind: "pair-wait", session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Right }] }, requestId: "r8", retry: false }),
+    []
+  ],
+  [
+    "choose, left with its prefetch failed",
+    chooseOf(FAILED_PREFETCH, ready(PAIR_3)),
+    answer(GroovingAnswer.Left),
+    stateOf(
+      { kind: "pair-wait", session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }] }, requestId: "r10", retry: false },
+      { nextRequestId: 11 }
+    ),
+    [requestPair("r10", { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }] })]
+  ],
+  [
+    "choose, right with no prefetch",
+    chooseOf(ready(PAIR_2), null),
+    answer(GroovingAnswer.Right),
+    stateOf(
+      { kind: "pair-wait", session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Right }] }, requestId: "r10", retry: false },
+      { nextRequestId: 11 }
+    ),
+    [requestPair("r10", { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Right }] })]
+  ],
+  [
+    "choose while previewing, answer",
+    CHOOSE_PREVIEWING,
+    answer(GroovingAnswer.Left),
+    stateOf({ kind: "pair-wait", session: { ...SHOWING, history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }] }, requestId: "r7", retry: false }),
+    [PREVIEW_END]
+  ],
+  // list
+  ["list wait, list arrived", LIST_WAIT, listArrived("r9"), DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["list retry, list arrived", LIST_RETRY, listArrived("r9"), DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  [
+    "list wait (earlier run's list), list arrived",
+    stateOf(LIST_WAIT.flow, { queue: "earlier-run" }),
+    listArrived("r9"),
+    DONE,
+    [{ type: "replace-queue", videoIds: LIST.videoIds }]
+  ],
+  [
+    "list wait, list unusable",
+    LIST_WAIT,
+    listUnusable("r9"),
+    stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r10", retry: true }, { nextRequestId: 11 }),
+    [requestList("r10", ANSWERED_ALL)]
+  ],
+  [
+    "list retry, list unusable again",
+    LIST_RETRY,
+    listUnusable("r9"),
+    stateOf({ kind: "failed", session: ANSWERED_ALL, step: GroovingStep.List, reason: GroovingFailureReason.Unusable }),
+    []
+  ],
+  ["list wait, list failed", LIST_WAIT, listFailed("r9"), FAILED_LIST, []],
+  ["list retry, list failed", LIST_RETRY, listFailed("r9"), FAILED_LIST, []],
+  // retry
+  [
+    "collect failed, retry",
+    FAILED_COLLECT,
+    RETRY,
+    COLLECT,
+    [{ type: "collect", request: { direction: GroovingDirection.Mix, historyShared: true, mood: MOOD } }]
+  ],
+  [
+    "pair failed, retry",
+    FAILED_PAIR,
+    RETRY,
+    stateOf({ kind: "pair-wait", session: SHOWING, requestId: "r10", retry: false }, { nextRequestId: 11 }),
+    [requestPair("r10", SHOWING)]
+  ],
+  [
+    "list failed, retry",
+    FAILED_LIST,
+    RETRY,
+    stateOf({ kind: "list-wait", session: ANSWERED_ALL, requestId: "r10", retry: false }, { nextRequestId: 11 }),
+    [requestList("r10", ANSWERED_ALL)]
+  ],
+  ["failed without a session, retry", FAILED_NO_SESSION, RETRY, SETUP_NO_HISTORY, [LOAD_MOODS]],
+  // preview
+  ["choose, preview", CHOOSE, previewStart("a"), CHOOSE_PREVIEWING, [{ type: "preview-start", videoId: "a" }]],
+  [
+    "choose while previewing, preview the other",
+    CHOOSE_PREVIEWING,
+    previewStart("b"),
+    chooseOf(pending("r7"), pending("r8"), { previewing: "b" }),
+    [{ type: "preview-start", videoId: "b" }]
+  ],
+  ["choose while previewing, preview ended", CHOOSE_PREVIEWING, PREVIEW_ENDED, CHOOSE, [PREVIEW_END]],
+  // save
+  ["done, save", DONE, { type: "save" }, SAVING, [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]],
+  ["saving, saved", SAVING, { type: "saved" }, SAVED, []],
+  ["saving, save failed", SAVING, { type: "save-failed" }, DONE_SAVE_FAILED, []],
+  [
+    "done (save failed), save",
+    DONE_SAVE_FAILED,
+    { type: "save" },
+    SAVING,
+    [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]
+  ],
+  // queue-failed
+  ["done, queue failed", DONE, { type: "queue-failed" }, DONE_QUEUE_FAILED, []],
+  ["done (save failed), queue failed", DONE_SAVE_FAILED, { type: "queue-failed" }, DONE_BOTH_FAILED, []],
+  ["saving, queue failed", SAVING, { type: "queue-failed" }, SAVING_QUEUE_FAILED, []],
+  ["saved, queue failed", SAVED, { type: "queue-failed" }, SAVED_QUEUE_FAILED, []],
+  ["done (queue failed), queue failed again", DONE_QUEUE_FAILED, { type: "queue-failed" }, DONE_QUEUE_FAILED, []],
+  ["done (queue failed), retry", DONE_QUEUE_FAILED, RETRY, DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["done (save and queue failed), retry", DONE_BOTH_FAILED, RETRY, DONE_SAVE_FAILED, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["saving (queue failed), retry", SAVING_QUEUE_FAILED, RETRY, SAVING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["saved (queue failed), retry", SAVED_QUEUE_FAILED, RETRY, SAVED, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  [
+    "done (queue failed), save",
+    DONE_QUEUE_FAILED,
+    { type: "save" },
+    SAVING_QUEUE_FAILED,
+    [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]
+  ],
+  ["saving (queue failed), saved", SAVING_QUEUE_FAILED, { type: "saved" }, SAVED_QUEUE_FAILED, []],
+  ["saving (queue failed), save failed", SAVING_QUEUE_FAILED, { type: "save-failed" }, DONE_BOTH_FAILED, []],
+  // again
+  ["done, again", DONE, { type: "again" }, stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }), [LOAD_MOODS]],
+  [
+    "done (save failed), again",
+    DONE_SAVE_FAILED,
+    { type: "again" },
+    stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }),
+    [LOAD_MOODS]
+  ],
+  [
+    "saved (no history), again",
+    stateOf(
+      { kind: "saved", session: { ...ANSWERED_ALL, historyShared: false }, list: LIST, saveFailed: false, queueFailed: false },
+      { queue: "this-run" }
+    ),
+    { type: "again" },
+    stateOf({ kind: "setup", historyShared: false }, { queue: "earlier-run" }),
+    [LOAD_MOODS]
+  ],
+  // close and leave, from every state but closed
+  ...SAMPLE_STATES.filter(state => state.flow.kind !== "closed").flatMap(state =>
+    [CLOSE, LEAVE].map((event): Case => [
+      `${state.flow.kind}${state.previewing ? " while previewing" : ""}, ${event.type}`,
+      state,
+      event,
+      { flow: { kind: "closed" }, previewing: null, queue: state.queue, nextRequestId: state.nextRequestId },
+      state.previewing ? [PREVIEW_END] : []
+    ])
+  )
+];
+
+// Events that do not fit the state are dropped
+const IGNORED_CASES: [string, GroovingState, GroovingEvent][] = [
+  ["setup, open", SETUP, SHARE],
+  ["choose, open", CHOOSE, SHARE],
+  ["closed, consent", CLOSED, { type: "consent", choice: GroovingConsentChoice.ShareHistory }],
+  ["setup, consent", SETUP, { type: "consent", choice: null }],
+  ["closed, start", CLOSED, start(GroovingDirection.Discover)],
+  ["collect, start", COLLECT, start(GroovingDirection.Discover)],
+  ["pair wait, candidates ready", PAIR_WAIT, candidatesReady],
+  ["pair wait, collect failed", PAIR_WAIT, { type: "collect-failed", reason: GroovingFailureReason.Network }],
+  ["list wait, pair arrived", LIST_WAIT, pairArrived("r9", PAIR_1)],
+  ["closed, pair arrived", CLOSED, pairArrived("r9", PAIR_1)],
+  ["pair wait, list arrived", PAIR_WAIT, listArrived("r9")],
+  ["choose, pair unusable (stale)", CHOOSE, pairUnusable("r1")],
+  ["choose, pair failed (stale)", CHOOSE, pairFailed("r1")],
+  ["pair wait, pair unusable (stale)", PAIR_WAIT, pairUnusable("r1")],
+  ["pair wait, pair failed (stale)", PAIR_WAIT, pairFailed("r1")],
+  ["list wait, list unusable (stale)", LIST_WAIT, listUnusable("r1")],
+  ["list wait, list failed (stale)", LIST_WAIT, listFailed("r1")],
+  ["choose, prefetch arrived twice", chooseOf(ready(PAIR_2), pending("r8")), pairArrived("r7", PAIR_3)],
+  ["setup, answer", SETUP, answer(GroovingAnswer.Left)],
+  ["pair wait, answer", PAIR_WAIT, answer(GroovingAnswer.Neither)],
+  ["done, answer", DONE, answer(GroovingAnswer.Left)],
+  ["setup, retry", SETUP, RETRY],
+  ["pair wait, retry", PAIR_WAIT, RETRY],
+  ["done, retry", DONE, RETRY],
+  ["pair wait, preview", PAIR_WAIT, previewStart("a")],
+  ["done, preview", DONE, previewStart("a")],
+  ["choose, preview a track not in the pair", CHOOSE, previewStart("c")],
+  ["choose while previewing, preview the same track", CHOOSE_PREVIEWING, previewStart("a")],
+  ["choose, preview ended", CHOOSE, PREVIEW_ENDED],
+  ["closed, preview ended", CLOSED, PREVIEW_ENDED],
+  ["saving, save", SAVING, { type: "save" }],
+  ["saved, save", SAVED, { type: "save" }],
+  ["done, saved", DONE, { type: "saved" }],
+  ["done, save failed", DONE, { type: "save-failed" }],
+  ["setup, again", SETUP, { type: "again" }],
+  ["saving, again", SAVING, { type: "again" }],
+  ["choose, again", CHOOSE, { type: "again" }],
+  ["closed, close", CLOSED, CLOSE],
+  ["closed, leave", CLOSED, LEAVE],
+  ["closed, queue failed", CLOSED, { type: "queue-failed" }],
+  ["choose, queue failed", CHOOSE, { type: "queue-failed" }],
+  ["list wait, queue failed", LIST_WAIT, { type: "queue-failed" }],
+  ["failed (list), queue failed", FAILED_LIST, { type: "queue-failed" }],
+  ["saving, retry", SAVING, RETRY],
+  ["saved, retry", SAVED, RETRY]
+];
+
+// Applies events in order and returns the last state and every effect
+function run(state: GroovingState, events: GroovingEvent[]): { state: GroovingState; effects: GroovingEffect[] } {
+  const effects: GroovingEffect[] = [];
+  let current = state;
+  for (const event of events) {
+    const decision = decideGrooving(current, event);
+    current = decision.state;
+    effects.push(...decision.effects);
+  }
+  return { state: current, effects };
+}
+
+function requestIdsOf(effects: GroovingEffect[]): string[] {
+  return effects.flatMap(effect => (effect.type === "request-pair" || effect.type === "request-list" ? [effect.requestId] : []));
+}
+
+// Events that move a Grooving forward, picked more often on the random walks
+// (the ones that change the state and do not end in closed, need-key, consent or failed)
+function forwardEventsOf(state: GroovingState, events: GroovingEvent[]): GroovingEvent[] {
+  const forward = events.filter(event => {
+    const next = decideGrooving(state, event).state;
+    return next !== state && !["closed", "need-key", "consent", "failed"].includes(next.flow.kind);
+  });
+  return forward.length > 0 ? forward : events;
+}
+
+// A small deterministic random number generator, for the random walks
+function randomOf(seed: number): (size: number) => number {
+  let value = seed;
+  return size => {
+    // Park-Miller: the product stays below 2^53, so it is exact
+    value = (value * 48271) % 2147483647;
+    return Math.floor((value / 2147483647) * size);
+  };
+}
+
+// Checks the %% never rules of the state chart on one transition
+function expectRules(state: GroovingState, event: GroovingEvent, next: GroovingState, effects: GroovingEffect[]): void {
+  // (a) Previewing only while choosing, and only a track of the pair
+  if (next.flow.kind !== "choose") expect(next.previewing).toBeNull();
+  else if (next.previewing !== null) expect([next.flow.pair.left, next.flow.pair.right]).toContain(next.previewing);
+  // (b) The queue becomes this run's list only when the list arrives while making it
+  if (next.queue === "this-run" && state.queue !== "this-run") {
+    expect(event.type).toBe("list-arrived");
+    expect(state.flow.kind).toBe("list-wait");
+  }
+  if (effects.some(effect => effect.type === "replace-queue")) expect(next.queue).toBe("this-run");
+  // (c) No retry after a retry
+  const flow = state.flow;
+  if ((flow.kind === "pair-wait" || flow.kind === "list-wait") && flow.retry) {
+    const unusable = flow.kind === "pair-wait" ? "pair-unusable" : "list-unusable";
+    if (event.type === unusable && event.requestId === flow.requestId) {
+      expect(next.flow).toEqual({
+        kind: "failed",
+        session: flow.session,
+        step: flow.kind === "pair-wait" ? GroovingStep.Pair : GroovingStep.List,
+        reason: GroovingFailureReason.Unusable
+      });
+      expect(effects).toEqual([]);
+    }
+  }
+  // Request ids only grow
+  expect(next.nextRequestId).toBeGreaterThanOrEqual(state.nextRequestId);
+  // Only the done screen tells that saving failed, and only right after save-failed
+  const nextFlow = next.flow;
+  if (nextFlow.kind === "saving" || nextFlow.kind === "saved") expect(nextFlow.saveFailed).toBe(false);
+  // (queue-failed and retry keep a done whose save failed, in a new flow with only queueFailed changed)
+  if (nextFlow.kind === "done" && nextFlow.saveFailed && !(state.flow.kind === "done" && state.flow.saveFailed)) {
+    expect(event.type).toBe("save-failed");
+    expect(state.flow.kind).toBe("saving");
+  }
+  if (nextFlow.kind === "done" && event.type === "list-arrived" && state.flow.kind === "list-wait") expect(nextFlow.saveFailed).toBe(false);
+  // queueFailed turns true only on queue-failed, and the done made from a list starts without it
+  const wasQueueFailed = "queueFailed" in flow && flow.queueFailed;
+  if ("queueFailed" in nextFlow && nextFlow.queueFailed && !wasQueueFailed) expect(event.type).toBe("queue-failed");
+  if (nextFlow.kind === "done" && event.type === "list-arrived" && state.flow.kind === "list-wait") expect(nextFlow.queueFailed).toBe(false);
+  // Retry after queue-failed replaces the queue with the same list again, and nothing else
+  if (wasQueueFailed && event.type === "retry") {
+    expect(effects).toEqual([{ type: "replace-queue", videoIds: (flow as Extract<Flow, { list: GroovingList }>).list.videoIds }]);
+    expect(next.flow).toEqual({ ...flow, queueFailed: false });
+  }
+}
+
+describe("decideGrooving", () => {
+  it("starts closed, with the original queue and no preview", () => {
+    expect(initialGroovingState()).toEqual({ flow: { kind: "closed" }, previewing: null, queue: "original", nextRequestId: 1 });
+  });
+
+  it.each(CASES)("%s", (_name, state, event, nextState, effects) => {
+    expect(decideGrooving(state, event)).toEqual({ state: nextState, effects });
+  });
+
+  it.each(IGNORED_CASES)("drops %s", (_name, state, event) => {
+    expect(decideGrooving(state, event)).toEqual({ state, effects: [] });
+  });
+
+  it("does not change the given state", () => {
+    const state = structuredClone(chooseOf(ready(PAIR_2), pending("r8"), { previewing: "a" }));
+    const copy = structuredClone(state);
+    for (const event of eventsFor(state)) decideGrooving(state, event);
+    expect(state).toEqual(copy);
+  });
+
+  describe("drops answers to requests it is not waiting for", () => {
+    const stale = ["r1", "r8", "r10", "r999"];
+    it.each(stale)("pair arrived %s while waiting for r9", requestId => {
+      expect(decideGrooving(PAIR_WAIT, pairArrived(requestId, PAIR_1))).toEqual({ state: PAIR_WAIT, effects: [] });
+      expect(decideGrooving(PAIR_RETRY, pairArrived(requestId, PAIR_1))).toEqual({ state: PAIR_RETRY, effects: [] });
+    });
+    it.each(["r1", "r9", "r999"])("pair arrived %s while choosing with r7 and r8 pending", requestId => {
+      expect(decideGrooving(CHOOSE, pairArrived(requestId, PAIR_2))).toEqual({ state: CHOOSE, effects: [] });
+    });
+    it.each(stale)("list arrived %s while waiting for r9", requestId => {
+      expect(decideGrooving(LIST_WAIT, listArrived(requestId))).toEqual({ state: LIST_WAIT, effects: [] });
+      expect(decideGrooving(LIST_RETRY, listArrived(requestId))).toEqual({ state: LIST_RETRY, effects: [] });
+    });
+    it("drops the other side's prefetch after an answer waits for one side", () => {
+      const waiting = decideGrooving(CHOOSE, answer(GroovingAnswer.Left)).state;
+      expect(decideGrooving(waiting, pairArrived("r8", PAIR_3))).toEqual({ state: waiting, effects: [] });
+    });
+  });
+
+  describe("without history sharing", () => {
+    it.each([GroovingDirection.Familiar, GroovingDirection.Mix])("ignores start %s", direction => {
+      expect(decideGrooving(SETUP_NO_HISTORY, start(direction))).toEqual({ state: SETUP_NO_HISTORY, effects: [] });
+    });
+    it("starts discover", () => {
+      expect(decideGrooving(SETUP_NO_HISTORY, start(GroovingDirection.Discover)).state.flow.kind).toBe("collect");
+    });
+    it.each(Object.values(GroovingDirection))("starts %s with history sharing", direction => {
+      expect(decideGrooving(SETUP, start(direction)).state.flow.kind).toBe("collect");
+    });
+  });
+
+  describe("%% never rules", () => {
+    it("(a) clears the preview on every transition to a state other than choose", () => {
+      for (const state of SAMPLE_STATES) {
+        for (const event of eventsFor(state)) {
+          const next = decideGrooving(state, event).state;
+          if (next.flow.kind !== "choose") expect(next.previewing).toBeNull();
+        }
+      }
+    });
+
+    it("(a) ends the preview when it leaves choose", () => {
+      for (const state of SAMPLE_STATES.filter(sample => sample.flow.kind === "choose" && sample.previewing !== null)) {
+        for (const event of eventsFor(state)) {
+          const { state: next, effects } = decideGrooving(state, event);
+          if (next.flow.kind !== "choose" || next.flow.pair !== (state.flow as { pair: GroovingPair }).pair) {
+            expect(next.previewing).toBeNull();
+            expect(effects[0]).toEqual(PREVIEW_END);
+          }
+        }
+      }
+    });
+
+    it("(b) replaces the queue only when this run's list arrives", () => {
+      for (const state of SAMPLE_STATES) {
+        for (const event of eventsFor(state)) {
+          const { state: next, effects } = decideGrooving(state, event);
+          expectRules(state, event, next, effects);
+        }
+      }
+    });
+
+    it("keeps the rules from the states where replacing the queue failed", () => {
+      for (const state of QUEUE_FAILED_STATES) {
+        for (const event of eventsFor(state)) {
+          const { state: next, effects } = decideGrooving(state, event);
+          expectRules(state, event, next, effects);
+          expect(next.previewing).toBeNull();
+        }
+      }
+    });
+
+    it("(b) keeps this run's queue when the page could not replace it, and replaces it again on retry", () => {
+      const { state: failedQueue, effects: none } = decideGrooving(DONE, { type: "queue-failed" });
+      expect(failedQueue.queue).toBe("this-run");
+      expect(none).toEqual([]);
+      const { state: retried, effects } = decideGrooving(failedQueue, RETRY);
+      expect(retried.queue).toBe("this-run");
+      expect(retried.flow).toEqual(DONE.flow);
+      expect(effects).toEqual([{ type: "replace-queue", videoIds: LIST.videoIds }]);
+    });
+
+    it("(b) keeps the earlier run's list after again until the next list arrives", () => {
+      const steps: [GroovingEvent, GroovingState["queue"]][] = [
+        [{ type: "again" }, "earlier-run"],
+        [start(GroovingDirection.Mix), "earlier-run"],
+        [candidatesReady, "earlier-run"],
+        [pairArrived("r10", PAIR_1), "earlier-run"], // prefetch r11 and r12
+        [answer(GroovingAnswer.Left), "earlier-run"], // waits for r11
+        [pairArrived("r11", PAIR_2), "earlier-run"], // prefetch r13 and r14
+        [answer(GroovingAnswer.Right), "earlier-run"], // waits for r14
+        [pairArrived("r14", PAIR_3), "earlier-run"], // the last pair, no prefetch
+        [answer(GroovingAnswer.Neither), "earlier-run"], // list r15
+        [listUnusable("r15"), "earlier-run"], // list r16
+        [listArrived("r16"), "this-run"]
+      ];
+      let state = DONE;
+      for (const [event, queue] of steps) {
+        const decision = decideGrooving(state, event);
+        expectRules(state, event, decision.state, decision.effects);
+        state = decision.state;
+        expect(state.queue).toBe(queue);
+      }
+      expect(state.flow.kind).toBe("done");
+    });
+
+    it("(b) keeps the queue when it closes before the list arrives", () => {
+      for (const state of [COLLECT, PAIR_WAIT, CHOOSE_PREVIEWING, LIST_WAIT, LIST_RETRY, FAILED_LIST]) {
+        const { state: next, effects } = decideGrooving(state, CLOSE);
+        expect(next.queue).toBe("original");
+        expect(effects).not.toContainEqual({ type: "replace-queue", videoIds: LIST.videoIds });
+      }
+    });
+
+    it("(c) fails instead of retrying again after a retry", () => {
+      expect(decideGrooving(PAIR_RETRY, pairUnusable("r9"))).toEqual({
+        state: stateOf({ kind: "failed", session: sessionOf(), step: GroovingStep.Pair, reason: GroovingFailureReason.Unusable }),
+        effects: []
+      });
+      expect(decideGrooving(LIST_RETRY, listUnusable("r9"))).toEqual({
+        state: stateOf({ kind: "failed", session: ANSWERED_ALL, step: GroovingStep.List, reason: GroovingFailureReason.Unusable }),
+        effects: []
+      });
+      // The retried request is the one it waits for next
+      const retried = decideGrooving(PAIR_WAIT, pairUnusable("r9")).state;
+      expect(decideGrooving(retried, pairUnusable("r10")).state.flow.kind).toBe("failed");
+      const listRetried = decideGrooving(LIST_WAIT, listUnusable("r9")).state;
+      expect(decideGrooving(listRetried, listUnusable("r10")).state.flow.kind).toBe("failed");
+    });
+
+    it("(c) retries once more only after the user presses retry", () => {
+      const failed = run(PAIR_WAIT, [pairUnusable("r9"), pairUnusable("r10")]).state;
+      expect(failed.flow.kind).toBe("failed");
+      const { state, effects } = decideGrooving(failed, RETRY);
+      expect(state.flow).toEqual({ kind: "pair-wait", session: sessionOf(), requestId: "r11", retry: false });
+      expect(effects).toEqual([requestPair("r11", sessionOf())]);
+    });
+
+    it("keeps the rules on random walks and reaches every state", () => {
+      const random = randomOf(20261103);
+      const kinds = new Set<string>();
+      for (let walk = 0; walk < 400; walk++) {
+        let state = initialGroovingState();
+        const requestIds: string[] = [];
+        for (let step = 0; step < 80; step++) {
+          const events = eventsFor(state);
+          const forward = forwardEventsOf(state, events);
+          // Close and leave rarely and go forward half of the time, so that walks get far
+          const roll = random(100);
+          const event = roll < 2 ? CLOSE : roll < 4 ? LEAVE : roll < 52 ? forward[random(forward.length)] : events[random(events.length - 2)];
+          const { state: next, effects } = decideGrooving(state, event);
+          expectRules(state, event, next, effects);
+          requestIds.push(...requestIdsOf(effects));
+          kinds.add(next.flow.kind);
+          state = next;
+        }
+        // A request id is never used twice, across close, leave and again
+        expect(new Set(requestIds).size).toBe(requestIds.length);
+      }
+      expect([...kinds].sort()).toEqual(
+        ["choose", "closed", "collect", "consent", "done", "failed", "list-wait", "need-key", "pair-wait", "saved", "saving", "setup"].sort()
+      );
+    });
+  });
+
+  it("does not reuse a request id after close", () => {
+    const before = run(initialGroovingState(), [SHARE, start(GroovingDirection.Mix), candidatesReady, pairArrived("r1", PAIR_1)]);
+    expect(requestIdsOf(before.effects)).toEqual(["r1", "r2", "r3"]);
+    const after = run(before.state, [CLOSE, SHARE, start(GroovingDirection.Mix), candidatesReady]);
+    const [first] = requestIdsOf(after.effects);
+    expect(first).toBe("r4");
+    expect(requestIdsOf(before.effects)).not.toContain(first);
+    // A late answer to the closed run is dropped
+    expect(decideGrooving(after.state, pairArrived("r1", PAIR_1))).toEqual({ state: after.state, effects: [] });
+  });
+
+  it("runs a whole Grooving", () => {
+    const { state, effects } = run(initialGroovingState(), [
+      SHARE,
+      start(GroovingDirection.Mix),
+      candidatesReady,
+      pairArrived("r1", PAIR_1),
+      pairArrived("r2", PAIR_2),
+      previewStart("a"),
+      answer(GroovingAnswer.Left),
+      answer(GroovingAnswer.Right),
+      pairArrived("r5", PAIR_3),
+      answer(GroovingAnswer.Neither),
+      listArrived("r6"),
+      { type: "save" },
+      { type: "saved" }
+    ]);
+    expect(state.flow.kind).toBe("saved");
+    expect(state.queue).toBe("this-run");
+    expect(effects.map(effect => effect.type)).toEqual([
+      "load-moods",
+      "collect",
+      "request-pair",
+      "request-pair",
+      "request-pair",
+      "preview-start",
+      "preview-end",
+      "request-pair",
+      "request-pair",
+      "request-list",
+      "replace-queue",
+      "save-playlist"
+    ]);
+    const flow = state.flow as Extract<Flow, { list: GroovingList }>;
+    expect(flow.session.history.map(record => record.answer)).toEqual([GroovingAnswer.Left, GroovingAnswer.Right, GroovingAnswer.Neither]);
+    expect(flow.session.shown).toEqual(["a", "b", "c", "d", "e", "f"]);
+  });
+});
+
+describe("toGroovingViewState", () => {
+  const EXTRA = {
+    moods: [MOOD_ITEM],
+    moodsFailed: false,
+    providerLabel: "Gemini",
+    model: "gemini-3.5-flash-lite",
+    safeStorageAvailable: true,
+    usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001 }
+  };
+
+  it.each<[string, GroovingState, ReturnType<typeof toGroovingViewState>]>([
+    ["closed", CLOSED, { screen: "closed" }],
+    ["need key", NEED_KEY, { screen: "key-missing", safeStorageAvailable: true }],
+    ["consent", CONSENT, { screen: "consent", providerLabel: "Gemini" }],
+    [
+      "setup",
+      SETUP_NO_HISTORY,
+      { screen: "setup", moods: [MOOD_ITEM], moodsFailed: false, historyShared: false, providerLabel: "Gemini", model: "gemini-3.5-flash-lite" }
+    ],
+    ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false }],
+    [
+      "pair wait (second round)",
+      stateOf({
+        kind: "pair-wait",
+        session: sessionOf({ history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }], filledFromMood: true }),
+        requestId: "r9",
+        retry: true
+      }),
+      { screen: "working", step: GroovingStep.Pair, round: 2, rounds: 3, filledFromMood: true }
+    ],
+    [
+      "choose",
+      CHOOSE_PREVIEWING,
+      {
+        screen: "choose",
+        round: 1,
+        rounds: 3,
+        moodLabel: "Chill",
+        direction: GroovingDirection.Mix,
+        left: CANDIDATES[0],
+        right: CANDIDATES[1],
+        previewing: "a",
+        filledFromMood: false
+      }
+    ],
+    [
+      "choose (mood in words, last round)",
+      stateOf({ kind: "choose", session: { ...SHOWING_LAST, mood: TEXT_MOOD }, pair: PAIR_3, prefetch: { left: null, right: null } }),
+      {
+        screen: "choose",
+        round: 3,
+        rounds: 3,
+        moodLabel: "rainy night",
+        direction: GroovingDirection.Mix,
+        left: CANDIDATES[4],
+        right: CANDIDATES[5],
+        previewing: null,
+        filledFromMood: false
+      }
+    ],
+    [
+      "choose (a track not in the candidates)",
+      stateOf({ kind: "choose", session: SHOWING, pair: { left: "a", right: "zz", reason: "" }, prefetch: { left: null, right: null } }),
+      { screen: "working", step: GroovingStep.Pair, round: 1, rounds: 3, filledFromMood: false }
+    ],
+    ["list wait", LIST_RETRY, { screen: "working", step: GroovingStep.List, round: null, rounds: null, filledFromMood: false }],
+    [
+      "failed (collect)",
+      FAILED_COLLECT,
+      { screen: "failed", step: GroovingStep.Collect, reason: GroovingFailureReason.YtmUnreadable, round: null, rounds: null }
+    ],
+    ["failed (pair)", FAILED_PAIR, { screen: "failed", step: GroovingStep.Pair, reason: GroovingFailureReason.Unusable, round: 1, rounds: 3 }],
+    ["failed (list)", FAILED_LIST, { screen: "failed", step: GroovingStep.List, reason: GroovingFailureReason.Network, round: null, rounds: null }],
+    [
+      "failed (no session)",
+      FAILED_NO_SESSION,
+      { screen: "failed", step: GroovingStep.Pair, reason: GroovingFailureReason.Network, round: null, rounds: null }
+    ]
+  ])("%s", (_name, state, view) => {
+    expect(toGroovingViewState(state, EXTRA)).toEqual(view);
+  });
+
+  it.each<[string, GroovingState, "no" | "saving" | "saved" | "failed"]>([
+    ["done", DONE, "no"],
+    ["done (save failed)", DONE_SAVE_FAILED, "failed"],
+    ["saving", SAVING, "saving"],
+    ["saved", SAVED, "saved"]
+  ])("%s", (_name, state, saved) => {
+    expect(toGroovingViewState(state, EXTRA)).toEqual({
+      screen: "done",
+      moodLabel: "Chill",
+      moodDescription: LIST.moodDescription,
+      tracks: [CANDIDATES[0], CANDIDATES[1], CANDIDATES[2]],
+      familiarCount: 2,
+      newCount: 1,
+      usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001, model: "gemini-3.5-flash-lite" },
+      saved,
+      queueFailed: false
+    });
+  });
+
+  it("tells on the done screen that saving failed, until it saves again", () => {
+    const failedSave = run(DONE, [{ type: "save" }, { type: "save-failed" }]).state;
+    expect(failedSave.flow).toEqual({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false });
+    expect(toGroovingViewState(failedSave, EXTRA)).toMatchObject({ screen: "done", saved: "failed" });
+    const { state: saving, effects } = decideGrooving(failedSave, { type: "save" });
+    expect(saving.flow).toEqual({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false });
+    expect(effects).toEqual([{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]);
+    expect(toGroovingViewState(saving, EXTRA)).toMatchObject({ screen: "done", saved: "saving" });
+  });
+
+  it("passes an unknown cost and the moods failure through", () => {
+    const extra = { ...EXTRA, moods: null, moodsFailed: true, usage: { inputTokens: 5, outputTokens: 6, estimatedUsd: null } };
+    expect(toGroovingViewState(SETUP, extra)).toMatchObject({ screen: "setup", moods: null, moodsFailed: true, historyShared: true });
+    expect(toGroovingViewState(DONE, extra)).toMatchObject({
+      usage: { inputTokens: 5, outputTokens: 6, estimatedUsd: null, model: "gemini-3.5-flash-lite" }
+    });
+  });
+
+  it("names a blend of a mood and a genre on the choose screen", () => {
+    const genre: GroovingMoodItem = { name: "J-Pop", section: GroovingMoodSection.Genres, params: "jpop-params" };
+    const blend: GroovingMood = { kind: "blend", items: [MOOD_ITEM, genre] };
+    const { state } = run(initialGroovingState(), [SHARE, start(GroovingDirection.Mix, blend), candidatesReady, pairArrived("r1", PAIR_1)]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "choose", moodLabel: "Chill × J-Pop" });
+  });
+
+  it("names a blend of a mood and a genre on the done screen", () => {
+    const genre: GroovingMoodItem = { name: "J-Pop", section: GroovingMoodSection.Genres, params: "jpop-params" };
+    const blend: GroovingMood = { kind: "blend", items: [MOOD_ITEM, genre] };
+    const listWait = stateOf({ kind: "list-wait", session: { ...ANSWERED_ALL, mood: blend }, requestId: "r9", retry: false });
+    const { state } = decideGrooving(listWait, listArrived("r9"));
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "done", moodLabel: "Chill × J-Pop", queueFailed: false });
+    const words = stateOf({ kind: "done", session: { ...ANSWERED_ALL, mood: TEXT_MOOD }, list: LIST, saveFailed: false, queueFailed: false });
+    expect(toGroovingViewState(words, EXTRA)).toMatchObject({ screen: "done", moodLabel: "rainy night" });
+  });
+
+  it("tells on the done screen that the queue was not replaced, until retry replaces it", () => {
+    const { state } = run(DONE, [{ type: "queue-failed" }]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "done", saved: "no", queueFailed: true });
+    const saving = decideGrooving(state, { type: "save" }).state;
+    expect(toGroovingViewState(saving, EXTRA)).toMatchObject({ screen: "done", saved: "saving", queueFailed: true });
+    const failedSave = decideGrooving(saving, { type: "save-failed" }).state;
+    expect(toGroovingViewState(failedSave, EXTRA)).toMatchObject({ screen: "done", saved: "failed", queueFailed: true });
+    const { state: retried, effects } = decideGrooving(failedSave, RETRY);
+    expect(effects).toEqual([{ type: "replace-queue", videoIds: LIST.videoIds }]);
+    expect(toGroovingViewState(retried, EXTRA)).toMatchObject({ screen: "done", saved: "failed", queueFailed: false });
+  });
+});

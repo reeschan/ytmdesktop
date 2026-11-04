@@ -7,6 +7,7 @@ import { createNavigationMenuArrows } from "./setup/navigation";
 import initRemote from "./setup/remote";
 import { initBackgroundVideo } from "./setup/background-video";
 import { createSongRecognitionButton } from "./setup/song-recognition";
+import { setupGrooving } from "./setup/grooving";
 import { addTimedLyrics, createAdditionalPlayerBarControls, hideChromecastButton, overrideHistoryButtonDisplay } from "./setup/extras";
 
 protectedapimanager.init();
@@ -74,6 +75,15 @@ window.addEventListener("load", async () => {
         createSongRecognitionButton();
       } catch (error) {
         console.error("Failed to set up the song recognition button", error);
+      }
+    }
+
+    {
+      // Grooving is optional, so its failure does not stop the rest of the setup
+      try {
+        setupGrooving();
+      } catch (error) {
+        console.error("Failed to set up Grooving", error);
       }
     }
 

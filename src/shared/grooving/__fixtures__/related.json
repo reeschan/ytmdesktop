@@ -1,0 +1,4741 @@
+{
+ "responseContext": {
+  "serviceTrackingParams": [
+   {
+    "service": "GFEEDBACK",
+    "params": [
+     {
+      "key": "browse_id",
+      "value": "MPTRt_btHriMNNtpA-4"
+     },
+     {
+      "key": "browse_id_prefix",
+      "value": ""
+     },
+     {
+      "key": "has_unlimited_entitlement",
+      "value": "True"
+     },
+     {
+      "key": "logged_in",
+      "value": "1"
+     }
+    ]
+   },
+   {
+    "service": "CSI",
+    "params": [
+     {
+      "key": "c",
+      "value": "WEB_REMIX"
+     },
+     {
+      "key": "cver",
+      "value": "1.20261031.09.00"
+     },
+     {
+      "key": "yt_li",
+      "value": "1"
+     },
+     {
+      "key": "GetBrowseTrackRelatedPage_rid",
+      "value": "0x2313734bdc4777f9"
+     }
+    ]
+   },
+   {
+    "service": "ECATCHER",
+    "params": [
+     {
+      "key": "client.version",
+      "value": "1.20000101"
+     },
+     {
+      "key": "client.name",
+      "value": "WEB_REMIX"
+     }
+    ]
+   }
+  ],
+  "responseId": "IhMIoOHj2ZrrlwMVkNY0Bx2zjDRR"
+ },
+ "contents": {
+  "sectionListRenderer": {
+   "contents": [
+    {
+     "musicCarouselShelfRenderer": {
+      "header": {
+       "musicCarouselShelfBasicHeaderRenderer": {
+        "title": {
+         "runs": [
+          {
+           "text": "おすすめ"
+          }
+         ]
+        },
+        "accessibilityData": {
+         "accessibilityData": {
+          "label": "おすすめ"
+         }
+        },
+        "headerStyle": "MUSIC_CAROUSEL_SHELF_BASIC_HEADER_STYLE_DISPLAY_TWO",
+        "trackingParams": "REDACTED"
+       }
+      },
+      "contents": [
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/48.jpg",
+              "width": 60,
+              "height": 60
+             },
+             {
+              "url": "https://example.invalid/thumb/49.jpg",
+              "width": 120,
+              "height": 120
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "l3U97lFQGww",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Title 12 - Artist 15 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Title 12 - Artist 15 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 12",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "l3U97lFQGww",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 15",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0015xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Album 6",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "MPREb_fakealbum0006",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "l3U97lFQGww",
+                "playlistId": "RDAMVMl3U97lFQGww",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "l3U97lFQGww",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "l3U97lFQGww"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "l3U97lFQGww",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "l3U97lFQGww",
+                   "playerParams": "0gcJCekKYeQlTpbE"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリに保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリから削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "l3U97lFQGww",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "l3U97lFQGww",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "l3U97lFQGww"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アルバムに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ALBUM"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPREb_fakealbum0006",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アーティストに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ARTIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "UCfakeartist0015xxxxxxxx",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "曲のクレジットを表示"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "PEOPLE_GROUP"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPTCl3U97lFQGww",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_TRACK_CREDITS"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtsM1U5N2xGUUd3dw%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "l3U97lFQGww"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "l3U97lFQGww"
+                 },
+                 "actions": [
+                  {
+                   "clickTrackingParams": "REDACTED",
+                   "musicLibraryStatusUpdateCommand": {
+                    "libraryStatus": "MUSIC_LIBRARY_STATUS_IN_LIBRARY",
+                    "addToLibraryFeedbackToken": "REDACTED"
+                   }
+                  }
+                 ]
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "l3U97lFQGww"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "l3U97lFQGww"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "l3U97lFQGww"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       },
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/50.jpg",
+              "width": 60,
+              "height": 60
+             },
+             {
+              "url": "https://example.invalid/thumb/51.jpg",
+              "width": 120,
+              "height": 120
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "q-DMjmi61y8",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Title 13 - Artist 16 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Title 13 - Artist 16 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 13",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "q-DMjmi61y8",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 16",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0016xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Album 7",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "MPREb_fakealbum0007",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "q-DMjmi61y8",
+                "playlistId": "RDAMVMq-DMjmi61y8",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "q-DMjmi61y8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "q-DMjmi61y8"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "q-DMjmi61y8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "q-DMjmi61y8",
+                   "playerParams": "0gcJCekKYeQlTpbE"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリに保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリから削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "q-DMjmi61y8",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "q-DMjmi61y8",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "q-DMjmi61y8"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アルバムに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ALBUM"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPREb_fakealbum0007",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アーティストに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ARTIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "UCfakeartist0016xxxxxxxx",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "曲のクレジットを表示"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "PEOPLE_GROUP"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPTCq-DMjmi61y8",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_TRACK_CREDITS"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtxLURNam1pNjF5OA%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "q-DMjmi61y8"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "q-DMjmi61y8"
+                 },
+                 "actions": [
+                  {
+                   "clickTrackingParams": "REDACTED",
+                   "musicLibraryStatusUpdateCommand": {
+                    "libraryStatus": "MUSIC_LIBRARY_STATUS_IN_LIBRARY",
+                    "addToLibraryFeedbackToken": "REDACTED"
+                   }
+                  }
+                 ]
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "q-DMjmi61y8"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "q-DMjmi61y8"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "q-DMjmi61y8"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       },
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/52.jpg",
+              "width": 60,
+              "height": 60
+             },
+             {
+              "url": "https://example.invalid/thumb/53.jpg",
+              "width": 120,
+              "height": 120
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "JX8UNk5bAK8",
+               "playerParams": "0gcJCQkB-iE-y48-",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Title 14 - Artist 17 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Title 14 - Artist 17 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 14",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "JX8UNk5bAK8",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 17",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0017xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Album 8",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "MPREb_fakealbum0008",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "JX8UNk5bAK8",
+                "playlistId": "RDAMVMJX8UNk5bAK8",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "JX8UNk5bAK8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "JX8UNk5bAK8"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "JX8UNk5bAK8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "JX8UNk5bAK8"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリに保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリから削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "JX8UNk5bAK8",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "JX8UNk5bAK8",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "JX8UNk5bAK8"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アルバムに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ALBUM"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPREb_fakealbum0008",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アーティストに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ARTIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "UCfakeartist0017xxxxxxxx",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "曲のクレジットを表示"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "PEOPLE_GROUP"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPTCJX8UNk5bAK8",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_TRACK_CREDITS"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtKWDhVTms1YkFLOA%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "JX8UNk5bAK8"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "JX8UNk5bAK8"
+                 },
+                 "actions": [
+                  {
+                   "clickTrackingParams": "REDACTED",
+                   "musicLibraryStatusUpdateCommand": {
+                    "libraryStatus": "MUSIC_LIBRARY_STATUS_IN_LIBRARY",
+                    "addToLibraryFeedbackToken": "REDACTED"
+                   }
+                  }
+                 ]
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "JX8UNk5bAK8"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "JX8UNk5bAK8"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "JX8UNk5bAK8"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       }
+      ],
+      "trackingParams": "REDACTED",
+      "itemSize": "COLLECTION_STYLE_ITEM_SIZE_SMALL",
+      "numItemsPerColumn": "4",
+      "fullbleedStyle": "MUSIC_CAROUSEL_SHELF_FULLBLEED_STYLE_CONTENT_NOT_INSET"
+     }
+    },
+    {
+     "musicCarouselShelfRenderer": {
+      "header": {
+       "musicCarouselShelfBasicHeaderRenderer": {
+        "title": {
+         "runs": [
+          {
+           "text": "おすすめのプレイリスト"
+          }
+         ]
+        },
+        "accessibilityData": {
+         "accessibilityData": {
+          "label": "おすすめのプレイリスト"
+         }
+        },
+        "headerStyle": "MUSIC_CAROUSEL_SHELF_BASIC_HEADER_STYLE_DISPLAY_TWO",
+        "trackingParams": "REDACTED"
+       }
+      },
+      "contents": [
+       {
+        "musicTwoRowItemRenderer": {
+         "thumbnailRenderer": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/54.jpg",
+              "width": 192,
+              "height": 192
+             },
+             {
+              "url": "https://example.invalid/thumb/55.jpg",
+              "width": 576,
+              "height": 576
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+         "title": {
+          "runs": [
+           {
+            "text": "Playlist 10",
+            "navigationEndpoint": {
+             "clickTrackingParams": "REDACTED",
+             "browseEndpoint": {
+              "browseId": "VLPLN6MsK_FrS_4",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+               }
+              }
+             }
+            }
+           }
+          ]
+         },
+         "subtitle": {
+          "runs": [
+           {
+            "text": "プレイリスト"
+           },
+           {
+            "text": " • "
+           },
+           {
+            "text": "Artist 18",
+            "navigationEndpoint": {
+             "clickTrackingParams": "REDACTED",
+             "browseEndpoint": {
+              "browseId": "UCfakeartist0018xxxxxxxx",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+               }
+              }
+             }
+            }
+           },
+           {
+            "text": " • "
+           },
+           {
+            "text": "122回視聴"
+           }
+          ]
+         },
+         "navigationEndpoint": {
+          "clickTrackingParams": "REDACTED",
+          "browseEndpoint": {
+           "browseId": "VLPLN6MsK_FrS_4",
+           "browseEndpointContextSupportedConfigs": {
+            "browseEndpointContextMusicConfig": {
+             "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+            }
+           }
+          }
+         },
+         "trackingParams": "REDACTED",
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "シャッフル再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MUSIC_SHUFFLE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "PLN6MsK_FrS_4",
+                "params": "wAEB8gECKAE%3D"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "RDAMPLPLN6MsK_FrS_4",
+                "params": "wAEB"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "PLN6MsK_FrS_4",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "PLN6MsK_FrS_4",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの再生リストが再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "PLN6MsK_FrS_4",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "PLN6MsK_FrS_4",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "再生リストをキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリにプレイリストを保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "LIKE",
+                "target": {
+                 "playlistId": "PLN6MsK_FrS_4"
+                }
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリからプレイリストを削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "INDIFFERENT",
+                "target": {
+                 "playlistId": "PLN6MsK_FrS_4"
+                }
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlinePlaylistEndpoint": {
+                "playlistId": "PLN6MsK_FrS_4",
+                "action": "ACTION_ADD",
+                "offlineability": {
+                 "offlineabilityRenderer": {
+                  "offlineable": true,
+                  "clickTrackingParams": "REDACTED"
+                 }
+                },
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "playlistId": "PLN6MsK_FrS_4",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "playlistId": "PLN6MsK_FrS_4"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "Eg1QTE42TXNLX0ZyU180",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "thumbnailOverlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "2147483648",
+              "0",
+              "0"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchPlaylistEndpoint": {
+               "playlistId": "PLN6MsK_FrS_4",
+               "params": "wAEB"
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 2566914048,
+             "activeBackgroundColor": 4278190080,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 1308622847,
+             "activeScaleFactor": 1.2,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Playlist 10 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Playlist 10 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+          }
+         },
+         "thumbnailCornerOverlay": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/56.jpg",
+              "width": 48,
+              "height": 48
+             },
+             {
+              "url": "https://example.invalid/thumb/57.jpg",
+              "width": 96,
+              "height": 96
+             },
+             {
+              "url": "https://example.invalid/thumb/56.jpg",
+              "width": 48,
+              "height": 48
+             },
+             {
+              "url": "https://example.invalid/thumb/57.jpg",
+              "width": 96,
+              "height": 96
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_CIRCLE",
+           "trackingParams": "REDACTED",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Artist 18"
+            }
+           },
+           "onTap": {
+            "clickTrackingParams": "REDACTED",
+            "browseEndpoint": {
+             "browseId": "UCfakeartist0018xxxxxxxx",
+             "browseEndpointContextSupportedConfigs": {
+              "browseEndpointContextMusicConfig": {
+               "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       {
+        "musicTwoRowItemRenderer": {
+         "thumbnailRenderer": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/58.jpg",
+              "width": 192,
+              "height": 192
+             },
+             {
+              "url": "https://example.invalid/thumb/59.jpg",
+              "width": 576,
+              "height": 576
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+         "title": {
+          "runs": [
+           {
+            "text": "Playlist 11",
+            "navigationEndpoint": {
+             "clickTrackingParams": "REDACTED",
+             "browseEndpoint": {
+              "browseId": "VLPL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+               }
+              }
+             }
+            }
+           }
+          ]
+         },
+         "subtitle": {
+          "runs": [
+           {
+            "text": "プレイリスト"
+           },
+           {
+            "text": " • "
+           },
+           {
+            "text": "Artist 19",
+            "navigationEndpoint": {
+             "clickTrackingParams": "REDACTED",
+             "browseEndpoint": {
+              "browseId": "UCfakeartist0019xxxxxxxx",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+               }
+              }
+             }
+            }
+           },
+           {
+            "text": " • "
+           },
+           {
+            "text": "673回視聴"
+           }
+          ]
+         },
+         "navigationEndpoint": {
+          "clickTrackingParams": "REDACTED",
+          "browseEndpoint": {
+           "browseId": "VLPL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+           "browseEndpointContextSupportedConfigs": {
+            "browseEndpointContextMusicConfig": {
+             "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+            }
+           }
+          }
+         },
+         "trackingParams": "REDACTED",
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "シャッフル再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MUSIC_SHUFFLE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                "params": "wAEB8gECKAE%3D"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "RDAMPLPL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                "params": "wAEB"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの再生リストが再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "再生リストをキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリにプレイリストを保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "LIKE",
+                "target": {
+                 "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL"
+                }
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリからプレイリストを削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "INDIFFERENT",
+                "target": {
+                 "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL"
+                }
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlinePlaylistEndpoint": {
+                "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                "action": "ACTION_ADD",
+                "offlineability": {
+                 "offlineabilityRenderer": {
+                  "offlineable": true,
+                  "clickTrackingParams": "REDACTED"
+                 }
+                },
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "EiJQTDVsUUFDQlVJS2dOWTREOGVWbDRHcVg0R05RQ05IaUFM",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "thumbnailOverlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "2147483648",
+              "0",
+              "0"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchPlaylistEndpoint": {
+               "playlistId": "PL5lQACBUIKgNY4D8eVl4GqX4GNQCNHiAL",
+               "params": "wAEB"
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 2566914048,
+             "activeBackgroundColor": 4278190080,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 1308622847,
+             "activeScaleFactor": 1.2,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Playlist 11 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Playlist 11 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+          }
+         },
+         "thumbnailCornerOverlay": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/60.jpg",
+              "width": 48,
+              "height": 48
+             },
+             {
+              "url": "https://example.invalid/thumb/61.jpg",
+              "width": 96,
+              "height": 96
+             },
+             {
+              "url": "https://example.invalid/thumb/60.jpg",
+              "width": 48,
+              "height": 48
+             },
+             {
+              "url": "https://example.invalid/thumb/61.jpg",
+              "width": 96,
+              "height": 96
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_CIRCLE",
+           "trackingParams": "REDACTED",
+           "accessibilityData": {
+            "accessibilityData": {
+             "label": "Artist 19"
+            }
+           },
+           "onTap": {
+            "clickTrackingParams": "REDACTED",
+            "browseEndpoint": {
+             "browseId": "UCfakeartist0019xxxxxxxx",
+             "browseEndpointContextSupportedConfigs": {
+              "browseEndpointContextMusicConfig": {
+               "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+              }
+             }
+            }
+           }
+          }
+         }
+        }
+       },
+       {
+        "musicTwoRowItemRenderer": {
+         "thumbnailRenderer": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/62.jpg",
+              "width": 226,
+              "height": 226
+             },
+             {
+              "url": "https://example.invalid/thumb/63.jpg",
+              "width": 544,
+              "height": 544
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FILL",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "aspectRatio": "MUSIC_TWO_ROW_ITEM_THUMBNAIL_ASPECT_RATIO_SQUARE",
+         "title": {
+          "runs": [
+           {
+            "text": "Playlist 12",
+            "navigationEndpoint": {
+             "clickTrackingParams": "REDACTED",
+             "browseEndpoint": {
+              "browseId": "VLRDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+              "browseEndpointContextSupportedConfigs": {
+               "browseEndpointContextMusicConfig": {
+                "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+               }
+              }
+             }
+            }
+           }
+          ]
+         },
+         "subtitle": {
+          "runs": [
+           {
+            "text": "プレイリスト"
+           },
+           {
+            "text": " • "
+           },
+           {
+            "text": "User 2"
+           }
+          ]
+         },
+         "navigationEndpoint": {
+          "clickTrackingParams": "REDACTED",
+          "browseEndpoint": {
+           "browseId": "VLRDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+           "browseEndpointContextSupportedConfigs": {
+            "browseEndpointContextMusicConfig": {
+             "pageType": "MUSIC_PAGE_TYPE_PLAYLIST"
+            }
+           }
+          }
+         },
+         "trackingParams": "REDACTED",
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "シャッフル再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MUSIC_SHUFFLE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                "params": "wAEB8gECGAE%3D"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchPlaylistEndpoint": {
+                "playlistId": "RDAMPLRDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                "params": "wAEB"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの再生リストが再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                   "loggingContext": {
+                    "vssLoggingContext": {
+                     "serializedContextData": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "再生リストをキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリにプレイリストを保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "LIKE",
+                "target": {
+                 "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8"
+                }
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリからプレイリストを削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "likeEndpoint": {
+                "status": "INDIFFERENT",
+                "target": {
+                 "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8"
+                }
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlinePlaylistEndpoint": {
+                "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                "action": "ACTION_ADD",
+                "offlineability": {
+                 "offlineabilityRenderer": {
+                  "offlineable": true,
+                  "clickTrackingParams": "REDACTED"
+                 }
+                },
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "EitSRENMQUs1dXlfbXAzdXU2XzAzODFrUmpkWnZOZWtYdDYxX1NaWHBqTVQ4",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "thumbnailOverlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "2147483648",
+              "0",
+              "0"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchPlaylistEndpoint": {
+               "playlistId": "RDCLAK5uy_mp3uu6_0381kRjdZvNekXt61_SZXpjMT8",
+               "params": "wAEB"
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 2566914048,
+             "activeBackgroundColor": 4278190080,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 1308622847,
+             "activeScaleFactor": 1.2,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_MEDIUM",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Playlist 12 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Playlist 12 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_BOTTOM_RIGHT",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_HOVER"
+          }
+         }
+        }
+       }
+      ],
+      "trackingParams": "REDACTED",
+      "itemSize": "COLLECTION_STYLE_ITEM_SIZE_SMALL",
+      "fullbleedStyle": "MUSIC_CAROUSEL_SHELF_FULLBLEED_STYLE_CONTENT_NOT_INSET"
+     }
+    },
+    {
+     "musicCarouselShelfRenderer": {
+      "header": {
+       "musicCarouselShelfBasicHeaderRenderer": {
+        "title": {
+         "runs": [
+          {
+           "text": "その他のパフォーマンス"
+          }
+         ]
+        },
+        "accessibilityData": {
+         "accessibilityData": {
+          "label": "その他のパフォーマンス"
+         }
+        },
+        "headerStyle": "MUSIC_CAROUSEL_SHELF_BASIC_HEADER_STYLE_DISPLAY_TWO",
+        "trackingParams": "REDACTED"
+       }
+      },
+      "contents": [
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/64.jpg",
+              "width": 400,
+              "height": 225
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "Q3rpbaEz910",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Title 15 - Artist 20 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Title 15 - Artist 20 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 15",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "Q3rpbaEz910",
+                 "playerParams": "0gcJCTUC0OBS9m0t",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 20",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0020xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_USER_CHANNEL"
+                  }
+                 }
+                }
+               }
+              },
+              {
+               "text": " • "
+              },
+              {
+               "text": "24万回視聴"
+              }
+             ],
+             "accessibility": {
+              "accessibilityData": {
+               "label": "Artist 20 • 24万回視聴"
+              }
+             }
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {},
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "Q3rpbaEz910",
+                "playlistId": "RDAMVMQ3rpbaEz910",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_UGC"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "Q3rpbaEz910",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "Q3rpbaEz910"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "Q3rpbaEz910",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "Q3rpbaEz910"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "Q3rpbaEz910",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "Q3rpbaEz910",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "Q3rpbaEz910"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtRM3JwYmFFejkxMA%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "Q3rpbaEz910"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "Q3rpbaEz910"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "Q3rpbaEz910"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "Q3rpbaEz910"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "Q3rpbaEz910"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       },
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/65.jpg",
+              "width": 60,
+              "height": 60
+             },
+             {
+              "url": "https://example.invalid/thumb/66.jpg",
+              "width": 120,
+              "height": 120
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "KLCJyS1spVs",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "Title 16 - Artist 21 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "Title 16 - Artist 21 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 16",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "KLCJyS1spVs",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 21",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0021xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Album 9",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "MPREb_fakealbum0009",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "KLCJyS1spVs",
+                "playlistId": "RDAMVMKLCJyS1spVs",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_ATV"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "KLCJyS1spVs",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "KLCJyS1spVs"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "KLCJyS1spVs",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "KLCJyS1spVs"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "ライブラリに保存"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "BOOKMARK_BORDER"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "ライブラリから削除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "BOOKMARK"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED",
+              "isToggled": false
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "KLCJyS1spVs",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "KLCJyS1spVs",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "KLCJyS1spVs"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アルバムに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ALBUM"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPREb_fakealbum0009",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ALBUM"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アーティストに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ARTIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "UCfakeartist0021xxxxxxxx",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "曲のクレジットを表示"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "PEOPLE_GROUP"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "MPTCKLCJyS1spVs",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_TRACK_CREDITS"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtLTENKeVMxc3BWcw%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "KLCJyS1spVs"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "KLCJyS1spVs"
+                 },
+                 "actions": [
+                  {
+                   "clickTrackingParams": "REDACTED",
+                   "musicLibraryStatusUpdateCommand": {
+                    "libraryStatus": "MUSIC_LIBRARY_STATUS_IN_LIBRARY",
+                    "addToLibraryFeedbackToken": "REDACTED"
+                   }
+                  }
+                 ]
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "KLCJyS1spVs"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "KLCJyS1spVs"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "KLCJyS1spVs"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       },
+       {
+        "musicResponsiveListItemRenderer": {
+         "trackingParams": "REDACTED",
+         "thumbnail": {
+          "musicThumbnailRenderer": {
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://example.invalid/thumb/67.jpg",
+              "width": 400,
+              "height": 225
+             }
+            ]
+           },
+           "thumbnailCrop": "MUSIC_THUMBNAIL_CROP_UNSPECIFIED",
+           "thumbnailScale": "MUSIC_THUMBNAIL_SCALE_ASPECT_FIT",
+           "trackingParams": "REDACTED"
+          }
+         },
+         "overlay": {
+          "musicItemThumbnailOverlayRenderer": {
+           "background": {
+            "verticalGradient": {
+             "gradientLayerColors": [
+              "3422552064",
+              "3422552064"
+             ]
+            }
+           },
+           "content": {
+            "musicPlayButtonRenderer": {
+             "playNavigationEndpoint": {
+              "clickTrackingParams": "REDACTED",
+              "watchEndpoint": {
+               "videoId": "GbGX1Sx0gvo",
+               "watchEndpointMusicSupportedConfigs": {
+                "watchEndpointMusicConfig": {
+                 "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                }
+               }
+              }
+             },
+             "trackingParams": "REDACTED",
+             "playIcon": {
+              "iconType": "PLAY_ARROW"
+             },
+             "pauseIcon": {
+              "iconType": "PAUSE"
+             },
+             "iconColor": 4294967295,
+             "backgroundColor": 0,
+             "activeBackgroundColor": 0,
+             "loadingIndicatorColor": 14745645,
+             "playingIcon": {
+              "iconType": "VOLUME_UP"
+             },
+             "iconLoadingColor": 0,
+             "activeScaleFactor": 1,
+             "buttonSize": "MUSIC_PLAY_BUTTON_SIZE_SMALL",
+             "rippleTarget": "MUSIC_PLAY_BUTTON_RIPPLE_TARGET_SELF",
+             "accessibilityPlayData": {
+              "accessibilityData": {
+               "label": "アップタウン・ファンク - Artist 10 を再生"
+              }
+             },
+             "accessibilityPauseData": {
+              "accessibilityData": {
+               "label": "アップタウン・ファンク - Artist 10 を一時停止"
+              }
+             }
+            }
+           },
+           "contentPosition": "MUSIC_ITEM_THUMBNAIL_OVERLAY_CONTENT_POSITION_CENTERED",
+           "displayStyle": "MUSIC_ITEM_THUMBNAIL_OVERLAY_DISPLAY_STYLE_PERSISTENT"
+          }
+         },
+         "flexColumns": [
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Title 9",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "watchEndpoint": {
+                 "videoId": "GbGX1Sx0gvo",
+                 "watchEndpointMusicSupportedConfigs": {
+                  "watchEndpointMusicConfig": {
+                   "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                  }
+                 }
+                }
+               }
+              }
+             ]
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {
+             "runs": [
+              {
+               "text": "Artist 10",
+               "navigationEndpoint": {
+                "clickTrackingParams": "REDACTED",
+                "browseEndpoint": {
+                 "browseId": "UCfakeartist0010xxxxxxxx",
+                 "browseEndpointContextSupportedConfigs": {
+                  "browseEndpointContextMusicConfig": {
+                   "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                  }
+                 }
+                }
+               }
+              },
+              {
+               "text": " • "
+              },
+              {
+               "text": "3838万回視聴"
+              }
+             ],
+             "accessibility": {
+              "accessibilityData": {
+               "label": "Artist 10 • 3838万回視聴"
+              }
+             }
+            },
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_HIGH"
+           }
+          },
+          {
+           "musicResponsiveListItemFlexColumnRenderer": {
+            "text": {},
+            "displayPriority": "MUSIC_RESPONSIVE_LIST_ITEM_COLUMN_DISPLAY_PRIORITY_MEDIUM"
+           }
+          }
+         ],
+         "menu": {
+          "menuRenderer": {
+           "items": [
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "ミックスリストを開始"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "MIX"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "watchEndpoint": {
+                "videoId": "GbGX1Sx0gvo",
+                "playlistId": "RDAMVMGbGX1Sx0gvo",
+                "params": "wAEB",
+                "loggingContext": {
+                 "vssLoggingContext": {
+                  "serializedContextData": "REDACTED"
+                 }
+                },
+                "watchEndpointMusicSupportedConfigs": {
+                 "watchEndpointMusicConfig": {
+                  "musicVideoType": "MUSIC_VIDEO_TYPE_OMV"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "次に再生"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "QUEUE_PLAY_NEXT"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "GbGX1Sx0gvo",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "GbGX1Sx0gvo"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AFTER_CURRENT_VIDEO",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "次にこの曲が再生されます"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "キューに追加"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_REMOTE_QUEUE"
+              },
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "queueAddEndpoint": {
+                "queueTarget": {
+                 "videoId": "GbGX1Sx0gvo",
+                 "onEmptyQueue": {
+                  "clickTrackingParams": "REDACTED",
+                  "watchEndpoint": {
+                   "videoId": "GbGX1Sx0gvo"
+                  }
+                 }
+                },
+                "queueInsertPosition": "INSERT_AT_END",
+                "commands": [
+                 {
+                  "clickTrackingParams": "REDACTED",
+                  "addToToastAction": {
+                   "item": {
+                    "notificationTextRenderer": {
+                     "successResponseText": {
+                      "runs": [
+                       {
+                        "text": "曲をキューに追加しました"
+                       }
+                      ]
+                     },
+                     "trackingParams": "REDACTED"
+                    }
+                   }
+                  }
+                 }
+                ]
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuServiceItemDownloadRenderer": {
+              "serviceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "offlineVideoEndpoint": {
+                "videoId": "GbGX1Sx0gvo",
+                "onAddCommand": {
+                 "clickTrackingParams": "REDACTED",
+                 "getDownloadActionCommand": {
+                  "videoId": "GbGX1Sx0gvo",
+                  "params": "CAI%3D"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "再生リストに保存"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ADD_TO_PLAYLIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "addToPlaylistEndpoint": {
+                "videoId": "GbGX1Sx0gvo"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "アーティストに移動"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "ARTIST"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "browseEndpoint": {
+                "browseId": "UCfakeartist0010xxxxxxxx",
+                "browseEndpointContextSupportedConfigs": {
+                 "browseEndpointContextMusicConfig": {
+                  "pageType": "MUSIC_PAGE_TYPE_ARTIST"
+                 }
+                }
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "menuNavigationItemRenderer": {
+              "text": {
+               "runs": [
+                {
+                 "text": "共有"
+                }
+               ]
+              },
+              "icon": {
+               "iconType": "SHARE"
+              },
+              "navigationEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "shareEntityEndpoint": {
+                "serializedShareEntity": "CgtHYkdYMVN4MGd2bw%3D%3D",
+                "sharePanelType": "SHARE_PANEL_TYPE_UNIFIED_SHARE_PANEL"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            },
+            {
+             "toggleMenuServiceItemRenderer": {
+              "defaultText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] に固定"
+                }
+               ]
+              },
+              "defaultIcon": {
+               "iconType": "KEEP"
+              },
+              "defaultServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "toggledText": {
+               "runs": [
+                {
+                 "text": "[もう一度聴く] への固定を解除"
+                }
+               ]
+              },
+              "toggledIcon": {
+               "iconType": "KEEP_OFF"
+              },
+              "toggledServiceEndpoint": {
+               "clickTrackingParams": "REDACTED",
+               "feedbackEndpoint": {
+                "feedbackToken": "REDACTED"
+               }
+              },
+              "trackingParams": "REDACTED"
+             }
+            }
+           ],
+           "trackingParams": "REDACTED",
+           "topLevelButtons": [
+            {
+             "likeButtonRenderer": {
+              "target": {
+               "videoId": "GbGX1Sx0gvo"
+              },
+              "likeStatus": "INDIFFERENT",
+              "trackingParams": "REDACTED",
+              "likesAllowed": true,
+              "serviceEndpoints": [
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "LIKE",
+                 "target": {
+                  "videoId": "GbGX1Sx0gvo"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "DISLIKE",
+                 "target": {
+                  "videoId": "GbGX1Sx0gvo"
+                 }
+                }
+               },
+               {
+                "clickTrackingParams": "REDACTED",
+                "likeEndpoint": {
+                 "status": "INDIFFERENT",
+                 "target": {
+                  "videoId": "GbGX1Sx0gvo"
+                 }
+                }
+               }
+              ]
+             }
+            }
+           ],
+           "accessibility": {
+            "accessibilityData": {
+             "label": "操作メニュー"
+            }
+           }
+          }
+         },
+         "playlistItemData": {
+          "videoId": "GbGX1Sx0gvo"
+         },
+         "flexColumnDisplayStyle": "MUSIC_RESPONSIVE_LIST_ITEM_FLEX_COLUMN_DISPLAY_STYLE_TWO_LINE_STACK",
+         "itemHeight": "MUSIC_RESPONSIVE_LIST_ITEM_HEIGHT_MEDIUM_COMPACT"
+        }
+       }
+      ],
+      "trackingParams": "REDACTED",
+      "itemSize": "COLLECTION_STYLE_ITEM_SIZE_SMALL",
+      "numItemsPerColumn": "4",
+      "fullbleedStyle": "MUSIC_CAROUSEL_SHELF_FULLBLEED_STYLE_CONTENT_NOT_INSET"
+     }
+    }
+   ],
+   "trackingParams": "REDACTED"
+  }
+ },
+ "trackingParams": "REDACTED"
+}

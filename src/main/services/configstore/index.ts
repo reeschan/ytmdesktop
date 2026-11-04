@@ -3,6 +3,7 @@ import { app, ipcMain } from "electron";
 import log from "electron-log";
 import { BackgroundVideoSource } from "~shared/background-video";
 import { DEFAULT_PRESENCE_DISPLAY_SETTINGS } from "~shared/discord-presence/activity";
+import { GroovingLanguage, GroovingProvider } from "~shared/grooving";
 import { DEFAULT_SONG_RECOGNITION_SOURCE } from "~shared/song-recognition";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
 import { DependencyConstructor, Paths, ValueAtPath } from "~shared/types";
@@ -72,7 +73,13 @@ export default class ConfigStore extends Service {
           enhancedMediaServiceEnabled: true,
           shazamEnabled: false,
           shazamApiKey: null,
-          shazamAudioSource: DEFAULT_SONG_RECOGNITION_SOURCE
+          shazamAudioSource: DEFAULT_SONG_RECOGNITION_SOURCE,
+          groovingProvider: GroovingProvider.Gemini,
+          groovingApiKeys: { gemini: null, anthropic: null, openai: null },
+          groovingModels: { gemini: null, anthropic: null, openai: null },
+          groovingConsent: null,
+          groovingUsage: null,
+          groovingLanguage: GroovingLanguage.Auto
         },
         shortcuts: {
           playPause: "",
@@ -227,6 +234,30 @@ export default class ConfigStore extends Service {
 
           if (!store.has("integrations.shazamAudioSource")) {
             store.set("integrations.shazamAudioSource", DEFAULT_SONG_RECOGNITION_SOURCE);
+          }
+
+          if (!store.has("integrations.groovingProvider")) {
+            store.set("integrations.groovingProvider", GroovingProvider.Gemini);
+          }
+
+          if (!store.has("integrations.groovingApiKeys")) {
+            store.set("integrations.groovingApiKeys", { gemini: null, anthropic: null, openai: null });
+          }
+
+          if (!store.has("integrations.groovingModels")) {
+            store.set("integrations.groovingModels", { gemini: null, anthropic: null, openai: null });
+          }
+
+          if (!store.has("integrations.groovingConsent")) {
+            store.set("integrations.groovingConsent", null);
+          }
+
+          if (!store.has("integrations.groovingUsage")) {
+            store.set("integrations.groovingUsage", null);
+          }
+
+          if (!store.has("integrations.groovingLanguage")) {
+            store.set("integrations.groovingLanguage", GroovingLanguage.Auto);
           }
         }
       }

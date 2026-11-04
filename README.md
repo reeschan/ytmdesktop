@@ -95,7 +95,7 @@
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。YouTube Music のビューで曲の聞き取りのアイコンを押すと、main の SongRecognition が隠れたアプリ画面に PC の音かマイクを 5 秒録らせ、RapidAPI の Shazam API に問い合わせ、一致した曲を YouTube Music のビューで検索する。">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。YouTube Music のビューで曲の聞き取りのアイコンを押すと、main の SongRecognition が隠れたアプリ画面に PC の音かマイクを 5 秒録らせ、RapidAPI の Shazam API に問い合わせ、一致した曲を YouTube Music のビューで検索する。YouTube Music のビューの中の Grooving の画面は、ページが Innertube から候補の曲を集め、main の Grooving が利用者の Key で LLM (Gemini・Claude・OpenAI) に組とリストを問い合わせ (10 分に 120 回まで)、できたリストでキューを置き換えたりプレイリストに保存したりする。">
 </picture>
 
 図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
@@ -217,7 +217,7 @@ Turn it on in **Integrations → Shazam** and enter an API Key from [Shazam on R
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm. Pressing the song recognition icon in the YouTube Music view makes SongRecognition in the main process have the hidden app view record PC audio or the mic for 5 seconds, ask the Shazam API on RapidAPI, and search the matched song in the YouTube Music view.">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm. Pressing the song recognition icon in the YouTube Music view makes SongRecognition in the main process have the hidden app view record PC audio or the mic for 5 seconds, ask the Shazam API on RapidAPI, and search the matched song in the YouTube Music view. In the Grooving screen inside the YouTube Music view, the page collects candidate songs through Innertube, Grooving in the main process asks an LLM (Gemini, Claude or OpenAI) with the user's key for pairs and the list (at most 120 calls in 10 minutes), and the list replaces the queue or is saved as a playlist.">
 </picture>
 
 The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.

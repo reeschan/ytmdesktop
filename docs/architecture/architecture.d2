@@ -49,7 +49,7 @@ app: "YTMDesktop (Electron)" {
     icon: https://icons.terrastruct.com/essentials%2F220-layers.svg
     direction: down
 
-    ytm: "YouTube Music view\nplaying video drawn behind the page" {
+    ytm: "YouTube Music view\nvideo behind the page · Grooving screen" {
       class: svc
       icon: https://cdn.simpleicons.org/youtubemusic
     }
@@ -96,6 +96,10 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F313-search.svg
     }
+    grooving: "Grooving\nLLM picks · call cap · usage" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F078-magic%20wand.svg
+    }
     integrations: "Integrations\nDiscord · Custom CSS · Companion · Last.fm" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F143-windows.svg
@@ -128,11 +132,15 @@ external: External {
     class: ext
     icon: https://cdn.simpleicons.org/shazam
   }
+  llm: "LLM APIs\nGemini · Claude · OpenAI" {
+    class: ext
+    icon: https://icons.terrastruct.com/essentials%2F111-idea.svg
+  }
 }
 
 user -> app.window.ytm: listens
 user -> app.screens: settings
-app.window.ytm <-> external.ytmusic
+app.window.ytm <-> external.ytmusic: page + Innertube (Grooving candidates · queue · playlist)
 app.screens <-> app.main.config: settings (IPC)
 app.main.config -> app.main.theme: theme
 app.main.config -> app.main.video: video settings
@@ -150,3 +158,6 @@ app.window.ytm <-> app.main.songrec: icon press / search the title
 app.main.config -> app.main.songrec: API key (encrypted)
 app.main.songrec <-> app.window.recorder: record / PCM
 app.main.songrec -> external.shazam: PCM (HTTPS)
+app.window.ytm <-> app.main.grooving: signals / pairs · list (IPC)
+app.main.config <-> app.main.grooving: API key (encrypted) / usage
+app.main.grooving -> external.llm: tracks + answers (HTTPS)
