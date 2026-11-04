@@ -39,7 +39,9 @@ function initialState(): StoreSchema["state"] {
     lastVideoProgress: 0,
     windowBounds: null,
     windowMaximized: false,
-    miniplayerWindowBounds: null
+    miniplayerWindowBounds: null,
+    groovingRunInProgress: false,
+    groovingNoticePending: false
   };
 }
 

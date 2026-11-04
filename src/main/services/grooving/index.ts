@@ -27,6 +27,7 @@ import {
   GroovingSourceRequest,
   GroovingSources,
   GroovingViewMessage,
+  GroovingVisibility,
   isGroovingSignal,
   resolveGroovingLanguage
 } from "~shared/grooving";
@@ -37,6 +38,8 @@ import {
   decideGrooving,
   GroovingEffect,
   GroovingEvent,
+  groovingRunInProgress,
+  groovingStopsThrottling,
   GroovingSession,
   GroovingState,
   initialGroovingState,
@@ -46,6 +49,7 @@ import { addGroovingUsage, estimateGroovingUsd, groovingMonth } from "~shared/gr
 import Service from "../service";
 import ConfigStore from "../configstore";
 import MemoryStore from "../memorystore";
+import StateManager from "../statemanager";
 import ProtectedAPIManager from "../protectedapimanager";
 import YTMViewManager from "../ytmviewmanager";
 import { AppView } from "../windowmanager/appview";
@@ -69,6 +73,10 @@ import type { GroovingLlmConfig, GroovingLlmResult } from "./llm";
 // ytcfg's HL is a short tag like "ja" or "en-GB". Anything longer from the page is cut
 const PAGE_LANGUAGE_MAX = 32;
 
+// How long a page call after a reload waits for the new document's ProtectedAPI port. Its page binds one once its
+// scripts are ready, and a call sent before that would sit on the dead port for the whole invoke timeout (30 s)
+const PAGE_BIND_TIMEOUT_MS = 15 * 1000;
+
 const emptyPendingUsage = () => ({ priced: { inputTokens: 0, outputTokens: 0, usd: 0 }, unpriced: { inputTokens: 0, outputTokens: 0 } });
 
 export default class Grooving extends Service {
@@ -76,6 +84,7 @@ export default class Grooving extends Service {
     ConfigStore,
     MemoryStore<MemoryStoreSchema>,
     ProtectedAPIManager,
+    StateManager,
     YTMViewManager
   ];
 
@@ -91,8 +100,14 @@ export default class Grooving extends Service {
   private moods: GroovingMoodItem[] | null = null;
   private moodsFailed = false;
 
-  // Changes when a run ends (closed, back to setup, new document), so the late result of an earlier run is dropped
+  // Changes when a run ends (closed, back to setup), so the late result of an earlier run is dropped
   private epoch = 0;
+  // Changes when the page is loaded again, so the answers to the calls sent to the old document are dropped
+  private pageToken = 0;
+  // The Grooving API's bind count when the new document was seen, and the shared wait for its port: until the page
+  // binds one, a call would go to the dead old port and wait there for the whole invoke timeout
+  private pageBindCount = 0;
+  private pageBindWait: Promise<boolean> | null = null;
   private abort = new AbortController();
   private collectToken = 0;
   private previewTimer: NodeJS.Timeout | null = null;
@@ -102,6 +117,8 @@ export default class Grooving extends Service {
   private playbackChain: Promise<void> = Promise.resolve();
   // The web contents whose background throttling was turned off while Grooving is open, to turn it back on for the same one
   private unthrottled: Electron.WebContents | null = null;
+  // The run-in-progress flag last written to the settings, so a write happens only when the value changes
+  private writtenRunInProgress = false;
 
   // The usage of this run (shown on the done screen), and the usage not yet written to the settings,
   // split into the priced models' and the tokens of models missing from the price table
@@ -135,6 +152,23 @@ export default class Grooving extends Service {
   public override onPreInitialized() {}
 
   public override onInitialized() {
+    // A run that was under way when the app closed ended with it, so the next mood selection tells the user.
+    // The state is rebuilt before the view is attached, so a reset cannot run on the old one.
+    // The state manager copies `state` in onPostInitialized, after every onInitialized, so these writes reach its copy
+    const configStore = this.getDependency(ConfigStore);
+    const runInProgress = configStore.get("state.groovingRunInProgress") ?? false;
+    const noticePending = (configStore.get("state.groovingNoticePending") ?? false) || runInProgress;
+    try {
+      if (runInProgress) configStore.set("state.groovingRunInProgress", false);
+      if (noticePending !== (configStore.get("state.groovingNoticePending") ?? false)) {
+        configStore.set("state.groovingNoticePending", noticePending);
+      }
+    } catch (error) {
+      log.error("Grooving failed to move the run flags at startup", error);
+    }
+    this.writtenRunInProgress = false;
+    this.state = initialGroovingState({ notice: noticePending });
+
     // The YTM view is created after the services are initialized, so it is attached once the manager reports a status for it
     const viewManager = this.getDependency(YTMViewManager);
     viewManager.on("status-changed", this.statusListener);
@@ -186,13 +220,14 @@ export default class Grooving extends Service {
   }
 
   /**
-   * The consent changed outside of Grooving (the settings screen), so it is closed like a close. It asks for the consent again when it opens
+   * The consent was withdrawn outside of Grooving (the settings screen), which closes the run even while it is hidden.
+   * It asks for the consent again when it opens
    */
   private handleConsentChanged() {
     if (this.writingConsent || this.state.flow.kind === "closed") return;
 
     try {
-      this.dispatch({ type: "close" });
+      this.dispatch({ type: "withdraw-consent" });
     } catch (error) {
       log.error("Grooving failed to close after the consent changed", error);
     }
@@ -207,14 +242,32 @@ export default class Grooving extends Service {
   }
 
   /**
-   * Closes whatever run is going and sends the closed screen. A run cannot continue in a new document and would never be openable again
+   * The page is new: the run goes on, but the calls sent to the old document are dropped and the screen is told to hide.
+   * The app reports one reload more than once, so this must end in the same state however often it runs.
+   * The moods stay: a setup screen hidden through the reload reads them again when it is opened
    */
   private resetForNewDocument() {
     try {
-      this.moods = null;
-      this.moodsFailed = false;
-      this.endRun();
-      this.dispatch({ type: "close" });
+      // The LLM keeps working (the epoch does not change); only the page's work belonged to the old document
+      this.pageToken++;
+      this.collectToken++;
+      this.previewToken++;
+      this.clearPreviewTimer();
+      // The calls already queued for the old document must not hold up the calls for the new one
+      this.playbackChain = Promise.resolve();
+      // The new document's page binds its own ProtectedAPI port once its scripts are ready. Calls wait for it, and a
+      // reset more than once for the same document keeps the same wait (the port is not bound yet either time).
+      // The wait clears once it is over, so the next document starts its own
+      const api = this.getDependency(ProtectedAPIManager).createOrGetAPI(GROOVING_PROTECTED_API);
+      if (this.pageBindWait === null && !api.isBound) {
+        this.pageBindCount = api.bindCount;
+        const wait = api.waitForBind(this.pageBindCount, PAGE_BIND_TIMEOUT_MS);
+        this.pageBindWait = wait;
+        void wait.then(() => {
+          if (this.pageBindWait === wait) this.pageBindWait = null;
+        });
+      }
+      this.dispatch({ type: "page-reloaded" });
     } catch (error) {
       log.error("Grooving failed to reset for a new document", error);
     }
@@ -266,7 +319,13 @@ export default class Grooving extends Service {
   private handleSignal(signal: GroovingSignal) {
     try {
       const event = this.toEvent(signal);
-      if (event) this.dispatch(event);
+      if (!event) return;
+
+      // Opening a setup screen hidden through a reload reads the moods from the new page
+      const readsMoods =
+        event.type === "open" && this.moods === null && this.state.flow.kind === "setup" && this.state.visibility === GroovingVisibility.Hidden;
+      this.dispatch(event);
+      if (readsMoods) void this.loadMoods(this.epoch, this.pageToken);
     } catch (error) {
       log.error("Grooving failed to handle a signal", error);
     }
@@ -297,6 +356,8 @@ export default class Grooving extends Service {
       case "save":
       case "again":
         return signal;
+      case "dismissNotice":
+        return { type: "dismiss-notice" };
     }
   }
 
@@ -343,16 +404,19 @@ export default class Grooving extends Service {
    * Runs the event through the decision, keeps the new state, runs the effects and tells the YTM view
    */
   private dispatch(event: GroovingEvent) {
-    const previous = this.state.flow.kind;
-    const decision = decideGrooving(this.state, event);
+    const before = this.state;
+    const previous = before.flow.kind;
+    const decision = decideGrooving(before, event);
     this.state = decision.state;
 
     const next = this.state.flow.kind;
     if (next === "closed" && previous !== "closed") this.endRun();
     if (next === "setup" && previous !== "setup") this.beginSetup();
     // A hidden window would slow the page's timers while Grooving waits for the page, so they run freely while it is open
-    if (previous === "closed" && next !== "closed") this.stopThrottling();
-    if (next === "closed" && previous !== "closed") this.restoreThrottling();
+    // or a hidden run still waits for something
+    this.syncThrottling();
+    // Written before the effects, so a failed write cannot keep an effect or the screen from running
+    this.writeRunFlags(before);
 
     for (const effect of decision.effects) {
       try {
@@ -363,6 +427,45 @@ export default class Grooving extends Service {
     }
 
     this.sendState();
+  }
+
+  // Turns the background throttling off while the screen is shown or a hidden run waits, and back on otherwise.
+  // The web contents is compared, not a flag, because a new page needs the throttling turned off again
+  private syncThrottling() {
+    const stops = groovingStopsThrottling(this.state);
+    const contents = this.liveContents();
+    if (stops && contents !== null && this.unthrottled === contents) return;
+    if (!stops && this.unthrottled === null) return;
+
+    this.restoreThrottling();
+    if (stops) this.stopThrottling();
+  }
+
+  /**
+   * Writes the run flags through the state manager, which writes the whole of `state` back on its own and would otherwise
+   * put the values read at startup over these. Only when a value changes: every write goes to all windows.
+   * The disk is written at once, as the state manager would keep the change up to 30 seconds and a crash would lose the run.
+   * A failed write must not stop the run, so it is logged and dropped
+   */
+  private writeRunFlags(before: GroovingState) {
+    try {
+      const stateManager = this.getDependency(StateManager);
+      let changed = false;
+      const running = groovingRunInProgress(this.state);
+      if (running !== this.writtenRunInProgress) {
+        stateManager.updateState({ groovingRunInProgress: running });
+        this.writtenRunInProgress = running;
+        changed = true;
+      }
+      // The notice was shown and dismissed or started, so the next launch does not need it again
+      if (before.notice && !this.state.notice) {
+        stateManager.updateState({ groovingNoticePending: false });
+        changed = true;
+      }
+      if (changed) stateManager.forceWrite();
+    } catch (error) {
+      log.error("Grooving failed to write the run flags", error);
+    }
   }
 
   /**
@@ -411,7 +514,7 @@ export default class Grooving extends Service {
   private runEffect(effect: GroovingEffect) {
     switch (effect.type) {
       case "load-moods":
-        void this.loadMoods(this.epoch);
+        void this.loadMoods(this.epoch, this.pageToken);
         break;
       case "store-consent":
         // The change listener runs inside set, and this write is the answer on the consent screen, not a reason to close
@@ -448,21 +551,23 @@ export default class Grooving extends Service {
         break;
       case "replace-queue": {
         const epoch = this.epoch;
+        const pageToken = this.pageToken;
         this.enqueuePlayback(GroovingPageCall.ReplaceQueue, effect.videoIds, ok => {
-          if (!ok && epoch === this.epoch) this.dispatch({ type: "queue-failed" });
+          if (epoch !== this.epoch || pageToken !== this.pageToken) return;
+          this.dispatch({ type: ok ? "queue-replaced" : "queue-failed" });
         });
         break;
       }
       case "save-playlist":
-        void this.savePlaylist(this.epoch, effect.title, effect.videoIds);
+        void this.savePlaylist(this.epoch, this.pageToken, effect.title, effect.videoIds);
         break;
     }
   }
 
-  private async loadMoods(epoch: number) {
+  private async loadMoods(epoch: number, pageToken: number) {
     this.moodsFailed = false;
     const answer = await this.callPage(GroovingPageCall.GetMoods);
-    if (epoch !== this.epoch) return;
+    if (epoch !== this.epoch || pageToken !== this.pageToken) return;
 
     const moods = answer.ok ? readMoods(answer.value) : null;
     if (moods) this.moods = moods;
@@ -662,9 +767,13 @@ export default class Grooving extends Service {
     this.previewTimer = null;
   }
 
-  // The page switches tracks and the queue, which cannot overlap
+  // The page switches tracks and the queue, which cannot overlap. A call queued for an old document is dropped
   private enqueuePlayback(call: GroovingPageCall, arg?: unknown, done?: (ok: boolean) => void) {
+    const pageToken = this.pageToken;
     this.playbackChain = this.playbackChain.then(async () => {
+      // The page this call was meant for is gone; the reload already put the state right, so it is not a failure
+      if (pageToken !== this.pageToken) return;
+
       const answer = await this.callPage(call, ...(arg === undefined ? [] : [arg]));
       if (!answer.ok) log.warn(`Grooving page call '${call}' failed: ${answer.reason}`);
       done?.(answer.ok);
@@ -673,10 +782,15 @@ export default class Grooving extends Service {
 
   /**
    * Asks the page after the calls already on the playback chain have answered, so the wait starts when the page takes the call
-   * (the page runs its handlers one at a time). Never throws, and a failure does not stop the calls after it
+   * (the page runs its handlers one at a time). Never throws, and a failure does not stop the calls after it.
+   * A call queued for an old document answers as unreadable without asking the new page
    */
   private enqueuePageCall(timeoutMs: number | null, call: GroovingPageCall, ...args: unknown[]): Promise<PageAnswer> {
-    const ask = () => this.callPageWithin(timeoutMs, call, ...args);
+    const pageToken = this.pageToken;
+    const ask = () =>
+      pageToken === this.pageToken
+        ? this.callPageWithin(timeoutMs, call, ...args)
+        : Promise.resolve<PageAnswer>({ ok: false, reason: GroovingFailureReason.YtmUnreadable });
     const answer = this.playbackChain.then(ask, ask);
     this.playbackChain = answer.then(
       () => undefined,
@@ -685,11 +799,11 @@ export default class Grooving extends Service {
     return answer;
   }
 
-  private async savePlaylist(epoch: number, title: string, videoIds: string[]) {
+  private async savePlaylist(epoch: number, pageToken: number, title: string, videoIds: string[]) {
     // The page's save can take longer than the default wait, and a save that the main side gave up on can still make the playlist.
     // Sent behind the playback chain, as the page would otherwise start the save only after a preview or queue call that is still running
     const answer = await this.enqueuePageCall(GROOVING_SAVE_TIMEOUT_MS, GroovingPageCall.SavePlaylist, { title, videoIds });
-    if (epoch !== this.epoch) return;
+    if (epoch !== this.epoch || pageToken !== this.pageToken) return;
 
     const saved = answer.ok && isRecord(answer.value) && typeof answer.value.playlistId === "string";
     this.dispatch({ type: saved ? "saved" : "save-failed" });
@@ -724,6 +838,16 @@ export default class Grooving extends Service {
    */
   private async callPageWithin(timeoutMs: number | null, call: GroovingPageCall, ...args: unknown[]): Promise<PageAnswer> {
     if (!this.liveContents()) return { ok: false, reason: GroovingFailureReason.YtmUnreadable };
+
+    // A call for a document whose page has not bound its port yet waits for it, so it does not sit on the dead port
+    const bindToken = this.pageToken;
+    const bindWait = this.pageBindWait;
+    if (bindWait !== null) {
+      const bound = await bindWait;
+      // Another reload happened while waiting: this call belonged to the document before it
+      if (!bound || bindToken !== this.pageToken) return { ok: false, reason: GroovingFailureReason.YtmUnreadable };
+      if (!this.liveContents()) return { ok: false, reason: GroovingFailureReason.YtmUnreadable };
+    }
 
     try {
       const api = this.getDependency(ProtectedAPIManager).createOrGetAPI(GROOVING_PROTECTED_API);
@@ -824,6 +948,7 @@ export default class Grooving extends Service {
         providerLabel: GROOVING_PROVIDER_LABELS[provider],
         model: this.readModel(provider),
         safeStorageAvailable: this.safeStorageAvailable(),
+        language: this.language(),
         usage: {
           inputTokens: this.runUsage.inputTokens,
           outputTokens: this.runUsage.outputTokens,
