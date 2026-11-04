@@ -63,6 +63,10 @@ export default class ProtectedAPIManager extends Service {
 export class ProtectedAPI extends EventEmitter {
   private port: MessagePortMain | null = null;
   private waitingInvokes = new Map<string, (...args: unknown[]) => void>();
+  // How many ports have been bound so far, so a caller can tell the port of a new document from the one it knew
+  private boundCount = 0;
+  // Calls waiting for a newer port, released when one is bound or given up on after their time
+  private bindWaiters: { afterCount: number; resolve: (bound: boolean) => void; timer: ReturnType<typeof setTimeout> }[] = [];
 
   public readonly name;
 
@@ -71,9 +75,43 @@ export class ProtectedAPI extends EventEmitter {
     this.name = name;
   }
 
+  /** Counts the ports bound (set with a port) over the API's life. A new document binds one more */
+  public get bindCount(): number {
+    return this.boundCount;
+  }
+
+  /** Whether a port is bound now. A reload leaves this false until the new document's page binds its own */
+  public get isBound(): boolean {
+    return this.port !== null;
+  }
+
+  /**
+   * Waits until a port is bound after the given count, at most timeoutMs. True at once when one already was,
+   * false when none came in time. The caller reads `bindCount` before and passes it here
+   */
+  public waitForBind(afterCount: number, timeoutMs: number): Promise<boolean> {
+    if (this.boundCount > afterCount) return Promise.resolve(true);
+
+    return new Promise(resolve => {
+      const waiter = {
+        afterCount,
+        resolve,
+        timer: setTimeout(() => {
+          const index = this.bindWaiters.indexOf(waiter);
+          if (index !== -1) this.bindWaiters.splice(index, 1);
+          resolve(false);
+        }, timeoutMs)
+      };
+      this.bindWaiters.push(waiter);
+    });
+  }
+
   public setPort(port: MessagePortMain | null) {
     this.port = port;
     if (!this.port) return;
+
+    this.boundCount++;
+    this.releaseBindWaiters();
 
     this.port.on("message", event => {
       if (event.data.op === ProtectedAPIOpCode.Message) {
@@ -95,6 +133,20 @@ export class ProtectedAPI extends EventEmitter {
     this.port.start();
 
     log.info(`protectedapi: api '${this.name}' port bound`);
+  }
+
+  // Called after the count went up, so every call waiting for this port or an earlier one can go on
+  private releaseBindWaiters() {
+    const waiting = this.bindWaiters;
+    this.bindWaiters = [];
+    for (const waiter of waiting) {
+      if (this.boundCount > waiter.afterCount) {
+        clearTimeout(waiter.timer);
+        waiter.resolve(true);
+      } else {
+        this.bindWaiters.push(waiter);
+      }
+    }
   }
 
   /**

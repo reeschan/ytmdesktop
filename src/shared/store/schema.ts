@@ -91,6 +91,8 @@ export type StoreSchema = {
     windowBounds: Electron.Rectangle | null;
     windowMaximized: boolean;
     miniplayerWindowBounds: Electron.Rectangle | null;
+    groovingRunInProgress: boolean; // A Grooving run is under way, from preparing the set until it is saved
+    groovingNoticePending: boolean; // The previous run ended when the app closed, so tell the user on the next mood selection
   };
   lastfm: {
     sessionKey: string | null;
