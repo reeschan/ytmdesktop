@@ -3,8 +3,16 @@
 
 import { GroovingAnswer, GroovingConsentChoice, GroovingDirection, GroovingFailureReason, GroovingStep, GroovingTrackKind } from "./index";
 import { GroovingCandidate, GroovingConsent, GroovingList, GroovingMood, GroovingMoodItem, GroovingPair } from "./index";
-import { groovingMoodLabel, GroovingRoundRecord, GroovingRounds, GroovingSaveStatus, GroovingScreen, GroovingSourceRequest } from "./index";
-import { GroovingViewState } from "./index";
+import {
+  GROOVING_MARK_TEXT,
+  groovingMoodLabel,
+  GroovingRoundRecord,
+  GroovingRounds,
+  GroovingSaveStatus,
+  GroovingScreen,
+  GroovingSourceRequest
+} from "./index";
+import { GroovingDisplayLanguage, GroovingScreenView, GroovingViewState, GroovingVisibility } from "./index";
 
 export type GroovingSession = {
   mood: GroovingMood;
@@ -52,7 +60,19 @@ export type GroovingState = {
     | { kind: "failed"; session: GroovingSession | null; step: GroovingStep; reason: GroovingFailureReason }
     // saveFailed: the last save failed (only done after save-failed; always false otherwise)
     // queueFailed: replacing the queue with this run's list failed (true after queue-failed; false again when retry replaces it once more)
-    | { kind: "done" | "saving" | "saved"; session: GroovingSession; list: GroovingList; saveFailed: boolean; queueFailed: boolean };
+    // replacing: main asked the page to replace the queue and waits for its answer
+    | {
+        kind: "done" | "saving" | "saved";
+        session: GroovingSession;
+        list: GroovingList;
+        saveFailed: boolean;
+        queueFailed: boolean;
+        replacing: boolean;
+      };
+  // The view part: gone (the screen is closed), shown or hidden
+  visibility: GroovingVisibility;
+  // Whether the notice of the previous run still has to be shown (waiting for the notice)
+  notice: boolean;
   // The videoId being previewed (the preview part)
   previewing: string | null;
   // The queue part
@@ -67,6 +87,10 @@ export type GroovingEvent =
   | { type: "consent"; choice: GroovingConsentChoice | null }
   | { type: "close" }
   | { type: "leave" }
+  // The app's settings were reset; consent was withdrawn
+  | { type: "withdraw-consent" }
+  // The page was loaded again
+  | { type: "page-reloaded" }
   | { type: "start"; mood: GroovingMood; direction: GroovingDirection; rounds: GroovingRounds }
   | { type: "candidates-ready"; candidates: GroovingCandidate[]; filledFromMood: boolean }
   | { type: "collect-failed"; reason: GroovingFailureReason }
@@ -89,6 +113,10 @@ export type GroovingEvent =
   | { type: "save-failed" }
   // The page could not replace the queue (main sends it after the answer to replace-queue)
   | { type: "queue-failed" }
+  // The page replaced the queue
+  | { type: "queue-replaced" }
+  // The × of the notice of the previous run
+  | { type: "dismiss-notice" }
   | { type: "again" };
 
 export type GroovingEffect =
@@ -111,13 +139,23 @@ export type GroovingViewExtra = {
   providerLabel: string;
   model: string;
   safeStorageAvailable: boolean;
+  // The words of the continue mark
+  language: GroovingDisplayLanguage;
   usage: { inputTokens: number; outputTokens: number; estimatedUsd: number | null };
 };
 
 type Flow = GroovingState["flow"];
 
-export function initialGroovingState(): GroovingState {
-  return { flow: { kind: "closed" }, previewing: null, queue: GroovingQueue.Original, nextRequestId: 1 };
+// Starts closed (the screen is gone). With notice, the last run ended when the app closed
+export function initialGroovingState(options?: { notice?: boolean }): GroovingState {
+  return {
+    flow: { kind: "closed" },
+    visibility: GroovingVisibility.Gone,
+    notice: options?.notice ?? false,
+    previewing: null,
+    queue: GroovingQueue.Original,
+    nextRequestId: 1
+  };
 }
 
 const requestIdOf = (n: number): string => `r${n}`;
@@ -127,6 +165,19 @@ const isLastRound = (session: GroovingSession): boolean => session.history.lengt
 
 function moved(state: GroovingState, flow: Flow, effects: GroovingEffect[] = []): GroovingDecision {
   return { state: { ...state, flow }, effects };
+}
+
+// Closes the run: the screen goes away, no preview stays, and the queue is left as it is
+function closed(state: GroovingState, effects: GroovingEffect[] = [], notice = state.notice): GroovingDecision {
+  return {
+    state: { ...state, flow: { kind: "closed" }, visibility: GroovingVisibility.Gone, notice, previewing: null },
+    effects
+  };
+}
+
+// Ends the preview if one is running
+function previewEnd(state: GroovingState): GroovingEffect[] {
+  return state.previewing === null ? [] : [{ type: "preview-end" }];
 }
 
 function failed(state: GroovingState, session: GroovingSession | null, step: GroovingStep, reason: GroovingFailureReason): GroovingDecision {
@@ -222,41 +273,101 @@ function answerPair(state: GroovingState, flow: Extract<Flow, { kind: "choose" }
 export function decideGrooving(state: GroovingState, event: GroovingEvent): GroovingDecision {
   const ignored: GroovingDecision = { state, effects: [] };
   const flow = state.flow;
+  // The user can act only on a screen that is shown (the state chart's [shown])
+  const shown = state.visibility === GroovingVisibility.Shown;
 
   switch (event.type) {
     case "open": {
-      if (flow.kind !== "closed") return ignored;
-      const opened: GroovingState = { ...state, queue: state.queue === GroovingQueue.ThisRun ? GroovingQueue.EarlierRun : state.queue };
+      if (flow.kind !== "closed") {
+        // Opening again brings a hidden run back, as it is
+        if (shown) return ignored;
+        return { state: { ...state, visibility: GroovingVisibility.Shown }, effects: [] };
+      }
+      const opened: GroovingState = {
+        ...state,
+        visibility: GroovingVisibility.Shown,
+        queue: state.queue === GroovingQueue.ThisRun ? GroovingQueue.EarlierRun : state.queue
+      };
       if (!event.hasKey) return moved(opened, { kind: "need-key" });
       if (event.consent === null) return moved(opened, { kind: "consent" });
       return setup(opened, event.consent.choice === GroovingConsentChoice.ShareHistory);
     }
     case "consent": {
-      if (flow.kind !== "consent") return ignored;
-      if (event.choice === null) return moved(state, { kind: "closed" });
+      if (!shown || flow.kind !== "consent") return ignored;
+      if (event.choice === null) return closed(state);
       return setup(state, event.choice === GroovingConsentChoice.ShareHistory, [{ type: "store-consent", choice: event.choice }]);
     }
-    case "close":
+    case "close": {
+      if (!shown || flow.kind === "closed") return ignored;
+      // The notice waits for the setup screen, so the key guidance and the consent keep it
+      if (flow.kind === "need-key" || flow.kind === "consent") return closed(state, previewEnd(state));
+      return closed(state, previewEnd(state), false);
+    }
     case "leave": {
+      if (!shown || flow.kind === "closed") return ignored;
+      // Past consent the run goes on while the screen is hidden; the key guidance and the consent close
+      if (flow.kind === "need-key" || flow.kind === "consent") return closed(state, previewEnd(state));
+      return { state: { ...state, visibility: GroovingVisibility.Hidden, previewing: null }, effects: previewEnd(state) };
+    }
+    case "withdraw-consent": {
       if (flow.kind === "closed") return ignored;
-      return {
-        state: { ...state, flow: { kind: "closed" }, previewing: null },
-        effects: state.previewing === null ? [] : [{ type: "preview-end" }]
-      };
+      return closed(state, previewEnd(state));
+    }
+    case "page-reloaded": {
+      if (flow.kind === "closed") return ignored;
+      if (flow.kind === "need-key" || flow.kind === "consent") return closed(state);
+      const hidden: GroovingState = { ...state, visibility: GroovingVisibility.Hidden, previewing: null };
+      switch (flow.kind) {
+        case "collect":
+          return {
+            state: {
+              ...hidden,
+              flow: { kind: "failed", session: flow.session, step: GroovingStep.Collect, reason: GroovingFailureReason.YtmUnreadable }
+            },
+            effects: []
+          };
+        case "saving":
+          return {
+            state: {
+              ...hidden,
+              flow: {
+                kind: "done",
+                session: flow.session,
+                list: flow.list,
+                saveFailed: true,
+                queueFailed: flow.queueFailed || flow.replacing,
+                replacing: false
+              }
+            },
+            effects: []
+          };
+        case "done":
+        case "saved":
+          return { state: { ...hidden, flow: flow.replacing ? { ...flow, replacing: false, queueFailed: true } : flow }, effects: [] };
+        default:
+          return { state: hidden, effects: [] };
+      }
+    }
+    case "dismiss-notice": {
+      if (!shown || flow.kind !== "setup" || !state.notice) return ignored;
+      return { state: { ...state, notice: false }, effects: [] };
     }
     case "start": {
-      if (flow.kind !== "setup") return ignored;
+      if (!shown || flow.kind !== "setup") return ignored;
       if (!flow.historyShared && event.direction !== GroovingDirection.Discover) return ignored;
-      return collect(state, {
-        mood: event.mood,
-        direction: event.direction,
-        rounds: event.rounds,
-        historyShared: flow.historyShared,
-        candidates: [],
-        filledFromMood: false,
-        history: [],
-        shown: []
-      });
+      return collect(
+        { ...state, notice: false },
+        {
+          mood: event.mood,
+          direction: event.direction,
+          rounds: event.rounds,
+          historyShared: flow.historyShared,
+          candidates: [],
+          filledFromMood: false,
+          history: [],
+          shown: []
+        }
+      );
     }
     case "candidates-ready": {
       if (flow.kind !== "collect") return ignored;
@@ -283,7 +394,7 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       return side === null ? ignored : setPrefetch(state, flow, side, { status: GroovingPrefetchStatus.Failed });
     }
     case "answer": {
-      if (flow.kind !== "choose") return ignored;
+      if (!shown || flow.kind !== "choose") return ignored;
       return answerPair(state, flow, event.answer);
     }
     case "list-arrived": {
@@ -291,7 +402,7 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       return {
         state: {
           ...state,
-          flow: { kind: "done", session: flow.session, list: event.list, saveFailed: false, queueFailed: false },
+          flow: { kind: "done", session: flow.session, list: event.list, saveFailed: false, queueFailed: false, replacing: true },
           queue: GroovingQueue.ThisRun
         },
         effects: [{ type: "replace-queue", videoIds: event.list.videoIds }]
@@ -305,13 +416,19 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
     }
     case "queue-failed": {
       if (flow.kind !== "done" && flow.kind !== "saving" && flow.kind !== "saved") return ignored;
-      return moved(state, { ...flow, queueFailed: true });
+      return moved(state, { ...flow, queueFailed: true, replacing: false });
+    }
+    case "queue-replaced": {
+      if (flow.kind !== "done" && flow.kind !== "saving" && flow.kind !== "saved") return ignored;
+      if (!flow.replacing) return ignored;
+      return moved(state, { ...flow, replacing: false });
     }
     case "retry": {
+      if (!shown) return ignored;
       if (flow.kind === "done" || flow.kind === "saving" || flow.kind === "saved") {
         // Replaces the queue once more; the queue stays this run's list
         if (!flow.queueFailed) return ignored;
-        return moved(state, { ...flow, queueFailed: false }, [{ type: "replace-queue", videoIds: flow.list.videoIds }]);
+        return moved(state, { ...flow, queueFailed: false, replacing: true }, [{ type: "replace-queue", videoIds: flow.list.videoIds }]);
       }
       if (flow.kind !== "failed") return ignored;
       // Without a session there is nothing to retry; history sharing is not known, so only Discover is offered
@@ -326,7 +443,7 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       }
     }
     case "preview-start": {
-      if (flow.kind !== "choose") return ignored;
+      if (!shown || flow.kind !== "choose") return ignored;
       if (event.videoId !== flow.pair.left && event.videoId !== flow.pair.right) return ignored;
       if (state.previewing === event.videoId) return ignored;
       // While previewing the other track, switch to this one without going back first
@@ -337,20 +454,22 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       return { state: { ...state, previewing: null }, effects: [{ type: "preview-end" }] };
     }
     case "save": {
-      if (flow.kind !== "done") return ignored;
-      return moved(state, { kind: "saving", session: flow.session, list: flow.list, saveFailed: false, queueFailed: flow.queueFailed }, [
-        { type: "save-playlist", title: flow.list.moodDescription, videoIds: flow.list.videoIds }
-      ]);
+      if (!shown || flow.kind !== "done") return ignored;
+      return moved(
+        state,
+        { kind: "saving", session: flow.session, list: flow.list, saveFailed: false, queueFailed: flow.queueFailed, replacing: flow.replacing },
+        [{ type: "save-playlist", title: flow.list.moodDescription, videoIds: flow.list.videoIds }]
+      );
     }
     case "saved":
     case "save-failed": {
       if (flow.kind !== "saving") return ignored;
-      const { session, list, queueFailed } = flow;
-      if (event.type === "saved") return moved(state, { kind: "saved", session, list, saveFailed: false, queueFailed });
-      return moved(state, { kind: "done", session, list, saveFailed: true, queueFailed });
+      const { session, list, queueFailed, replacing } = flow;
+      if (event.type === "saved") return moved(state, { kind: "saved", session, list, saveFailed: false, queueFailed, replacing });
+      return moved(state, { kind: "done", session, list, saveFailed: true, queueFailed, replacing });
     }
     case "again": {
-      if (flow.kind !== "done" && flow.kind !== "saved") return ignored;
+      if (!shown || (flow.kind !== "done" && flow.kind !== "saved")) return ignored;
       return setup({ ...state, queue: GroovingQueue.EarlierRun }, flow.session.historyShared);
     }
   }
@@ -359,7 +478,44 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
 const candidateOf = (session: GroovingSession, videoId: string): GroovingCandidate | undefined =>
   session.candidates.find(candidate => candidate.videoId === videoId);
 
-function pairWorking(session: GroovingSession): GroovingViewState {
+/**
+ * Whether the page must keep running at full speed: the screen is shown, or a hidden run waits for something
+ */
+export function groovingStopsThrottling(state: GroovingState): boolean {
+  if (state.visibility === GroovingVisibility.Shown) return true;
+  if (state.visibility !== GroovingVisibility.Hidden) return false;
+  const flow = state.flow;
+  if (flow.kind === "collect" || flow.kind === "pair-wait" || flow.kind === "list-wait" || flow.kind === "saving") return true;
+  if (flow.kind === "choose") {
+    return [flow.prefetch.left, flow.prefetch.right].some(prefetch => prefetch?.status === GroovingPrefetchStatus.Pending);
+  }
+  if ((flow.kind === "done" || flow.kind === "saved") && flow.replacing) return true;
+  return state.previewing !== null;
+}
+
+/**
+ * Whether the run is under way, so that the next start tells that it ended when the app closed
+ */
+export function groovingRunInProgress(state: GroovingState): boolean {
+  switch (state.flow.kind) {
+    case "collect":
+    case "pair-wait":
+    case "choose":
+    case "list-wait":
+    case "failed":
+    case "done":
+    case "saving":
+      return true;
+    case "closed":
+    case "need-key":
+    case "consent":
+    case "setup":
+    case "saved":
+      return false;
+  }
+}
+
+function pairWorking(session: GroovingSession): GroovingScreenView {
   return {
     screen: GroovingScreen.Working,
     step: GroovingStep.Pair,
@@ -370,6 +526,37 @@ function pairWorking(session: GroovingSession): GroovingViewState {
 }
 
 export function toGroovingViewState(state: GroovingState, extra: GroovingViewExtra): GroovingViewState {
+  const screen = screenViewOf(state, extra);
+  const visibility = state.flow.kind === "closed" ? GroovingVisibility.Gone : state.visibility;
+  return Object.assign({}, screen, { visibility, mark: groovingMarkOf(state, visibility, extra.language) });
+}
+
+// The continue mark, only while hidden: words, the round of the pair being chosen, or nothing before starting
+function groovingMarkOf(state: GroovingState, visibility: GroovingVisibility, language: GroovingDisplayLanguage): string | null {
+  if (visibility !== GroovingVisibility.Hidden) return null;
+  const flow = state.flow;
+  switch (flow.kind) {
+    case "collect":
+    case "pair-wait":
+    case "list-wait":
+      return GROOVING_MARK_TEXT[language].preparing;
+    case "choose":
+      return `${flow.session.history.length + 1} / ${flow.session.rounds}`;
+    case "done":
+    case "saving":
+    case "saved":
+      return GROOVING_MARK_TEXT[language].ready;
+    case "failed":
+      return GROOVING_MARK_TEXT[language].error;
+    case "setup":
+    case "closed":
+    case "need-key":
+    case "consent":
+      return null;
+  }
+}
+
+function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingScreenView {
   const flow = state.flow;
   switch (flow.kind) {
     case "closed":
@@ -385,7 +572,8 @@ export function toGroovingViewState(state: GroovingState, extra: GroovingViewExt
         moodsFailed: extra.moodsFailed,
         historyShared: flow.historyShared,
         providerLabel: extra.providerLabel,
-        model: extra.model
+        model: extra.model,
+        notice: state.notice
       };
     case "collect":
       return { screen: GroovingScreen.Working, step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: flow.session.filledFromMood };
