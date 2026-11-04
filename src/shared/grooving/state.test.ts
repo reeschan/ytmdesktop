@@ -1,20 +1,26 @@
 import { describe, expect, it } from "vitest";
 import {
+  GROOVING_MARK_TEXT,
   GroovingAnswer,
   GroovingCandidate,
   GroovingConsentChoice,
   GroovingDirection,
   GroovingFailureReason,
+  GroovingLanguage,
   GroovingList,
   GroovingMood,
   GroovingMoodItem,
   GroovingMoodSection,
   GroovingPair,
+  GroovingScreenView,
   GroovingStep,
-  GroovingTrackKind
+  GroovingTrackKind,
+  GroovingVisibility
 } from "~shared/grooving";
 import {
   decideGrooving,
+  groovingRunInProgress,
+  groovingStopsThrottling,
   GroovingEffect,
   GroovingEvent,
   GroovingPrefetch,
@@ -50,6 +56,15 @@ const PAIR_1: GroovingPair = { left: "a", right: "b", reason: "tempo" };
 const PAIR_2: GroovingPair = { left: "c", right: "d", reason: "genre" };
 const PAIR_3: GroovingPair = { left: "e", right: "f", reason: "mood" };
 const LIST: GroovingList = { videoIds: ["a", "b", "c"], moodDescription: "Lo-fi for a rainy night" };
+const EXTRA = {
+  moods: [MOOD_ITEM],
+  moodsFailed: false,
+  providerLabel: "Gemini",
+  model: "gemini-3.5-flash-lite",
+  safeStorageAvailable: true,
+  language: GroovingLanguage.English,
+  usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001 }
+};
 
 const EMPTY_SESSION: GroovingSession = {
   mood: MOOD,
@@ -68,11 +83,15 @@ const sessionOf = (overrides: Partial<GroovingSession> = {}): GroovingSession =>
 });
 const stateOf = (flow: Flow, overrides: Partial<Omit<GroovingState, "flow">> = {}): GroovingState => ({
   flow,
+  visibility: GroovingVisibility.Shown,
+  notice: false,
   previewing: null,
   queue: "original",
   nextRequestId: 10,
   ...overrides
 });
+
+const hiddenOf = (state: GroovingState): GroovingState => ({ ...state, visibility: GroovingVisibility.Hidden });
 
 // A session that is showing PAIR_1 as its first round
 const SHOWING = sessionOf({ shown: ["a", "b"] });
@@ -90,10 +109,11 @@ const pending = (requestId: string): GroovingPrefetch => ({ status: "pending", r
 const ready = (pair: GroovingPair): GroovingPrefetch => ({ status: "ready", pair });
 const FAILED_PREFETCH: GroovingPrefetch = { status: "failed" };
 
-const CLOSED = stateOf({ kind: "closed" });
+const CLOSED = stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone });
 const NEED_KEY = stateOf({ kind: "need-key" });
 const CONSENT = stateOf({ kind: "consent" });
 const SETUP = stateOf({ kind: "setup", historyShared: true });
+const SETUP_NOTICE = stateOf({ kind: "setup", historyShared: true }, { notice: true });
 const SETUP_NO_HISTORY = stateOf({ kind: "setup", historyShared: false });
 const COLLECT = stateOf({ kind: "collect", session: EMPTY_SESSION });
 const PAIR_WAIT = stateOf({ kind: "pair-wait", session: sessionOf(), requestId: "r9", retry: false });
@@ -109,10 +129,22 @@ const FAILED_COLLECT = stateOf({ kind: "failed", session: EMPTY_SESSION, step: G
 const FAILED_PAIR = stateOf({ kind: "failed", session: SHOWING, step: GroovingStep.Pair, reason: GroovingFailureReason.Unusable });
 const FAILED_LIST = stateOf({ kind: "failed", session: ANSWERED_ALL, step: GroovingStep.List, reason: GroovingFailureReason.Network });
 const FAILED_NO_SESSION = stateOf({ kind: "failed", session: null, step: GroovingStep.Pair, reason: GroovingFailureReason.Network });
-const DONE = stateOf({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
-const DONE_SAVE_FAILED = stateOf({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false }, { queue: "this-run" });
-const SAVING = stateOf({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
-const SAVED = stateOf({ kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false }, { queue: "this-run" });
+const DONE = stateOf(
+  { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  { queue: "this-run" }
+);
+const DONE_SAVE_FAILED = stateOf(
+  { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false },
+  { queue: "this-run" }
+);
+const SAVING = stateOf(
+  { kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  { queue: "this-run" }
+);
+const SAVED = stateOf(
+  { kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  { queue: "this-run" }
+);
 // The same states after the page could not replace the queue
 const queueFailedOf = (state: GroovingState): GroovingState =>
   stateOf({ ...(state.flow as Extract<Flow, { list: GroovingList }>), queueFailed: true }, { queue: "this-run" });
@@ -121,36 +153,67 @@ const DONE_BOTH_FAILED = queueFailedOf(DONE_SAVE_FAILED);
 const SAVING_QUEUE_FAILED = queueFailedOf(SAVING);
 const SAVED_QUEUE_FAILED = queueFailedOf(SAVED);
 const QUEUE_FAILED_STATES = [DONE_QUEUE_FAILED, DONE_BOTH_FAILED, SAVING_QUEUE_FAILED, SAVED_QUEUE_FAILED];
+// The same states while waiting for the page's answer to replace the queue
+const replacingOf = (state: GroovingState): GroovingState =>
+  stateOf({ ...(state.flow as Extract<Flow, { list: GroovingList }>), replacing: true }, { queue: "this-run" });
+const DONE_REPLACING = replacingOf(DONE);
+const DONE_SAVE_FAILED_REPLACING = replacingOf(DONE_SAVE_FAILED);
+const SAVING_REPLACING = replacingOf(SAVING);
+const SAVED_REPLACING = replacingOf(SAVED);
+const HIDDEN_SETUP = hiddenOf(SETUP);
+const HIDDEN_SETUP_NOTICE = hiddenOf(SETUP_NOTICE);
+const HIDDEN_COLLECT = hiddenOf(COLLECT);
+const HIDDEN_PAIR_WAIT = hiddenOf(PAIR_WAIT);
+const HIDDEN_CHOOSE = hiddenOf(CHOOSE);
+const HIDDEN_LIST_WAIT = hiddenOf(LIST_WAIT);
+const HIDDEN_FAILED_COLLECT = hiddenOf(FAILED_COLLECT);
+const HIDDEN_DONE = hiddenOf(DONE);
+const HIDDEN_SAVING = hiddenOf(SAVING);
+const HIDDEN_SAVED = hiddenOf(SAVED);
 
 const SAMPLE_STATES: GroovingState[] = [
   CLOSED,
-  stateOf({ kind: "closed" }, { queue: "this-run" }),
-  stateOf({ kind: "closed" }, { queue: "earlier-run" }),
+  stateOf({ kind: "closed" }, { queue: "this-run", visibility: GroovingVisibility.Gone }),
+  stateOf({ kind: "closed" }, { queue: "earlier-run", visibility: GroovingVisibility.Gone }),
   NEED_KEY,
   CONSENT,
   SETUP,
+  SETUP_NOTICE,
   SETUP_NO_HISTORY,
   stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }),
+  HIDDEN_SETUP,
+  HIDDEN_SETUP_NOTICE,
   COLLECT,
+  HIDDEN_COLLECT,
   PAIR_WAIT,
   PAIR_RETRY,
+  HIDDEN_PAIR_WAIT,
   CHOOSE,
   CHOOSE_PREVIEWING,
   chooseOf(ready(PAIR_2), FAILED_PREFETCH, { previewing: "b" }),
   chooseOf(null, ready(PAIR_3)),
+  HIDDEN_CHOOSE,
   CHOOSE_LAST,
   stateOf(CHOOSE_LAST.flow, { previewing: "e" }),
   LIST_WAIT,
   LIST_RETRY,
   stateOf(LIST_WAIT.flow, { queue: "earlier-run" }),
+  HIDDEN_LIST_WAIT,
   FAILED_COLLECT,
   FAILED_PAIR,
   FAILED_LIST,
   FAILED_NO_SESSION,
+  HIDDEN_FAILED_COLLECT,
   DONE,
   DONE_SAVE_FAILED,
+  DONE_REPLACING,
   SAVING,
-  SAVED
+  SAVING_REPLACING,
+  SAVED,
+  SAVED_REPLACING,
+  HIDDEN_DONE,
+  HIDDEN_SAVING,
+  HIDDEN_SAVED
 ];
 
 const LOAD_MOODS: GroovingEffect = { type: "load-moods" };
@@ -166,6 +229,10 @@ const NO_KEY_SHARED: GroovingEvent = {
 };
 const CLOSE: GroovingEvent = { type: "close" };
 const LEAVE: GroovingEvent = { type: "leave" };
+const PAGE_RELOADED: GroovingEvent = { type: "page-reloaded" };
+const QUEUE_REPLACED: GroovingEvent = { type: "queue-replaced" };
+const DISMISS_NOTICE: GroovingEvent = { type: "dismiss-notice" };
+const WITHDRAW_CONSENT: GroovingEvent = { type: "withdraw-consent" };
 const start = (direction: GroovingDirection, mood: GroovingMood = MOOD, rounds: 3 | 5 | 10 = 3): GroovingEvent => ({
   type: "start",
   mood,
@@ -228,7 +295,11 @@ function eventsFor(state: GroovingState): GroovingEvent[] {
     { type: "saved" },
     { type: "save-failed" },
     { type: "queue-failed" },
+    QUEUE_REPLACED,
     { type: "again" },
+    WITHDRAW_CONSENT,
+    PAGE_RELOADED,
+    DISMISS_NOTICE,
     CLOSE,
     LEAVE
   ];
@@ -452,13 +523,13 @@ const CASES: Case[] = [
     [PREVIEW_END]
   ],
   // list
-  ["list wait, list arrived", LIST_WAIT, listArrived("r9"), DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
-  ["list retry, list arrived", LIST_RETRY, listArrived("r9"), DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["list wait, list arrived", LIST_WAIT, listArrived("r9"), DONE_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["list retry, list arrived", LIST_RETRY, listArrived("r9"), DONE_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
   [
     "list wait (earlier run's list), list arrived",
     stateOf(LIST_WAIT.flow, { queue: "earlier-run" }),
     listArrived("r9"),
-    DONE,
+    DONE_REPLACING,
     [{ type: "replace-queue", videoIds: LIST.videoIds }]
   ],
   [
@@ -527,10 +598,24 @@ const CASES: Case[] = [
   ["saving, queue failed", SAVING, { type: "queue-failed" }, SAVING_QUEUE_FAILED, []],
   ["saved, queue failed", SAVED, { type: "queue-failed" }, SAVED_QUEUE_FAILED, []],
   ["done (queue failed), queue failed again", DONE_QUEUE_FAILED, { type: "queue-failed" }, DONE_QUEUE_FAILED, []],
-  ["done (queue failed), retry", DONE_QUEUE_FAILED, RETRY, DONE, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
-  ["done (save and queue failed), retry", DONE_BOTH_FAILED, RETRY, DONE_SAVE_FAILED, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
-  ["saving (queue failed), retry", SAVING_QUEUE_FAILED, RETRY, SAVING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
-  ["saved (queue failed), retry", SAVED_QUEUE_FAILED, RETRY, SAVED, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["done (replacing), queue failed", DONE_REPLACING, { type: "queue-failed" }, DONE_QUEUE_FAILED, []],
+  ["done (save failed, replacing), queue failed", DONE_SAVE_FAILED_REPLACING, { type: "queue-failed" }, DONE_BOTH_FAILED, []],
+  ["saving (replacing), queue failed", SAVING_REPLACING, { type: "queue-failed" }, SAVING_QUEUE_FAILED, []],
+  ["saved (replacing), queue failed", SAVED_REPLACING, { type: "queue-failed" }, SAVED_QUEUE_FAILED, []],
+  ["done (replacing), queue replaced", DONE_REPLACING, QUEUE_REPLACED, DONE, []],
+  ["saving (replacing), queue replaced", SAVING_REPLACING, QUEUE_REPLACED, SAVING, []],
+  ["saved (replacing), queue replaced", SAVED_REPLACING, QUEUE_REPLACED, SAVED, []],
+  [
+    "done (replacing), save",
+    DONE_REPLACING,
+    { type: "save" },
+    SAVING_REPLACING,
+    [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]
+  ],
+  ["done (queue failed), retry", DONE_QUEUE_FAILED, RETRY, DONE_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["done (save and queue failed), retry", DONE_BOTH_FAILED, RETRY, DONE_SAVE_FAILED_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["saving (queue failed), retry", SAVING_QUEUE_FAILED, RETRY, SAVING_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
+  ["saved (queue failed), retry", SAVED_QUEUE_FAILED, RETRY, SAVED_REPLACING, [{ type: "replace-queue", videoIds: LIST.videoIds }]],
   [
     "done (queue failed), save",
     DONE_QUEUE_FAILED,
@@ -552,23 +637,135 @@ const CASES: Case[] = [
   [
     "saved (no history), again",
     stateOf(
-      { kind: "saved", session: { ...ANSWERED_ALL, historyShared: false }, list: LIST, saveFailed: false, queueFailed: false },
+      { kind: "saved", session: { ...ANSWERED_ALL, historyShared: false }, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
       { queue: "this-run" }
     ),
     { type: "again" },
     stateOf({ kind: "setup", historyShared: false }, { queue: "earlier-run" }),
     [LOAD_MOODS]
   ],
-  // close and leave, from every state but closed
-  ...SAMPLE_STATES.filter(state => state.flow.kind !== "closed").flatMap(state =>
-    [CLOSE, LEAVE].map((event): Case => [
-      `${state.flow.kind}${state.previewing ? " while previewing" : ""}, ${event.type}`,
+  // page reloaded
+  [
+    "collect, page reloaded",
+    COLLECT,
+    PAGE_RELOADED,
+    stateOf(
+      { kind: "failed", session: EMPTY_SESSION, step: GroovingStep.Collect, reason: GroovingFailureReason.YtmUnreadable },
+      { visibility: GroovingVisibility.Hidden }
+    ),
+    []
+  ],
+  [
+    "saving, page reloaded",
+    SAVING,
+    PAGE_RELOADED,
+    stateOf(
+      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false },
+      { queue: "this-run", visibility: GroovingVisibility.Hidden }
+    ),
+    []
+  ],
+  [
+    "saving (replacing), page reloaded",
+    SAVING_REPLACING,
+    PAGE_RELOADED,
+    stateOf(
+      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: true, replacing: false },
+      { queue: "this-run", visibility: GroovingVisibility.Hidden }
+    ),
+    []
+  ],
+  [
+    "done (replacing), page reloaded",
+    DONE_REPLACING,
+    PAGE_RELOADED,
+    stateOf(
+      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: true, replacing: false },
+      { queue: "this-run", visibility: GroovingVisibility.Hidden }
+    ),
+    []
+  ],
+  [
+    "saved (replacing), page reloaded",
+    SAVED_REPLACING,
+    PAGE_RELOADED,
+    stateOf(
+      { kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: true, replacing: false },
+      { queue: "this-run", visibility: GroovingVisibility.Hidden }
+    ),
+    []
+  ],
+  ["done (not replacing), page reloaded", DONE, PAGE_RELOADED, HIDDEN_DONE, []],
+  [
+    "choose while previewing, page reloaded",
+    CHOOSE_PREVIEWING,
+    PAGE_RELOADED,
+    { ...CHOOSE, visibility: GroovingVisibility.Hidden, previewing: null },
+    []
+  ],
+  ["pair wait, page reloaded", PAIR_WAIT, PAGE_RELOADED, HIDDEN_PAIR_WAIT, []],
+  ["list wait, page reloaded", LIST_WAIT, PAGE_RELOADED, HIDDEN_LIST_WAIT, []],
+  ["setup, page reloaded", SETUP, PAGE_RELOADED, HIDDEN_SETUP, []],
+  ["failed, page reloaded", FAILED_COLLECT, PAGE_RELOADED, HIDDEN_FAILED_COLLECT, []],
+  ["need key, page reloaded", NEED_KEY, PAGE_RELOADED, stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone }), []],
+  ["consent, page reloaded", CONSENT, PAGE_RELOADED, stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone }), []],
+  ["hidden setup (notice), page reloaded", HIDDEN_SETUP_NOTICE, PAGE_RELOADED, HIDDEN_SETUP_NOTICE, []],
+  // notice
+  ["setup (notice), dismiss notice", SETUP_NOTICE, DISMISS_NOTICE, SETUP, []],
+  [
+    "setup (notice), start",
+    SETUP_NOTICE,
+    start(GroovingDirection.Mix),
+    COLLECT,
+    [{ type: "collect", request: { direction: GroovingDirection.Mix, historyShared: true, mood: MOOD } }]
+  ],
+  ["setup (notice), close", SETUP_NOTICE, CLOSE, CLOSED, []],
+  // The notice waits for the setup screen, so the key guidance and the consent keep it
+  [
+    "need key (notice), close",
+    stateOf({ kind: "need-key" }, { notice: true }),
+    CLOSE,
+    stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone, notice: true }),
+    []
+  ],
+  [
+    "consent (notice), close",
+    stateOf({ kind: "consent" }, { notice: true }),
+    CLOSE,
+    stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone, notice: true }),
+    []
+  ],
+  // withdraw consent closes from shown and from hidden
+  ["setup, withdraw consent", SETUP, WITHDRAW_CONSENT, stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone }), []],
+  ["hidden collect, withdraw consent", HIDDEN_COLLECT, WITHDRAW_CONSENT, stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone }), []],
+  [
+    "choose while previewing, withdraw consent",
+    CHOOSE_PREVIEWING,
+    WITHDRAW_CONSENT,
+    stateOf({ kind: "closed" }, { visibility: GroovingVisibility.Gone }),
+    [PREVIEW_END]
+  ],
+  // close only closes what is shown, from every state but closed
+  ...SAMPLE_STATES.filter(state => state.flow.kind !== "closed" && state.visibility === GroovingVisibility.Shown).map((state): Case => [
+    `${state.flow.kind}${state.previewing ? " while previewing" : ""}, close`,
+    state,
+    CLOSE,
+    { ...state, flow: { kind: "closed" }, visibility: GroovingVisibility.Gone, notice: false, previewing: null },
+    state.previewing ? [PREVIEW_END] : []
+  ]),
+  // leave hides past consent, and closes the key guidance and the consent
+  ...SAMPLE_STATES.filter(state => state.flow.kind !== "closed" && state.visibility === GroovingVisibility.Shown).map((state): Case => {
+    const closes = state.flow.kind === "need-key" || state.flow.kind === "consent";
+    return [
+      `${state.flow.kind}${state.previewing ? " while previewing" : ""}, leave`,
       state,
-      event,
-      { flow: { kind: "closed" }, previewing: null, queue: state.queue, nextRequestId: state.nextRequestId },
+      LEAVE,
+      closes
+        ? { ...state, flow: { kind: "closed" }, visibility: GroovingVisibility.Gone, previewing: null }
+        : { ...state, visibility: GroovingVisibility.Hidden, previewing: null },
       state.previewing ? [PREVIEW_END] : []
-    ])
-  )
+    ];
+  })
 ];
 
 // Events that do not fit the state are dropped
@@ -612,6 +809,24 @@ const IGNORED_CASES: [string, GroovingState, GroovingEvent][] = [
   ["choose, again", CHOOSE, { type: "again" }],
   ["closed, close", CLOSED, CLOSE],
   ["closed, leave", CLOSED, LEAVE],
+  ["hidden setup, close", HIDDEN_SETUP, CLOSE],
+  ["hidden collect, leave", HIDDEN_COLLECT, LEAVE],
+  ["hidden setup, start", HIDDEN_SETUP, start(GroovingDirection.Discover)],
+  ["hidden setup, consent", HIDDEN_SETUP, { type: "consent", choice: GroovingConsentChoice.ShareHistory }],
+  ["hidden choose, answer", HIDDEN_CHOOSE, answer(GroovingAnswer.Left)],
+  ["hidden failed, retry", HIDDEN_FAILED_COLLECT, RETRY],
+  ["hidden choose, preview", HIDDEN_CHOOSE, previewStart("a")],
+  ["hidden done, save", HIDDEN_DONE, { type: "save" }],
+  ["hidden done (queue failed), retry", hiddenOf(DONE_QUEUE_FAILED), RETRY],
+  ["hidden done, again", HIDDEN_DONE, { type: "again" }],
+  ["closed, page reloaded", CLOSED, PAGE_RELOADED],
+  ["closed, withdraw consent", CLOSED, WITHDRAW_CONSENT],
+  ["done (not replacing), queue replaced", DONE, QUEUE_REPLACED],
+  ["saving (not replacing), queue replaced", SAVING, QUEUE_REPLACED],
+  ["choose, queue replaced", CHOOSE, QUEUE_REPLACED],
+  ["setup (no notice), dismiss notice", SETUP, DISMISS_NOTICE],
+  ["hidden setup (notice), dismiss notice", HIDDEN_SETUP_NOTICE, DISMISS_NOTICE],
+  ["closed, dismiss notice", CLOSED, DISMISS_NOTICE],
   ["closed, queue failed", CLOSED, { type: "queue-failed" }],
   ["choose, queue failed", CHOOSE, { type: "queue-failed" }],
   ["list wait, queue failed", LIST_WAIT, { type: "queue-failed" }],
@@ -688,24 +903,47 @@ function expectRules(state: GroovingState, event: GroovingEvent, next: GroovingS
   if (nextFlow.kind === "saving" || nextFlow.kind === "saved") expect(nextFlow.saveFailed).toBe(false);
   // (queue-failed and retry keep a done whose save failed, in a new flow with only queueFailed changed)
   if (nextFlow.kind === "done" && nextFlow.saveFailed && !(state.flow.kind === "done" && state.flow.saveFailed)) {
-    expect(event.type).toBe("save-failed");
+    expect(["save-failed", "page-reloaded"]).toContain(event.type);
     expect(state.flow.kind).toBe("saving");
   }
   if (nextFlow.kind === "done" && event.type === "list-arrived" && state.flow.kind === "list-wait") expect(nextFlow.saveFailed).toBe(false);
-  // queueFailed turns true only on queue-failed, and the done made from a list starts without it
+  // queueFailed turns true only on queue-failed, or on a page reload that ends a waiting replacement, and the done made from a list starts without it
   const wasQueueFailed = "queueFailed" in flow && flow.queueFailed;
-  if ("queueFailed" in nextFlow && nextFlow.queueFailed && !wasQueueFailed) expect(event.type).toBe("queue-failed");
+  if ("queueFailed" in nextFlow && nextFlow.queueFailed && !wasQueueFailed) expect(["queue-failed", "page-reloaded"]).toContain(event.type);
   if (nextFlow.kind === "done" && event.type === "list-arrived" && state.flow.kind === "list-wait") expect(nextFlow.queueFailed).toBe(false);
   // Retry after queue-failed replaces the queue with the same list again, and nothing else
-  if (wasQueueFailed && event.type === "retry") {
+  if (wasQueueFailed && event.type === "retry" && state.visibility === GroovingVisibility.Shown) {
     expect(effects).toEqual([{ type: "replace-queue", videoIds: (flow as Extract<Flow, { list: GroovingList }>).list.videoIds }]);
-    expect(next.flow).toEqual({ ...flow, queueFailed: false });
+    expect(next.flow).toEqual({ ...flow, queueFailed: false, replacing: true });
   }
+  // (d) A hidden screen never keeps a preview, and never covers the key guidance or the consent
+  if (next.visibility === GroovingVisibility.Hidden) {
+    expect(next.previewing).toBeNull();
+    expect(next.flow.kind).not.toBe("need-key");
+    expect(next.flow.kind).not.toBe("consent");
+  }
+  // (e) The view and the flow agree: closed is gone, anything else is shown or hidden
+  if (next.flow.kind === "closed") expect(next.visibility).toBe(GroovingVisibility.Gone);
+  else expect(next.visibility).not.toBe(GroovingVisibility.Gone);
+  // (f) The notice goes away only when it is dismissed, started or closed
+  if (state.notice && !next.notice) expect(["dismiss-notice", "start", "close"]).toContain(event.type);
 }
 
 describe("decideGrooving", () => {
-  it("starts closed, with the original queue and no preview", () => {
-    expect(initialGroovingState()).toEqual({ flow: { kind: "closed" }, previewing: null, queue: "original", nextRequestId: 1 });
+  it("starts closed, with the original queue, no preview and no notice", () => {
+    expect(initialGroovingState()).toEqual({
+      flow: { kind: "closed" },
+      visibility: GroovingVisibility.Gone,
+      notice: false,
+      previewing: null,
+      queue: "original",
+      nextRequestId: 1
+    });
+  });
+
+  it("can start with the notice of the previous run", () => {
+    expect(initialGroovingState({ notice: true })).toMatchObject({ notice: true, visibility: GroovingVisibility.Gone });
+    expect(initialGroovingState({})).toMatchObject({ notice: false });
   });
 
   it.each(CASES)("%s", (_name, state, event, nextState, effects) => {
@@ -801,7 +1039,7 @@ describe("decideGrooving", () => {
       expect(none).toEqual([]);
       const { state: retried, effects } = decideGrooving(failedQueue, RETRY);
       expect(retried.queue).toBe("this-run");
-      expect(retried.flow).toEqual(DONE.flow);
+      expect(retried.flow).toEqual({ ...DONE.flow, replacing: true });
       expect(effects).toEqual([{ type: "replace-queue", videoIds: LIST.videoIds }]);
     });
 
@@ -861,9 +1099,10 @@ describe("decideGrooving", () => {
       expect(effects).toEqual([requestPair("r11", sessionOf())]);
     });
 
-    it("keeps the rules on random walks and reaches every state", () => {
+    it("keeps the rules on random walks and reaches every state and every view", () => {
       const random = randomOf(20261103);
       const kinds = new Set<string>();
+      const visibilities = new Set<string>();
       for (let walk = 0; walk < 400; walk++) {
         let state = initialGroovingState();
         const requestIds: string[] = [];
@@ -877,6 +1116,7 @@ describe("decideGrooving", () => {
           expectRules(state, event, next, effects);
           requestIds.push(...requestIdsOf(effects));
           kinds.add(next.flow.kind);
+          visibilities.add(next.visibility);
           state = next;
         }
         // A request id is never used twice, across close, leave and again
@@ -885,6 +1125,7 @@ describe("decideGrooving", () => {
       expect([...kinds].sort()).toEqual(
         ["choose", "closed", "collect", "consent", "done", "failed", "list-wait", "need-key", "pair-wait", "saved", "saving", "setup"].sort()
       );
+      expect([...visibilities].sort()).toEqual([GroovingVisibility.Gone, GroovingVisibility.Hidden, GroovingVisibility.Shown].sort());
     });
   });
 
@@ -937,24 +1178,141 @@ describe("decideGrooving", () => {
   });
 });
 
-describe("toGroovingViewState", () => {
-  const EXTRA = {
-    moods: [MOOD_ITEM],
-    moodsFailed: false,
-    providerLabel: "Gemini",
-    model: "gemini-3.5-flash-lite",
-    safeStorageAvailable: true,
-    usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001 }
-  };
+describe("leaving and opening again", () => {
+  const shownPastConsent: [string, GroovingState][] = SAMPLE_STATES.filter(
+    state =>
+      state.visibility === GroovingVisibility.Shown && state.flow.kind !== "closed" && state.flow.kind !== "need-key" && state.flow.kind !== "consent"
+  ).map(state => [state.flow.kind, state]);
 
-  it.each<[string, GroovingState, ReturnType<typeof toGroovingViewState>]>([
+  it.each(shownPastConsent)("hides %s on leave and shows it again on open", (_name, state) => {
+    const hidden = decideGrooving(state, LEAVE);
+    expect(hidden.state.flow).toEqual(state.flow);
+    expect(hidden.state.visibility).toBe(GroovingVisibility.Hidden);
+    expect(hidden.state.notice).toBe(state.notice);
+    expect(hidden.effects).toEqual(state.previewing === null ? [] : [PREVIEW_END]);
+
+    const shown = decideGrooving(hidden.state, SHARE);
+    expect(shown.state.flow).toEqual(state.flow);
+    expect(shown.state.visibility).toBe(GroovingVisibility.Shown);
+    expect(shown.state.notice).toBe(state.notice);
+    expect(shown.effects).toEqual([]);
+  });
+
+  it.each([
+    ["need key", NEED_KEY],
+    ["consent", CONSENT]
+  ] as [string, GroovingState][])("closes the %s screen on leave", (_name, state) => {
+    const { state: next, effects } = decideGrooving(state, LEAVE);
+    expect(next.flow).toEqual({ kind: "closed" });
+    expect(next.visibility).toBe(GroovingVisibility.Gone);
+    expect(next.notice).toBe(state.notice);
+    expect(effects).toEqual([]);
+  });
+});
+
+describe("the notice of the previous run", () => {
+  it("is false unless the start says otherwise", () => {
+    expect(initialGroovingState().notice).toBe(false);
+    expect(initialGroovingState({ notice: true }).notice).toBe(true);
+  });
+
+  it("shows on the setup screen", () => {
+    const { state } = decideGrooving(initialGroovingState({ notice: true }), SHARE);
+    expect(state.flow.kind).toBe("setup");
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "setup", notice: true });
+  });
+
+  it.each([
+    ["dismiss-notice", DISMISS_NOTICE],
+    ["start", start(GroovingDirection.Mix)],
+    ["close", CLOSE]
+  ] as [string, GroovingEvent][])("clears the notice on %s", (_name, event) => {
+    const { state } = decideGrooving(SETUP_NOTICE, event);
+    expect(state.notice).toBe(false);
+  });
+
+  it("keeps the flow and the view when it is dismissed", () => {
+    const { state, effects } = decideGrooving(SETUP_NOTICE, DISMISS_NOTICE);
+    expect(state.flow).toEqual(SETUP_NOTICE.flow);
+    expect(state.visibility).toBe(GroovingVisibility.Shown);
+    expect(effects).toEqual([]);
+  });
+});
+
+describe("groovingStopsThrottling", () => {
+  it.each([
+    ["shown", SETUP, true],
+    ["closed", CLOSED, false],
+    ["hidden setup", HIDDEN_SETUP, false],
+    ["hidden collect", HIDDEN_COLLECT, true],
+    ["hidden pair wait", HIDDEN_PAIR_WAIT, true],
+    ["hidden choose with a prefetch pending", HIDDEN_CHOOSE, true],
+    ["hidden choose with no prefetch pending", hiddenOf(chooseOf(ready(PAIR_2), ready(PAIR_3))), false],
+    ["hidden choose while previewing", hiddenOf(CHOOSE_PREVIEWING), true],
+    ["hidden list wait", HIDDEN_LIST_WAIT, true],
+    ["hidden failed", HIDDEN_FAILED_COLLECT, false],
+    ["hidden done while replacing the queue", hiddenOf(DONE_REPLACING), true],
+    ["hidden done", HIDDEN_DONE, false],
+    ["hidden saving", HIDDEN_SAVING, true],
+    ["hidden saved while replacing the queue", hiddenOf(SAVED_REPLACING), true],
+    ["hidden saved", HIDDEN_SAVED, false],
+    ["choosing while previewing", CHOOSE_PREVIEWING, true]
+  ] as [string, GroovingState, boolean][])("%s", (_name, state, expected) => {
+    expect(groovingStopsThrottling(state)).toBe(expected);
+  });
+});
+
+describe("groovingRunInProgress", () => {
+  it.each([
+    ["collect", COLLECT],
+    ["pair wait", PAIR_WAIT],
+    ["pair retry", PAIR_RETRY],
+    ["choose", CHOOSE],
+    ["list wait", LIST_WAIT],
+    ["list retry", LIST_RETRY],
+    ["failed collect", FAILED_COLLECT],
+    ["failed pair", FAILED_PAIR],
+    ["failed list", FAILED_LIST],
+    ["failed without a session", FAILED_NO_SESSION],
+    ["done", DONE],
+    ["saving", SAVING]
+  ] as [string, GroovingState][])("%s is in progress", (_name, state) => {
+    expect(groovingRunInProgress(state)).toBe(true);
+  });
+
+  it.each([
+    ["closed", CLOSED],
+    ["need key", NEED_KEY],
+    ["consent", CONSENT],
+    ["setup", SETUP],
+    ["saved", SAVED]
+  ] as [string, GroovingState][])("%s is not in progress", (_name, state) => {
+    expect(groovingRunInProgress(state)).toBe(false);
+  });
+
+  it("does not depend on the view", () => {
+    expect(groovingRunInProgress(HIDDEN_COLLECT)).toBe(true);
+    expect(groovingRunInProgress(hiddenOf(SETUP))).toBe(false);
+  });
+});
+
+describe("toGroovingViewState", () => {
+  it.each<[string, GroovingState, GroovingScreenView]>([
     ["closed", CLOSED, { screen: "closed" }],
     ["need key", NEED_KEY, { screen: "key-missing", safeStorageAvailable: true }],
     ["consent", CONSENT, { screen: "consent", providerLabel: "Gemini" }],
     [
       "setup",
       SETUP_NO_HISTORY,
-      { screen: "setup", moods: [MOOD_ITEM], moodsFailed: false, historyShared: false, providerLabel: "Gemini", model: "gemini-3.5-flash-lite" }
+      {
+        screen: "setup",
+        moods: [MOOD_ITEM],
+        moodsFailed: false,
+        historyShared: false,
+        providerLabel: "Gemini",
+        model: "gemini-3.5-flash-lite",
+        notice: false
+      }
     ],
     ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false }],
     [
@@ -1016,7 +1374,11 @@ describe("toGroovingViewState", () => {
       { screen: "failed", step: GroovingStep.Pair, reason: GroovingFailureReason.Network, round: null, rounds: null }
     ]
   ])("%s", (_name, state, view) => {
-    expect(toGroovingViewState(state, EXTRA)).toEqual(view);
+    expect(toGroovingViewState(state, EXTRA)).toEqual({
+      ...view,
+      visibility: view.screen === "closed" ? GroovingVisibility.Gone : GroovingVisibility.Shown,
+      mark: null
+    });
   });
 
   it.each<[string, GroovingState, "no" | "saving" | "saved" | "failed"]>([
@@ -1034,16 +1396,18 @@ describe("toGroovingViewState", () => {
       newCount: 1,
       usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001, model: "gemini-3.5-flash-lite" },
       saved,
-      queueFailed: false
+      queueFailed: false,
+      visibility: GroovingVisibility.Shown,
+      mark: null
     });
   });
 
   it("tells on the done screen that saving failed, until it saves again", () => {
     const failedSave = run(DONE, [{ type: "save" }, { type: "save-failed" }]).state;
-    expect(failedSave.flow).toEqual({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false });
+    expect(failedSave.flow).toEqual({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false });
     expect(toGroovingViewState(failedSave, EXTRA)).toMatchObject({ screen: "done", saved: "failed" });
     const { state: saving, effects } = decideGrooving(failedSave, { type: "save" });
-    expect(saving.flow).toEqual({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false });
+    expect(saving.flow).toEqual({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false });
     expect(effects).toEqual([{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]);
     expect(toGroovingViewState(saving, EXTRA)).toMatchObject({ screen: "done", saved: "saving" });
   });
@@ -1069,7 +1433,14 @@ describe("toGroovingViewState", () => {
     const listWait = stateOf({ kind: "list-wait", session: { ...ANSWERED_ALL, mood: blend }, requestId: "r9", retry: false });
     const { state } = decideGrooving(listWait, listArrived("r9"));
     expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "done", moodLabel: "Chill × J-Pop", queueFailed: false });
-    const words = stateOf({ kind: "done", session: { ...ANSWERED_ALL, mood: TEXT_MOOD }, list: LIST, saveFailed: false, queueFailed: false });
+    const words = stateOf({
+      kind: "done",
+      session: { ...ANSWERED_ALL, mood: TEXT_MOOD },
+      list: LIST,
+      saveFailed: false,
+      queueFailed: false,
+      replacing: false
+    });
     expect(toGroovingViewState(words, EXTRA)).toMatchObject({ screen: "done", moodLabel: "rainy night" });
   });
 
@@ -1083,5 +1454,46 @@ describe("toGroovingViewState", () => {
     const { state: retried, effects } = decideGrooving(failedSave, RETRY);
     expect(effects).toEqual([{ type: "replace-queue", videoIds: LIST.videoIds }]);
     expect(toGroovingViewState(retried, EXTRA)).toMatchObject({ screen: "done", saved: "failed", queueFailed: false });
+  });
+
+  it.each([
+    ["collect", HIDDEN_COLLECT, GROOVING_MARK_TEXT.en.preparing],
+    ["pair wait", HIDDEN_PAIR_WAIT, GROOVING_MARK_TEXT.en.preparing],
+    ["list wait", HIDDEN_LIST_WAIT, GROOVING_MARK_TEXT.en.preparing],
+    ["choose", HIDDEN_CHOOSE, "1 / 3"],
+    [
+      "choose (second round)",
+      hiddenOf(
+        stateOf({
+          kind: "choose",
+          session: sessionOf({ history: [{ pair: PAIR_1, answer: GroovingAnswer.Left }] }),
+          pair: PAIR_2,
+          prefetch: { left: null, right: null }
+        })
+      ),
+      "2 / 3"
+    ],
+    ["done", HIDDEN_DONE, GROOVING_MARK_TEXT.en.ready],
+    ["saving", HIDDEN_SAVING, GROOVING_MARK_TEXT.en.ready],
+    ["saved", HIDDEN_SAVED, GROOVING_MARK_TEXT.en.ready],
+    ["failed", HIDDEN_FAILED_COLLECT, GROOVING_MARK_TEXT.en.error],
+    ["setup", HIDDEN_SETUP, null]
+  ] as [string, GroovingState, string | null][])("marks %s while hidden", (_name, state, mark) => {
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Hidden, mark });
+  });
+
+  it("marks in the language of the page while hidden", () => {
+    const ja = { ...EXTRA, language: GroovingLanguage.Japanese };
+    expect(toGroovingViewState(HIDDEN_COLLECT, ja)).toMatchObject({ visibility: GroovingVisibility.Hidden, mark: GROOVING_MARK_TEXT.ja.preparing });
+    expect(toGroovingViewState(HIDDEN_DONE, ja)).toMatchObject({ mark: GROOVING_MARK_TEXT.ja.ready });
+    expect(toGroovingViewState(HIDDEN_FAILED_COLLECT, ja)).toMatchObject({ mark: GROOVING_MARK_TEXT.ja.error });
+    expect(toGroovingViewState(HIDDEN_CHOOSE, ja)).toMatchObject({ visibility: GroovingVisibility.Hidden, mark: "1 / 3" });
+    expect(toGroovingViewState(HIDDEN_SETUP, ja)).toMatchObject({ visibility: GroovingVisibility.Hidden, mark: null });
+  });
+
+  it("has no mark while shown or closed", () => {
+    expect(toGroovingViewState(SETUP, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
+    expect(toGroovingViewState(CHOOSE, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
+    expect(toGroovingViewState(CLOSED, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Gone, mark: null });
   });
 });

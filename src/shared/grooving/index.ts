@@ -229,7 +229,8 @@ export type GroovingSignal =
   | { type: "previewStop" }
   | { type: "retry" }
   | { type: "save" }
-  | { type: "again" };
+  | { type: "again" }
+  | { type: "dismissNotice" }; // The × of the notice of the previous run
 
 export const GroovingScreen = {
   Closed: "closed",
@@ -243,6 +244,20 @@ export const GroovingScreen = {
 } as const;
 export type GroovingScreen = (typeof GroovingScreen)[keyof typeof GroovingScreen];
 
+// The view part of the state chart: whether the screen is gone, shown or hidden
+export const GroovingVisibility = {
+  Gone: "gone",
+  Shown: "shown",
+  Hidden: "hidden"
+} as const;
+export type GroovingVisibility = (typeof GroovingVisibility)[keyof typeof GroovingVisibility];
+
+// The words of the continue mark, per display language. While choosing a pair the mark is `${round} / ${rounds}` instead
+export const GROOVING_MARK_TEXT: Record<GroovingDisplayLanguage, { preparing: string; ready: string; error: string }> = {
+  en: { preparing: "Preparing", ready: "Ready", error: "Error" },
+  ja: { preparing: "用意中", ready: "できあがり", error: "エラー" }
+};
+
 // The save state the done screen shows
 export const GroovingSaveStatus = {
   NotSaved: "no",
@@ -253,7 +268,7 @@ export const GroovingSaveStatus = {
 export type GroovingSaveStatus = (typeof GroovingSaveStatus)[keyof typeof GroovingSaveStatus];
 
 // main -> page: what the screen shows. Never holds the key, prompts or raw LLM answers
-export type GroovingViewState =
+export type GroovingScreenView =
   | { screen: typeof GroovingScreen.Closed }
   | { screen: typeof GroovingScreen.KeyMissing; safeStorageAvailable: boolean }
   | { screen: typeof GroovingScreen.Consent; providerLabel: string }
@@ -264,6 +279,8 @@ export type GroovingViewState =
       historyShared: boolean;
       providerLabel: string;
       model: string;
+      // Whether the last run ended when the app closed
+      notice: boolean;
     }
   | { screen: typeof GroovingScreen.Working; step: GroovingStep; round: number | null; rounds: number | null; filledFromMood: boolean }
   | {
@@ -289,6 +306,9 @@ export type GroovingViewState =
       queueFailed: boolean;
     }
   | { screen: typeof GroovingScreen.Failed; step: GroovingStep; reason: GroovingFailureReason; round: number | null; rounds: number | null };
+
+// main -> page: the screen with the view and the continue mark
+export type GroovingViewState = GroovingScreenView & { visibility: GroovingVisibility; mark: string | null };
 
 // main -> page: what is actually sent. The view state with the display language added
 export type GroovingViewMessage = GroovingViewState & { language: GroovingDisplayLanguage };
@@ -334,9 +354,14 @@ function isGroovingMood(value: unknown): value is GroovingMood {
   }
 }
 
-// Checks only that it is an object with a known screen
+// Checks that it is an object with a known screen, a known visibility and a mark that is null or words
 export function isGroovingViewState(value: unknown): value is GroovingViewState {
-  return isRecord(value) && GROOVING_SCREENS.includes(value.screen as string);
+  return (
+    isRecord(value) &&
+    GROOVING_SCREENS.includes(value.screen as string) &&
+    isOneOf(GroovingVisibility, value.visibility) &&
+    (value.mark === null || typeof value.mark === "string")
+  );
 }
 
 // A view state with a language of en or ja
@@ -356,6 +381,7 @@ export function isGroovingSignal(value: unknown): value is GroovingSignal {
     case "retry":
     case "save":
     case "again":
+    case "dismissNotice":
       return true;
     case "consent":
       return value.choice === null || isOneOf(GroovingConsentChoice, value.choice);

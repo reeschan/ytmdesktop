@@ -24,7 +24,8 @@ import {
   GroovingStep,
   GroovingTrackKind,
   GroovingViewMessage,
-  GroovingViewState
+  GroovingViewState,
+  GroovingVisibility
 } from "~shared/grooving";
 import { GROOVING_PRICES_AS_OF } from "~shared/grooving/usage";
 import { GROOVING_TEXT, GroovingText } from "./grooving-text";
@@ -127,6 +128,14 @@ export const GROOVING_VIEW_CSS = `
     font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ytmd-color-text-muted); margin: 0 0 10px; font-weight: 500;
   }
   .ytmd-grooving .g-hint { color: var(--ytmd-color-text-muted); font-size: 13px; }
+  .ytmd-grooving .g-notice {
+    display: flex; align-items: flex-start; gap: 10px; margin: -8px 0 20px; padding: 12px 12px 12px 16px; border-radius: 10px;
+    border: 1px solid color-mix(in oklab, var(--ytmd-color-accent) 45%, var(--ytmd-color-border));
+    background: color-mix(in oklab, var(--ytmd-color-accent) 12%, transparent);
+  }
+  .ytmd-grooving .g-notice p { flex: 1; margin: 0; font-size: 13px; line-height: 1.45; }
+  .ytmd-grooving .g-notice .g-close { margin-left: 0; width: 28px; height: 28px; flex: none; }
+  .ytmd-grooving .g-notice .g-close .material-symbols-outlined { font-size: 18px; }
   .ytmd-grooving .g-cap {
     font-size: 11px; color: var(--ytmd-color-text-muted); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 10px;
   }
@@ -458,7 +467,12 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
   panel.tabIndex = -1;
   element.append(panel);
 
-  let current: GroovingViewMessage = { screen: GroovingScreen.Closed, language: GroovingLanguage.English };
+  let current: GroovingViewMessage = {
+    screen: GroovingScreen.Closed,
+    visibility: GroovingVisibility.Gone,
+    mark: null,
+    language: GroovingLanguage.English
+  };
   // The fixed text in the language main chose (state.language), set on each render
   let text: GroovingText = GROOVING_TEXT[current.language];
   let setup = newSetupMemory();
@@ -483,6 +497,22 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     if (hint) head.append(el("span", "g-hint", hint));
     head.append(close);
     return head;
+  }
+
+  // The notice of the previous run (the app closed while a run was still going), at the top left of the setup screen
+  function buildNotice(): HTMLDivElement {
+    const notice = el("div", "g-notice");
+    notice.setAttribute("role", "status");
+    notice.append(el("p", undefined, text.previousRunEnded));
+    const dismiss = el("button", "g-close");
+    dismiss.type = "button";
+    dismiss.title = text.dismissNotice;
+    dismiss.setAttribute("aria-label", text.dismissNotice);
+    dismiss.dataset.focusKey = "dismiss-notice";
+    dismiss.append(icon("close"));
+    dismiss.addEventListener("click", () => send({ type: "dismissNotice" }));
+    notice.append(dismiss);
+    return notice;
   }
 
   function buildKeyMissing(state: ViewOf<typeof GroovingScreen.KeyMissing>): Node[] {
@@ -602,7 +632,9 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       sync();
     };
 
-    const nodes: Node[] = [header(text.setupHint), el("h1", "g-big", text.setupTitle), el("p", "g-lead", text.setupLead(GROOVING_BLEND_GENRE_LIMIT))];
+    const nodes: Node[] = [header(text.setupHint)];
+    if (state.notice) nodes.push(buildNotice());
+    nodes.push(el("h1", "g-big", text.setupTitle), el("p", "g-lead", text.setupLead(GROOVING_BLEND_GENRE_LIMIT)));
 
     const moods = state.moods ?? [];
     if (state.moods === null && !state.moodsFailed) {
@@ -1064,6 +1096,9 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
 
   function render(state: GroovingViewMessage) {
     if (!samePair(current, state)) answered = false;
+    // Main drops the answer of a hidden run, so an answer given while hidden is taken again when the screen comes back.
+    // A pair that stays shown (e.g. previewing goes back to null) keeps it as before.
+    if (state.visibility !== GroovingVisibility.Shown || current.visibility !== GroovingVisibility.Shown) answered = false;
     current = state;
     text = GROOVING_TEXT[state.language];
     // Chromium's word-break: auto-phrase works only when the content's language is ja
@@ -1079,7 +1114,7 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
 
     const focus = rememberFocus();
     panel.replaceChildren(...build(state));
-    element.hidden = state.screen === GroovingScreen.Closed;
+    element.hidden = state.visibility !== GroovingVisibility.Shown;
     restoreFocus(focus);
 
     if (preview && previewClock) {

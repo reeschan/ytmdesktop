@@ -100,7 +100,9 @@ export default class ConfigStore extends Service {
           lastVideoProgress: 0,
           windowBounds: null,
           windowMaximized: false,
-          miniplayerWindowBounds: null
+          miniplayerWindowBounds: null,
+          groovingRunInProgress: false,
+          groovingNoticePending: false
         },
         lastfm: {
           sessionKey: null,

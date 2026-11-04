@@ -23,58 +23,148 @@ stateDiagram-v2
             Closed --> Setup: press Grooving ready
             NeedKey --> Closed: open settings
             NeedKey --> Closed: close
+            NeedKey --> Closed: leave
+            NeedKey --> Closed: reload
+            NeedKey --> Closed: withdraw consent
+            NeedKey --> Closed: restart app
             Consent --> Setup: agree
             Consent --> Setup: use without history
             Consent --> Closed: decline
-            Setup --> Collect: start
+            Consent --> Closed: close
+            Consent --> Closed: leave
+            Consent --> Closed: reload
+            Consent --> Closed: withdraw consent
+            Consent --> Closed: restart app
+            Setup --> Collect: start [shown]
+            %% when Shown
             Collect --> PairWait: candidates ready
             Collect --> CollectFailed: cannot collect
+            Collect --> CollectFailed: reload
             PairWait --> Choose: pair arrives
             PairWait --> PairRetry: unusable answer
             PairWait --> PairFailed: LLM unreachable
             PairRetry --> Choose: pair arrives
             PairRetry --> PairFailed: unusable answer
             PairRetry --> PairFailed: LLM unreachable
-            Choose --> Choose: pick with prefetch ready
-            Choose --> PairWait: pick with prefetch pending
-            Choose --> PairWait: neither with pairs left
-            Choose --> ListWait: pick last pair
-            Choose --> ListWait: neither on last pair
+            Choose --> Choose: pick with prefetch ready [shown]
+            %% when Shown
+            Choose --> PairWait: pick with prefetch pending [shown]
+            %% when Shown
+            Choose --> PairWait: neither with pairs left [shown]
+            %% when Shown
+            Choose --> ListWait: pick last pair [shown]
+            %% when Shown
+            Choose --> ListWait: neither on last pair [shown]
+            %% when Shown
             ListWait --> Done: list arrives
             ListWait --> ListRetry: unusable answer
             ListWait --> ListFailed: LLM unreachable
             ListRetry --> Done: list arrives
             ListRetry --> ListFailed: unusable answer
             ListRetry --> ListFailed: LLM unreachable
-            CollectFailed --> Collect: retry
-            PairFailed --> PairWait: retry
-            ListFailed --> ListWait: retry
-            Done --> Saving: save
+            CollectFailed --> Collect: retry [shown]
+            %% when Shown
+            PairFailed --> PairWait: retry [shown]
+            %% when Shown
+            ListFailed --> ListWait: retry [shown]
+            %% when Shown
+            Done --> Saving: save [shown]
+            %% when Shown
             Saving --> Saved: saved
             Saving --> Done: cannot save
-            Done --> Setup: again
-            Saved --> Setup: again
-            Setup --> Closed: leave
-            Collect --> Closed: leave
-            PairWait --> Closed: leave
-            PairRetry --> Closed: leave
-            Choose --> Closed: leave
-            ListWait --> Closed: leave
-            ListRetry --> Closed: leave
-            CollectFailed --> Closed: leave
-            PairFailed --> Closed: leave
-            ListFailed --> Closed: leave
-            Done --> Closed: leave
-            Saving --> Closed: leave
-            Saved --> Closed: leave
+            Saving --> Done: reload
+            Done --> Setup: again [shown]
+            %% when Shown
+            Saved --> Setup: again [shown]
+            %% when Shown
+            Setup --> Closed: close [shown]
+            %% when Shown
+            Setup --> Closed: withdraw consent
+            Setup --> Closed: restart app
+            Collect --> Closed: close [shown]
+            %% when Shown
+            Collect --> Closed: withdraw consent
+            Collect --> Closed: restart app
+            PairWait --> Closed: close [shown]
+            %% when Shown
+            PairWait --> Closed: withdraw consent
+            PairWait --> Closed: restart app
+            PairRetry --> Closed: close [shown]
+            %% when Shown
+            PairRetry --> Closed: withdraw consent
+            PairRetry --> Closed: restart app
+            Choose --> Closed: close [shown]
+            %% when Shown
+            Choose --> Closed: withdraw consent
+            Choose --> Closed: restart app
+            ListWait --> Closed: close [shown]
+            %% when Shown
+            ListWait --> Closed: withdraw consent
+            ListWait --> Closed: restart app
+            ListRetry --> Closed: close [shown]
+            %% when Shown
+            ListRetry --> Closed: withdraw consent
+            ListRetry --> Closed: restart app
+            CollectFailed --> Closed: close [shown]
+            %% when Shown
+            CollectFailed --> Closed: withdraw consent
+            CollectFailed --> Closed: restart app
+            PairFailed --> Closed: close [shown]
+            %% when Shown
+            PairFailed --> Closed: withdraw consent
+            PairFailed --> Closed: restart app
+            ListFailed --> Closed: close [shown]
+            %% when Shown
+            ListFailed --> Closed: withdraw consent
+            ListFailed --> Closed: restart app
+            Done --> Closed: close [shown]
+            %% when Shown
+            Done --> Closed: withdraw consent
+            Done --> Closed: restart app
+            Saving --> Closed: close [shown]
+            %% when Shown
+            Saving --> Closed: withdraw consent
+            Saving --> Closed: restart app
+            Saved --> Closed: close [shown]
+            %% when Shown
+            Saved --> Closed: withdraw consent
+            Saved --> Closed: restart app
+        }
+        --
+        state "View" as View {
+            Gone: Screen closed
+            Shown: Shown
+            Hidden: Hidden
+            [*] --> Gone
+            Gone --> Shown: press Grooving without key
+            Gone --> Shown: press Grooving without consent
+            Gone --> Shown: press Grooving ready
+            Shown --> Gone: open settings [key guidance]
+            %% when NeedKey
+            Shown --> Gone: decline [asking consent]
+            %% when Consent
+            Shown --> Gone: close
+            Shown --> Gone: withdraw consent
+            Shown --> Gone: restart app
+            Shown --> Gone: leave [key guidance or asking consent]
+            %% when NeedKey, Consent
+            Shown --> Hidden: leave [past consent]
+            %% when not NeedKey, Consent
+            Shown --> Gone: reload [key guidance or asking consent]
+            %% when NeedKey, Consent
+            Shown --> Hidden: reload [past consent]
+            %% when not NeedKey, Consent
+            Hidden --> Shown: open again
+            Hidden --> Gone: withdraw consent
+            Hidden --> Gone: restart app
         }
         --
         state "Preview" as Preview {
             Quiet: No preview
             Playing: Previewing
             [*] --> Quiet
-            Quiet --> Playing: start preview [choosing]
-            %% when Choose
+            Quiet --> Playing: start preview [choosing and shown]
+            %% when Choose, Shown
             Playing --> Playing: preview the other song
             Playing --> Quiet: 15 seconds pass
             Playing --> Quiet: stop preview
@@ -84,6 +174,10 @@ stateDiagram-v2
             Playing --> Quiet: pick last pair
             Playing --> Quiet: neither on last pair
             Playing --> Quiet: leave
+            Playing --> Quiet: close
+            Playing --> Quiet: reload
+            Playing --> Quiet: withdraw consent
+            Playing --> Quiet: restart app
         }
         --
         state "Queue" as Queue {
@@ -103,17 +197,32 @@ stateDiagram-v2
             %% when Closed
             ThisList --> PrevList: again [list ready or saved]
             %% when Done, Saved
+            ThisList --> PrevList: restart app
+        }
+        --
+        state "Notice" as Notice {
+            NoNotice: No notice
+            Waiting: Notice waiting
+            [*] --> NoNotice
+            NoNotice --> Waiting: restart app [run in progress]
+            %% when Collect, PairWait, PairRetry, Choose, ListWait, ListRetry, CollectFailed, PairFailed, ListFailed, Done, Saving
+            Waiting --> NoNotice: dismiss notice [choosing mood and shown]
+            %% when Setup, Shown
+            Waiting --> NoNotice: start [shown]
+            %% when Shown
+            Waiting --> NoNotice: close [shown]
+            %% when Shown
         }
     }
 
     %% never PreviewWhileClosed: Closed & Previewing -- 閉じているのに、試聴が続いていない
-    %% never PreviewWhileKeyGuidance: Key guidance & Previewing -- 組を選んでいないのに、試聴が続いていない
+    %% never PreviewWhileNeedKey: Key guidance & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileConsent: Asking consent & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileSetup: Choosing mood & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileCollect: Collecting candidates & Previewing -- 組を選んでいないのに、試聴が続いていない
-    %% never PreviewWhilePairWait: Waiting for pair & Previewing -- 組を選んだら、試聴は終わっている
+    %% never PreviewWhilePairWait: Waiting for pair & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhilePairRetry: Retrying pair & Previewing -- 組を選んでいないのに、試聴が続いていない
-    %% never PreviewWhileListWait: Making list & Previewing -- 最後の組を選んだら、試聴は終わっている
+    %% never PreviewWhileListWait: Making list & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileListRetry: Retrying list & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileCollectFailed: Collecting failed & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhilePairFailed: Pair failed & Previewing -- 組を選んでいないのに、試聴が続いていない
@@ -121,7 +230,8 @@ stateDiagram-v2
     %% never PreviewWhileDone: List ready & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileSaving: Saving & Previewing -- 組を選んでいないのに、試聴が続いていない
     %% never PreviewWhileSaved: Saved & Previewing -- 組を選んでいないのに、試聴が続いていない
-    %% never QueueEarlyKeyGuidance: Key guidance & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never PreviewWhileHidden: Hidden & Previewing -- 隠しているのに、試聴が続いていない
+    %% never QueueEarlyNeedKey: Key guidance & This run's list -- リストが届く前に、キューが置き換わっていない
     %% never QueueEarlyConsent: Asking consent & This run's list -- リストが届く前に、キューが置き換わっていない
     %% never QueueEarlySetup: Choosing mood & This run's list -- もう一度始めたら、前の回のリストはこの回のものではない
     %% never QueueEarlyCollect: Collecting candidates & This run's list -- リストが届く前に、キューが置き換わっていない
@@ -133,3 +243,22 @@ stateDiagram-v2
     %% never QueueEarlyCollectFailed: Collecting failed & This run's list -- リストが届く前に、キューが置き換わっていない
     %% never QueueEarlyPairFailed: Pair failed & This run's list -- リストが届く前に、キューが置き換わっていない
     %% never QueueEarlyListFailed: List failed & This run's list -- リストが届く前に、キューが置き換わっていない
+    %% never HiddenKeyGuidance: Key guidance & Hidden -- Key の案内の画面を、隠していない
+    %% never HiddenConsent: Asking consent & Hidden -- 同意を求める画面を、隠していない
+    %% never ShownWhileClosed: Closed & Shown -- 進行が閉じているのに、画面を出していない
+    %% never HiddenWhileClosed: Closed & Hidden -- 進行が閉じているのに、画面を隠していない
+    %% never GoneWhileNeedKey: Key guidance & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileConsent: Asking consent & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileSetup: Choosing mood & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileCollect: Collecting candidates & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhilePairWait: Waiting for pair & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhilePairRetry: Retrying pair & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileChoose: Choosing from pair & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileListWait: Making list & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileListRetry: Retrying list & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileCollectFailed: Collecting failed & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhilePairFailed: Pair failed & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileListFailed: List failed & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileDone: List ready & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileSaving: Saving & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない
+    %% never GoneWhileSaved: Saved & Screen closed -- 進行が閉じていないのに、画面が見えなくなっていない

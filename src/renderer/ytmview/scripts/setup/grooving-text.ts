@@ -15,6 +15,9 @@ export type GroovingText = {
   // Header
   close: string;
   round: (round: number, rounds: number) => string;
+  // The notice of the previous run on the setup screen
+  previousRunEnded: string;
+  dismissNotice: string;
 
   // Key missing
   keyMissingHint: string;
@@ -122,6 +125,8 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
   en: {
     close: "Close",
     round: (round, rounds) => `Round ${round} of ${rounds}`,
+    previousRunEnded: "Your last Grooving ended when the app closed.",
+    dismissNotice: "Dismiss notice",
 
     keyMissingHint: "Setup",
     keyMissingTitle: "Set up an AI provider",
@@ -270,6 +275,8 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
   ja: {
     close: "閉じる",
     round: (round, rounds) => `${round} / ${rounds} 組目`,
+    previousRunEnded: "前の回は、アプリを閉じたため終わりました",
+    dismissNotice: "知らせを閉じる",
 
     keyMissingHint: "準備",
     keyMissingTitle: "AI のサービスを設定",

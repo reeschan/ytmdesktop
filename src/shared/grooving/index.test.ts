@@ -50,7 +50,8 @@ describe("isGroovingSignal", () => {
     ["previewStop", { type: "previewStop" }],
     ["retry", { type: "retry" }],
     ["save", { type: "save" }],
-    ["again", { type: "again" }]
+    ["again", { type: "again" }],
+    ["dismissNotice", { type: "dismissNotice" }]
   ])("accepts %s", (_, signal) => {
     expect(isGroovingSignal(signal)).toBe(true);
   });
@@ -110,7 +111,15 @@ describe("isGroovingSignal", () => {
 
 describe("isGroovingViewState", () => {
   it.each(["closed", "key-missing", "consent", "setup", "working", "choose", "done", "failed"])("accepts the %s screen", screen => {
-    expect(isGroovingViewState({ screen })).toBe(true);
+    expect(isGroovingViewState({ screen, visibility: "shown", mark: null })).toBe(true);
+  });
+
+  it.each([
+    ["a hidden screen with a mark", { screen: "working", visibility: "hidden", mark: "Preparing" }, true],
+    ["a closed screen", { screen: "closed", visibility: "gone", mark: null }, true],
+    ["a hidden setup screen without a mark", { screen: "setup", visibility: "hidden", mark: null }, true]
+  ])("accepts %s", (_, value, expected) => {
+    expect(isGroovingViewState(value)).toBe(expected);
   });
 
   it.each([
@@ -119,8 +128,13 @@ describe("isGroovingViewState", () => {
     ["a string", "closed"],
     ["a number", 0],
     ["no screen", {}],
-    ["an unknown screen", { screen: "playing" }],
-    ["a non-string screen", { screen: 1 }]
+    ["an unknown screen", { screen: "playing", visibility: "shown", mark: null }],
+    ["a non-string screen", { screen: 1, visibility: "shown", mark: null }],
+    ["no visibility", { screen: "closed", mark: null }],
+    ["an unknown visibility", { screen: "closed", visibility: "open", mark: null }],
+    ["a non-string visibility", { screen: "closed", visibility: 1, mark: null }],
+    ["no mark", { screen: "closed", visibility: "gone" }],
+    ["a numeric mark", { screen: "closed", visibility: "gone", mark: 1 }]
   ])("rejects %s", (_, value) => {
     expect(isGroovingViewState(value)).toBe(false);
   });
@@ -160,14 +174,15 @@ describe("resolveGroovingLanguage", () => {
 
 describe("isGroovingViewMessage", () => {
   it.each(["en", "ja"])("accepts a view state with language %s", language => {
-    expect(isGroovingViewMessage({ screen: "closed", language })).toBe(true);
+    expect(isGroovingViewMessage({ screen: "closed", visibility: "gone", mark: null, language })).toBe(true);
   });
 
   it.each([
-    ["no language", { screen: "closed" }],
-    ["language fr", { screen: "closed", language: "fr" }],
-    ["language auto", { screen: "closed", language: "auto" }],
-    ["an unknown screen", { screen: "playing", language: "en" }],
+    ["no language", { screen: "closed", visibility: "gone", mark: null }],
+    ["language fr", { screen: "closed", visibility: "gone", mark: null, language: "fr" }],
+    ["language auto", { screen: "closed", visibility: "gone", mark: null, language: "auto" }],
+    ["an unknown screen", { screen: "playing", visibility: "shown", mark: null, language: "en" }],
+    ["no visibility", { screen: "closed", mark: null, language: "en" }],
     ["null", null]
   ])("rejects %s", (_, value) => {
     expect(isGroovingViewMessage(value)).toBe(false);
