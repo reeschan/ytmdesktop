@@ -1,7 +1,7 @@
 import { GroovingMoodItem, GroovingMoodSection, GroovingTrack } from "./index";
 
 // Reads the JSON of the YTM internal API (browse / next / search) into Grooving's tracks and mood items.
-// The shapes were checked on the development build (docs/pbi/notes/grooving.devcheck.md, section 2).
+// The shapes were checked on the development build (2026-11-03).
 // When YTM changes a shape, the readers return { ok: false } instead of throwing, so Grooving can report it.
 // This module is imported by the page script too, so it must not import anything but ./index.
 

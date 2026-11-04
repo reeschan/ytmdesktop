@@ -1,5 +1,5 @@
 // Grooving: preview a track, replace the queue and save a private playlist, on main's request.
-// The steps follow what PBI-401 checked on the dev build (docs/pbi/notes/grooving.devcheck.md, sections 1, 5, 6 and 7).
+// The steps follow what was checked on the dev build (2026-11-03).
 import ytmhook from "../ytmhook";
 import type protectedapimanager from "../protectedapimanager";
 import { GROOVING_PREVIEW_START_RATIO, GroovingPageCall, type GroovingPageResult } from "~shared/grooving";
@@ -222,7 +222,7 @@ function fetchQueueItems(videoId: string, options: PacedQueueItemsRequest, signa
   return groovingPacer.run(priority, () => withTimeout(requestQueueItems(videoId, { insertAtEnd }), QUEUE_ADD_TIMEOUT_MS), signal);
 }
 
-// Never dispatch ADD_ITEMS with no items (devcheck section 5 saw YTM start another track right after one)
+// Never dispatch ADD_ITEMS with no items (on the dev build, YTM started another track right after one)
 function addItems(items: any[], index: number) {
   if (items.length === 0) return;
   const store = getStore();
@@ -401,7 +401,7 @@ async function previewEnd(): Promise<GroovingPageResult<null>> {
     const original = findOriginal(memory);
     if (originalVideoId === null) {
       // From an empty queue: no track to go back to. Pause before the items are removed (else YTM may play on),
-      // and once more if it still plays after a moment (devcheck section 6)
+      // and once more if it still plays after a moment (seen on the dev build)
       player.pauseVideo();
       await sleep(PAUSE_RECHECK_MS);
       if (isPlayingState(player.getPlayerState())) player.pauseVideo();
@@ -415,7 +415,7 @@ async function previewEnd(): Promise<GroovingPageResult<null>> {
       if (error === null) {
         player.seekTo(memory.positionSeconds, true);
         if (!memory.wasPlaying) {
-          // It was stopped: keep it stopped. Pause once more if it still plays after a moment (devcheck section 6)
+          // It was stopped: keep it stopped. Pause once more if it still plays after a moment (seen on the dev build)
           player.pauseVideo();
           await sleep(PAUSE_RECHECK_MS);
           if (isPlayingState(player.getPlayerState())) player.pauseVideo();
@@ -574,7 +574,7 @@ function toHex(buffer: ArrayBuffer): string {
   return Array.from(new Uint8Array(buffer), byte => byte.toString(16).padStart(2, "0")).join("");
 }
 
-// The logged-in innertube call of devcheck section 1. SAPISID and the hash stay in the page and are never logged
+// The logged-in innertube call checked on the dev build. SAPISID and the hash stay in the page and are never logged
 async function innertube(path: string, body: Record<string, unknown>): Promise<any> {
   const ytcfg = (window as any).ytcfg;
   const sapisid = readCookie("SAPISID") ?? readCookie("__Secure-3PAPISID");
@@ -607,7 +607,7 @@ async function innertube(path: string, body: Record<string, unknown>): Promise<a
   });
 }
 
-// Not checked on the dev build yet (devcheck section 7): the body and the answer follow the planned call
+// Not checked on the dev build yet: the body and the answer follow the planned call
 async function savePlaylist(args: unknown[]): Promise<GroovingPageResult<{ playlistId: string }>> {
   const request = args[0] as { title?: unknown; videoIds?: unknown } | undefined;
   const title = request?.title;

@@ -1,6 +1,6 @@
 // Grooving: the sidebar entry, the place of the screen over the center of YTM, and the messages between the page and the preload.
 // The screen itself is drawn by grooving-view.ts; the calls from main are answered by grooving-ytm.ts and grooving-playback.ts.
-// The places in the YTM DOM follow what PBI-401 checked on the dev build (docs/pbi/notes/grooving.devcheck.md, sections 3 and 4).
+// The places in the YTM DOM follow what was checked on the dev build (2026-11-03).
 
 import protectedapimanager from "../protectedapimanager";
 import {

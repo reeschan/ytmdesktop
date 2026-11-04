@@ -26,7 +26,6 @@ import {
   GroovingSignal,
   GroovingSourceRequest,
   GroovingSources,
-  GroovingTrack,
   GroovingViewMessage,
   isGroovingSignal,
   resolveGroovingLanguage
@@ -480,18 +479,24 @@ export default class Grooving extends Service {
     if (request.mood.kind === "blend") return this.collectBlend(request, rounds, groovingMoodLabel(request.mood), current, fail);
 
     // The sources are collected with the request as it is. A text mood has nothing for the page to collect itself, so its
-    // mood tracks come from the searches the LLM thinks of, and the history and liked tracks still come from the page
-    const [collected, searched] = await Promise.all([
+    // mood tracks come from the searches the LLM thinks of, and the history and liked tracks still come from the page.
+    // As in a blend, the LLM starts along with the collecting and the page runs the searches only after it
+    const [collected, queries] = await Promise.all([
       this.callPage(GroovingPageCall.CollectSources, request),
-      request.mood.kind === "text" ? this.searchMood(request.mood.text, current) : Promise.resolve<GroovingLlmResult<GroovingTrack[]> | null>(null)
+      request.mood.kind === "text" ? this.requestQueries(request.mood.text, current) : Promise.resolve<GroovingLlmResult<string[]> | null>(null)
     ]);
+    // A run that ended sends no searches to the page
     if (!current()) return;
 
-    if (searched && !searched.ok) return fail(searched.reason);
+    if (queries && !queries.ok) return fail(queries.reason);
     const sources = collected.ok ? readSources(collected.value) : null;
     if (!sources) return fail(collected.ok ? GroovingFailureReason.YtmUnreadable : collected.reason);
 
-    if (searched?.ok) sources.mood = searched.value;
+    if (queries) {
+      const tracks = await this.searchTracks(queries.value, current, fail);
+      if (!tracks) return;
+      sources.mood = tracks;
+    }
     this.buildCandidates(request, rounds, sources, fail);
   }
 
@@ -515,12 +520,8 @@ export default class Grooving extends Service {
     const sources = collected.ok ? readSources(collected.value) : null;
     if (!sources) return fail(collected.ok ? GroovingFailureReason.YtmUnreadable : collected.reason);
 
-    const searched = await this.callPage(GroovingPageCall.Search, queries.value);
-    // The searches of a run that ended are dropped
-    if (!current()) return;
-
-    const tracks = searched.ok ? readTracks(searched.value) : null;
-    if (!tracks) return fail(searched.ok ? GroovingFailureReason.YtmUnreadable : searched.reason);
+    const tracks = await this.searchTracks(queries.value, current, fail);
+    if (!tracks) return;
 
     sources.mood = alternate(sources.mood, tracks);
     this.buildCandidates(request, rounds, sources, fail);
@@ -555,16 +556,16 @@ export default class Grooving extends Service {
     return ask();
   }
 
-  // The LLM thinks of searches for the mood text, and the page runs them
-  private async searchMood(moodText: string, current: () => boolean): Promise<GroovingLlmResult<GroovingTrack[]>> {
-    const queries = await this.requestQueries(moodText, current);
-    if (!queries.ok) return queries;
-    // A run that ended sends no searches to the page. The caller drops the result
-    if (!current()) return failedLlm(GroovingFailureReason.Network);
+  /**
+   * The page runs the searches. Null when the run ended (the searches are dropped) or the answer failed (the failure is sent)
+   */
+  private async searchTracks(queries: string[], current: () => boolean, fail: (reason: GroovingFailureReason) => void) {
+    const searched = await this.callPage(GroovingPageCall.Search, queries);
+    if (!current()) return null;
 
-    const answer = await this.callPage(GroovingPageCall.Search, queries.value);
-    const tracks = answer.ok ? readTracks(answer.value) : null;
-    return tracks ? { ok: true, value: tracks, usage: queries.usage } : failedLlm(answer.ok ? GroovingFailureReason.YtmUnreadable : answer.reason);
+    const tracks = searched.ok ? readTracks(searched.value) : null;
+    if (!tracks) fail(searched.ok ? GroovingFailureReason.YtmUnreadable : searched.reason);
+    return tracks;
   }
 
   private async requestPair(epoch: number, effect: Extract<GroovingEffect, { type: "request-pair" }>) {
