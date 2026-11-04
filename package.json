@@ -52,10 +52,14 @@
     "vitest": "^5.0.5"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.94",
+    "@ai-sdk/google": "^4.0.109",
+    "@ai-sdk/openai": "^4.0.106",
     "@fastify/cors": "^11.3.1",
     "@fastify/rate-limit": "^11.2.1",
     "@fastify/type-provider-typebox": "^6.3.0",
     "@sinclair/typebox": "^0.34.52",
+    "ai": "^7.0.159",
     "conf": "^15.1.0",
     "electron-log": "^5.4.4",
     "electron-squirrel-startup": "^1.0.1",
@@ -66,6 +70,7 @@
     "multicast-dns": "^7.2.5",
     "socket.io": "^4.8.4",
     "vue": "^3.5.44",
-    "xosms": "^0.7.0-rc.2"
+    "xosms": "^0.7.0-rc.2",
+    "zod": "^4.6.7"
   }
 }

@@ -14,15 +14,15 @@
 - 本家の README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - 本家のリリース: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
-この fork は、本家のコードを改変しています (2026-11-02、reeschan)。改変したのは下の 4 つの機能とそれに伴う設定・ビルドの変更で、ファイルごとの変更はコミットの履歴にあります。ライセンスは本家と同じ [GPL-3.0](LICENSE) です。本家とは関係のない非公式の fork です。YouTube と YouTube Music は Google LLC の商標です。Shazam は Apple Inc. の商標です。
+この fork は、本家のコードを改変しています (2026-11-04 更新、reeschan)。改変したのは下の 5 つの機能と「そのほかの変更」、それに伴う設定・ビルドの変更で、ファイルごとの変更はコミットの履歴にあります。ライセンスは本家と同じ [GPL-3.0](LICENSE) です。本家とは関係のない非公式の fork です。YouTube と YouTube Music は Google LLC の商標です。Shazam は Apple Inc. の商標です。Gemini は Google LLC の、Claude は Anthropic PBC の、OpenAI は OpenAI の商標です。
 
-この fork では、次の 4 つの機能を足しています。
+この fork では、次の 5 つの機能を足しています。
 
 ### 1. テーマ
 
 設定の **Appearance → Theme** で、アプリ全体の配色を選べます。アプリの画面 (タイトルバー・設定・ミニプレイヤーなど) と YouTube Music の画面の両方に、同じ色が当たります。切り替えは再起動なしで、すぐ反映されます。
 
-- 同梱のテーマ: **Default** (元の見た目)、**Midnight** (紺)、**Forest** (深緑)、**Glass** (すりガラス)
+- 同梱のテーマ: **Default** (元の見た目)、**Midnight** (紺)、**Forest** (深緑)、**Glass** (すりガラス、既定)
 - **Glass** は、ナビバー・サイドバー・プレイヤーバー・メニューの後ろをぼかし、背景動画が面の後ろにうっすら透けます
 - **Theme file** を選ぶと、自分で書いたテーマファイル (CSS) を使えます
 
@@ -57,7 +57,7 @@
 
 ### 2. 背景動画
 
-設定の **Appearance → Background video** で、メインウィンドウの背景全体に映像を流せます。**Source** で、何を流すかを選びます。
+設定の **Appearance → Background video** で、メインウィンドウの背景全体に映像を流せます (既定でオン)。**Source** で、何を流すかを選びます。
 
 - **Playing video** (既定): YouTube Music で今再生している曲の映像 (MV など) を、背景に大きく描きます。映像の無い曲では、その曲のジャケットで埋めます。一時停止の間は最後の場面で止まります。サインインの画面などでは出しません。
 - **Video file**: 手元の動画ファイル (mp4 / webm) を、無音でループ再生します。
@@ -82,6 +82,7 @@
 - 空になった欄は出しません。1 行目だけは、空のとき曲名で埋めます。
 - 「Play on YTMDesktop」ボタンを出すかどうかと、Discord のメンバー一覧に何を出すか (アプリ名・1 行目・2 行目) を選べます。
 - 設定画面で、再生中の曲を使ったプレビューを見ながら書けます。
+- Discord を後から起動しても、つながり直して今の曲を送り直します。Linux では Discord の IPC の場所をすべて試します。
 
 ### 4. 曲の聞き取り (Shazam)
 
@@ -91,11 +92,44 @@
 - 検索欄の右のアイコンを押すと 5 秒録って曲を探し、見つかれば `曲名 アーティスト` で検索します。音の元が PC の音でアプリが再生中なら、録音の間だけ再生を止めます。
 - 本家とは関係のない非公式の連携です。Shazam (Apple) とも関係はありません。
 
+### 5. Grooving (気分から作るプレイリスト)
+
+YouTube Music の左のサイドバーの **Grooving** から開きます。今の気分を選び、2 曲ずつ出る組から合う方を何回か選ぶと、LLM が 25 曲の **Grooving のリスト** を作ります。キューがそのリストに置き換わって再生が始まり、「プレイリストとして保存」で YouTube Music のプレイリストに残せます。
+
+![Grooving: 気分を選ぶ](.github/images/fork/grooving-setup.png)
+
+1. **気分を決める**: YouTube Music のムードを 1 つとジャンルを 2 つまで選ぶか (「チルアウト × J-Pop」のように掛け合わせる)、自分の言葉で書きます (「雨の夜、lo-fi、少し懐かしい」など)。
+2. **方向と組の数**: いつもの曲からどれだけ離れるか (**寄せる** は知っているアーティスト、**外す** は知らないアーティスト、**ミックス** は選び方で割合が決まる) と、組の数 (3・5・10) を選びます。
+3. **2 曲から選ぶ**: 組ごとに 2 曲が出るので、合う方を選びます。**試聴** は曲の 3 分の 1 の位置から 15 秒流し、そのあと聴いていた曲に戻ります。どちらも合わなければ **どちらも違う** を選べます。
+
+![Grooving: 2 曲から選ぶ](.github/images/fork/grooving-choose.png)
+
+- 候補の曲は、YouTube Music の履歴・高評価・関連曲・ムードとジャンルのプレイリスト・検索から、ページの中で集めます。YouTube Music への問い合わせは、人が操作する程度の間隔に抑えています。
+- LLM は、設定の **Integrations → Grooving** で選びます。**Gemini**・**Claude**・**OpenAI** のどれかを、自分の API Key で使います (キーは暗号化して保存)。**Model** が空欄なら各社の軽いモデル (`gemini-3.5-flash-lite`・`claude-haiku-5-5`・`gpt-6-luna`) を使い、書き換えることもできます。
+- 初めて使うときに、履歴と高評価の曲名・アーティストを LLM に送るかを聞きます。送らないことも選べ、そのときは方向が「外す」だけになり、LLM に送るのは気分のプレイリストの曲だけになります。答えは設定の **History sharing** の **Reset** で取り消せます。
+- できあがりの画面に、その回に使ったトークン数と費用の目安が出ます (例: `claude-haiku-5-5` で 3 組の回が約 $0.005)。設定画面の **This month** で今月の合計を見られます。料金表に無いモデルは、費用を「不明」と出します。
+- 画面の言語は **Language** で選べます (Auto は YouTube Music の表示言語に合わせる。English と Japanese)。
+- リストの中で、1 人のアーティストの曲は 3 曲までです。LLM の呼び出しは、どの 10 分をとっても 120 回までにしています (ページの偽の操作で Key を使い込まれないように)。
+- API の料金は、選んだサービスの利用者の負担です。本家とは関係のない非公式の機能で、Google・Anthropic・OpenAI とも関係はありません。
+
+![Grooving の設定](.github/images/fork/settings-grooving.png)
+
+### そのほかの変更
+
+- **既定の見た目**: 新しく入れたときの既定を、Glass のテーマと、再生中の動画の背景にしました。
+- **ミニプレイヤーの動画**: MV のある曲を再生している間は、ミニプレイヤーにその動画を出します。
+- **トレイのツールチップ**: トレイのアイコンに、再生中の曲名とアーティストを出します。
+- **キーボード**: Ctrl+W でウィンドウを閉じ、F11 でメインウィンドウの全画面を切り替えます。
+- **前回の続き**: **Continue where you left off** がオンなら、前回止めた位置から再生を続けます。
+- **更新**: 設定画面とタイトルバーから、更新を確かめて入れられます。
+- **ウィンドウの位置**: 外したディスプレイの上にあったウィンドウは、つながっているディスプレイに戻して開きます。
+- **不具合の直し**: 起動が止まる、キューの曲の情報が欠けると落ちる、ログファイルに URL が残る、などの多数の不具合を直しました。細かい内容はコミットの履歴にあります。
+
 ### 構成
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。YouTube Music のビューで曲の聞き取りのアイコンを押すと、main の SongRecognition が隠れたアプリ画面に PC の音かマイクを 5 秒録らせ、RapidAPI の Shazam API に問い合わせ、一致した曲を YouTube Music のビューで検索する。">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop のアーキテクチャ図。Electron の main プロセスの ThemeManager がアプリの画面と YouTube Music のビューにテーマの色を注入し、BackgroundVideoManager は、再生中の動画を YouTube Music のビューのページの奥に描かせ、ローカルの動画ファイルはその下の背景動画のビューで流す。再生中の曲は PlayerStateStore からインテグレーションを通って Discord と Last.fm に送られる。YouTube Music のビューで曲の聞き取りのアイコンを押すと、main の SongRecognition が隠れたアプリ画面に PC の音かマイクを 5 秒録らせ、RapidAPI の Shazam API に問い合わせ、一致した曲を YouTube Music のビューで検索する。YouTube Music のビューの中の Grooving の画面は、ページが Innertube から候補の曲を集め、main の Grooving が利用者の Key で LLM (Gemini・Claude・OpenAI) に組とリストを問い合わせ (10 分に 120 回まで)、できたリストでキューを置き換えたりプレイリストに保存したりする。">
 </picture>
 
 図のソースは [docs/architecture/architecture.d2](docs/architecture/architecture.d2) です。構成を変えたら、arch-diagram スキルの `render.py` で描き直します。
@@ -105,10 +139,10 @@
 ```sh
 pnpm install
 pnpm start   # 開発版を起動
-pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定・Discord の表示の組み立て・曲の聞き取り)
+pnpm test    # Vitest (テーマの読み込み・背景動画の状態の決定・Discord の表示の組み立て・曲の聞き取り・Grooving)
 ```
 
-設計の文書は [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md)、[docs/adr/](docs/adr/)、[GLOSSARY.md](GLOSSARY.md) にあります。
+設計の文書は [docs/specs/](docs/specs/) (テーマ・背景動画・Discord・曲の聞き取り・Grooving)、[docs/adr/](docs/adr/)、[GLOSSARY.md](GLOSSARY.md) にあります。
 
 PR と `development` への push では、GitHub Actions がテスト・型チェック・lint を回します (`.github/workflows/build.yml`)。
 
@@ -136,15 +170,15 @@ For the app's features, downloads, development setup and build steps, see the up
 - Upstream README: <https://github.com/ytmdesktop/ytmdesktop#readme>
 - Upstream releases: <https://github.com/ytmdesktop/ytmdesktop/releases>
 
-This fork modifies the upstream code (2026-11-02, reeschan). The changes are the four features below and the settings and build changes they need; the commit history lists the changes file by file. It is licensed under [GPL-3.0](LICENSE), the same as upstream. It is an unofficial fork, not affiliated with upstream. YouTube and YouTube Music are trademarks of Google LLC. Shazam is a trademark of Apple Inc.
+This fork modifies the upstream code (updated 2026-11-04, reeschan). The changes are the five features below, the "Other changes", and the settings and build changes they need; the commit history lists the changes file by file. It is licensed under [GPL-3.0](LICENSE), the same as upstream. It is an unofficial fork, not affiliated with upstream. YouTube and YouTube Music are trademarks of Google LLC. Shazam is a trademark of Apple Inc. Gemini is a trademark of Google LLC, Claude of Anthropic PBC, and OpenAI of OpenAI.
 
-This fork adds the following four features.
+This fork adds the following five features.
 
 ### 1. Themes
 
 Pick a color theme in **Appearance → Theme**. The same colors apply to the app screens (title bar, settings, miniplayer and so on) and to YouTube Music itself, right away and without a restart.
 
-- Bundled themes: **Default** (the original look), **Midnight** (navy), **Forest** (dark green) and **Glass** (frosted)
+- Bundled themes: **Default** (the original look), **Midnight** (navy), **Forest** (dark green) and **Glass** (frosted, the default)
 - **Glass** blurs what is behind the nav bar, the side bar, the player bar and the menus, so the background video shows faintly through them
 - **Theme file** lets you use your own theme file (CSS)
 
@@ -179,7 +213,7 @@ A theme file declares the six color items as CSS variables.
 
 ### 2. Background video
 
-In **Appearance → Background video**, play a picture across the whole background of the main window. **Source** chooses what to play.
+In **Appearance → Background video**, play a picture across the whole background of the main window (on by default). **Source** chooses what to play.
 
 - **Playing video** (default): the video of the song YouTube Music is playing now (a music video and so on), drawn large behind the page. Songs without a video track fill it with their artwork. It holds the last frame while the song is paused, and it is not shown on pages such as the sign-in screen.
 - **Video file**: a local video file (mp4 / webm), looped without sound.
@@ -204,6 +238,7 @@ In **Integrations → Discord rich presence**, change what Discord shows.
 - Empty lines are left out, except the first line, which falls back to the title.
 - Choose whether to show the "Play on YTMDesktop" button, and what the Discord member list shows (app name, first line or second line).
 - A preview built from the playing song shows the result while you type.
+- When Discord starts after the app, the app connects again and sends the current track again. On Linux it tries every Discord IPC location.
 
 ### 4. Song recognition (Shazam)
 
@@ -213,11 +248,44 @@ Turn it on in **Integrations → Shazam** and enter an API Key from [Shazam on R
 - Press the icon at the right of the search box to record 5 seconds and look the song up. If it is found, the app searches for `title artist`. When the audio source is the PC's sound and the app is playing, playback is paused only while recording.
 - This is an unofficial integration, not affiliated with upstream, and not affiliated with Shazam (Apple) either.
 
+### 5. Grooving (playlists from your mood)
+
+Open it from **Grooving** in the YouTube Music side bar. Pick your mood, then pick the better of two songs a few times, and an LLM builds a 25-song **Grooving list**. The list replaces the queue and starts playing, and **Save as playlist** keeps it as a YouTube Music playlist.
+
+![Grooving: pick your mood](.github/images/fork/grooving-setup.png)
+
+1. **Pick the mood**: choose one YouTube Music mood and up to two genres (combined, as in "Chill × J-Pop"), or describe it in your own words (for example "rainy night, lo-fi, a little nostalgic").
+2. **Direction and pairs**: how far to go from your usual songs (**Stay familiar**: artists you know, **Discover**: artists you don't know, **Mix**: your choices set the ratio) and the number of pairs (3, 5 or 10).
+3. **Pick one of two**: each pair shows two songs; pick the one that fits. **Preview** plays 15 seconds from a third of the song, then goes back to what you were listening to. **Neither** says that both missed.
+
+![Grooving: pick one of two](.github/images/fork/grooving-choose.png)
+
+- The candidate songs are collected inside the page from your YouTube Music history, likes, related songs, mood and genre playlists, and search. Requests to YouTube Music are spaced out like a person using it.
+- Choose the LLM in **Integrations → Grooving**: **Gemini**, **Claude** or **OpenAI**, with your own API key (stored encrypted). An empty **Model** uses each provider's light model (`gemini-3.5-flash-lite`, `claude-haiku-5-5`, `gpt-6-luna`); you can enter another one.
+- On first use, Grooving asks whether to send the titles and artists of your history and likes to the LLM. You can say no: then the only direction is "Discover", and only the songs of the mood playlists are sent. **Reset** next to **History sharing** in the settings takes the answer back.
+- The done screen shows the tokens and the estimated cost of the run (for example about $0.005 for 3 pairs with `claude-haiku-5-5`), and **This month** in the settings shows the month's total. Models missing from the price table show the cost as unknown.
+- **Language** sets the screen's language (Auto follows YouTube Music's language; English and Japanese).
+- A list has at most 3 songs by one artist. LLM calls are capped at 120 in any 10 minutes, so forged page events cannot spend your key without end.
+- You pay the API costs of the provider you choose. This is an unofficial feature, not affiliated with upstream, nor with Google, Anthropic or OpenAI.
+
+![Grooving settings](.github/images/fork/settings-grooving.png)
+
+### Other changes
+
+- **Default look**: a new install now starts with the Glass theme and the playing-video background.
+- **Video in the miniplayer**: while a song with a music video plays, the miniplayer shows the video.
+- **Tray tooltip**: the tray icon shows the playing song's title and artist.
+- **Keyboard**: Ctrl+W closes the window, and F11 toggles full screen for the main window.
+- **Continue where you left off**: when it is on, playback resumes from where you stopped last time.
+- **Updates**: check for and install updates from the settings and the title bar.
+- **Window position**: a window last placed on a display that is gone opens again on a connected display.
+- **Bug fixes**: many fixes, such as the startup getting stuck, a crash on queue items with missing data, and URLs left in the log file. The commit history has the details.
+
 ### Architecture
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/architecture/architecture-dark.svg">
-  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm. Pressing the song recognition icon in the YouTube Music view makes SongRecognition in the main process have the hidden app view record PC audio or the mic for 5 seconds, ask the Shazam API on RapidAPI, and search the matched song in the YouTube Music view.">
+  <img src="docs/architecture/architecture-light.svg" alt="YTMDesktop architecture. In the Electron main process, ThemeManager injects the theme colors into the app screens and the YouTube Music view, and BackgroundVideoManager has the YouTube Music view draw the playing video behind its page, or plays a local video file in the background video view placed below it. The playing song goes from PlayerStateStore through the integrations to Discord and Last.fm. Pressing the song recognition icon in the YouTube Music view makes SongRecognition in the main process have the hidden app view record PC audio or the mic for 5 seconds, ask the Shazam API on RapidAPI, and search the matched song in the YouTube Music view. In the Grooving screen inside the YouTube Music view, the page collects candidate songs through Innertube, Grooving in the main process asks an LLM (Gemini, Claude or OpenAI) with the user's key for pairs and the list (at most 120 calls in 10 minutes), and the list replaces the queue or is saved as a playlist.">
 </picture>
 
 The diagram source is [docs/architecture/architecture.d2](docs/architecture/architecture.d2). Redraw it with the arch-diagram skill's `render.py` when the structure changes.
@@ -227,10 +295,10 @@ The diagram source is [docs/architecture/architecture.d2](docs/architecture/arch
 ```sh
 pnpm install
 pnpm start   # run the dev build
-pnpm test    # Vitest (theme resolution, background video decision, Discord activity builder, song recognition)
+pnpm test    # Vitest (theme resolution, background video decision, Discord activity builder, song recognition, Grooving)
 ```
 
-Design documents: [docs/specs/theme-bgvideo-discord.md](docs/specs/theme-bgvideo-discord.md), [docs/adr/](docs/adr/) and [GLOSSARY.md](GLOSSARY.md).
+Design documents: [docs/specs/](docs/specs/) (themes, background video, Discord, song recognition, Grooving), [docs/adr/](docs/adr/) and [GLOSSARY.md](GLOSSARY.md).
 
 On pull requests and pushes to `development`, GitHub Actions runs the tests, the type check and lint (`.github/workflows/build.yml`).
 

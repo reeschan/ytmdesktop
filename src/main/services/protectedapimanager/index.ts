@@ -5,6 +5,9 @@ import { ProtectedAPIOpCode } from "~shared/types";
 import log from "electron-log";
 import { randomUUID } from "node:crypto";
 
+// How long invokeMessage waits for the other end's result
+const INVOKE_TIMEOUT_MS = 30 * 1000;
+
 export default class ProtectedAPIManager extends Service {
   private mainPort: MessagePortMain | null = null;
   private apis = new Map<string, ProtectedAPI>();
@@ -108,11 +111,21 @@ export class ProtectedAPI extends EventEmitter {
   }
 
   /**
-   * Posts a RPC message to the other end of the ProtectedAPI and waits for the result
+   * Posts a RPC message to the other end of the ProtectedAPI and waits for the result, at most INVOKE_TIMEOUT_MS
    * @param name RPC name
    * @param args RPC arguments
    */
   public async invokeMessage(name: string, ...args: unknown[]): Promise<unknown[]> {
+    return this.invokeMessageWithTimeout(INVOKE_TIMEOUT_MS, name, ...args);
+  }
+
+  /**
+   * Posts a RPC message to the other end of the ProtectedAPI and waits for the result, rejecting when none came within the time
+   * @param timeoutMs How long to wait for the result
+   * @param name RPC name
+   * @param args RPC arguments
+   */
+  public async invokeMessageWithTimeout(timeoutMs: number, name: string, ...args: unknown[]): Promise<unknown[]> {
     const invokeId = randomUUID();
     return new Promise((resolve, reject) => {
       this.waitingInvokes.set(invokeId, (...args: unknown[]) => {
@@ -131,7 +144,7 @@ export class ProtectedAPI extends EventEmitter {
           this.waitingInvokes.delete(invokeId);
           reject();
         }
-      }, 30 * 1000);
+      }, timeoutMs);
     });
   }
 }

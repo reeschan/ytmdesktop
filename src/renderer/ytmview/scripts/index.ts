@@ -9,6 +9,7 @@ import initRemote from "./setup/remote";
 import { initBackgroundVideo } from "./setup/background-video";
 import { initMiniplayerVideo } from "./setup/miniplayer-video";
 import { createSongRecognitionButton } from "./setup/song-recognition";
+import { setupGrooving } from "./setup/grooving";
 import { addTimedLyrics, createAdditionalPlayerBarControls, hideChromecastButton, overrideHistoryButtonDisplay } from "./setup/extras";
 
 protectedapimanager.init();
@@ -59,6 +60,12 @@ window.addEventListener("load", async () => {
     setupStarted = true;
     initPlayerStateStore();
     report.add(YTMViewSetupCompletionFlags.Hooks);
+    // Grooving is optional, so its failure does not stop the rest of the setup
+    try {
+      setupGrooving();
+    } catch (error) {
+      console.error("Failed to set up Grooving", error);
+    }
     initRemote();
     report.add(YTMViewSetupCompletionFlags.Remote);
     overrideHistoryButtonDisplay();

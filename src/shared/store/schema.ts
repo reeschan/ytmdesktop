@@ -1,4 +1,5 @@
 import { BackgroundVideoSource } from "~shared/background-video";
+import { GroovingConsent, GroovingLanguage, GroovingProvider, GroovingUsage } from "~shared/grooving";
 import { SongRecognitionInputDevice, SongRecognitionSourceSetting } from "~shared/song-recognition";
 import { BundledTheme } from "~shared/theme";
 
@@ -63,6 +64,12 @@ export type StoreSchema = {
     shazamEnabled: boolean;
     shazamApiKey: string | null; // Encrypted for security
     shazamAudioSource: SongRecognitionSourceSetting;
+    groovingProvider: GroovingProvider;
+    groovingApiKeys: Record<GroovingProvider, string | null>; // Encrypted for security
+    groovingModels: Record<GroovingProvider, string | null>; // null uses the default model
+    groovingConsent: GroovingConsent | null;
+    groovingUsage: GroovingUsage | null;
+    groovingLanguage: GroovingLanguage;
   };
   shortcuts: {
     playPause: string;
