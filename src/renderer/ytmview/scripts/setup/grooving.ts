@@ -6,14 +6,14 @@ import protectedapimanager from "../protectedapimanager";
 import {
   GROOVING_PROTECTED_API,
   GroovingMessageOp,
-  GroovingScreen,
+  GroovingVisibility,
   type GroovingSignal,
   type GroovingViewMessage,
   isGroovingViewMessage
 } from "~shared/grooving";
 import { createGroovingView, GROOVING_VIEW_CSS } from "./grooving-view";
 import { cancelGroovingYtm, setupGroovingYtm } from "./grooving-ytm";
-import { setupGroovingPlayback } from "./grooving-playback";
+import { endFoldingPlayerPage, foldPlayerPage, isFoldingPlayerPage, setGroovingShown, setupGroovingPlayback } from "./grooving-playback";
 
 const ENTRY_TITLE = "Grooving";
 const ENTRY_ICON = "instant_mix";
@@ -24,7 +24,9 @@ const ClassName = {
   Host: "ytmd-grooving-host",
   Entry: "ytmd-grooving-entry",
   EntryActive: "ytmd-grooving-entry-active",
-  EntryIcon: "ytmd-grooving-entry-icon"
+  EntryIcon: "ytmd-grooving-entry-icon",
+  EntryMark: "ytmd-grooving-entry-mark",
+  EntryDot: "ytmd-grooving-entry-dot"
 } as const;
 
 // The wide sidebar and the thin one; both always exist, only one is shown
@@ -53,6 +55,8 @@ const STYLE = `
     border-radius: 8px;
     background: color-mix(in srgb, var(--ytmusic-color-white1, #fff) 10%, transparent);
   }
+  ytmusic-guide-entry-renderer.${ClassName.Entry} { position: relative; }
+  ytmusic-guide-entry-renderer.${ClassName.Entry} yt-icon { position: relative; }
   ytmusic-guide-entry-renderer.${ClassName.Entry} .${ClassName.EntryIcon} {
     display: block;
     width: 24px;
@@ -60,9 +64,38 @@ const STYLE = `
     font-size: 24px;
     line-height: 24px;
   }
+  ytmusic-guide-entry-renderer.${ClassName.Entry} .${ClassName.EntryMark} {
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transform: translateY(-50%);
+    color: var(--ytmd-color-text-muted);
+    font-size: 11px;
+    line-height: 16px;
+    pointer-events: none;
+  }
+  ytmusic-guide-entry-renderer.${ClassName.Entry} .${ClassName.EntryDot} {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ytmd-color-accent);
+    box-shadow: 0 0 0 2px var(--ytmusic-background, #030303);
+    pointer-events: none;
+  }
 `;
 
 type GuideEntry = HTMLElement & { data?: unknown };
+
+// The visibility main sent last. A press of the entry while the screen is shown has to fold the player page itself,
+// because main ignores `open` for a screen that is already shown
+let visibility: GroovingVisibility = GroovingVisibility.Gone;
 
 function send(signal: GroovingSignal) {
   window.postMessage({ op: GroovingMessageOp.Signal, signal }, "*");
@@ -81,7 +114,16 @@ function createEntry(collapsed: boolean): GuideEntry {
     navigationEndpoint: {},
     isPrimary: true
   };
-  entry.addEventListener("click", () => send({ type: "open", pageLanguage: readPageLanguage() }), true);
+  entry.addEventListener(
+    "click",
+    () => {
+      // While the screen is already shown, main keeps it shown: fold the player page here so the screen comes back in view.
+      // The navigation this causes is held back by the flag of grooving-playback.ts (see the listener below)
+      if (visibility === GroovingVisibility.Shown) foldPlayerPage();
+      send({ type: "open", pageLanguage: readPageLanguage() });
+    },
+    true
+  );
   return entry;
 }
 
@@ -106,6 +148,36 @@ function applyEntryIcon(entry: HTMLElement) {
   icon.replaceChildren(symbol);
 }
 
+// The thin sidebar has room only for a dot on the icon; the wide one shows the word at the right edge
+function applyEntryMark(entry: HTMLElement, mark: string | null, collapsed: boolean) {
+  const previous = entry.querySelector<HTMLElement>(`.${ClassName.EntryMark}, .${ClassName.EntryDot}`);
+  if (mark === null) {
+    previous?.remove();
+    return;
+  }
+  if (collapsed) {
+    const icon = entry.querySelector("yt-icon") ?? entry;
+    let dot = previous?.classList.contains(ClassName.EntryDot) && previous.parentElement === icon ? previous : null;
+    if (!dot) {
+      previous?.remove();
+      dot = document.createElement("span");
+      dot.className = ClassName.EntryDot;
+      icon.append(dot);
+    }
+    if (dot.title !== mark) dot.title = mark;
+    return;
+  }
+  let node = previous?.classList.contains(ClassName.EntryMark) ? previous : null;
+  if (!node) {
+    previous?.remove();
+    node = document.createElement("span");
+    node.className = ClassName.EntryMark;
+    entry.append(node);
+  }
+  // Writing the same text again replaces the text node, which wakes the observer and comes back here without end
+  if (node.textContent !== mark) node.textContent = mark;
+}
+
 export function setupGrooving() {
   // Main calls into the page through this one API; it is made once, like RemoteControl and PlayerState
   const api = protectedapimanager.createOrGetAPI(GROOVING_PROTECTED_API);
@@ -122,11 +194,13 @@ export function setupGrooving() {
   host.hidden = true;
   host.append(view.element);
 
-  let open = false;
+  let mark: string | null = null;
 
   function updateEntries() {
+    const markToShow = visibility === GroovingVisibility.Hidden ? mark : null;
     for (const entry of document.querySelectorAll<HTMLElement>(`ytmusic-guide-entry-renderer.${ClassName.Entry}`)) {
-      entry.classList.toggle(ClassName.EntryActive, open);
+      entry.classList.toggle(ClassName.EntryActive, visibility === GroovingVisibility.Shown);
+      applyEntryMark(entry, markToShow, entry.hasAttribute("is-collapsed"));
     }
   }
 
@@ -138,13 +212,14 @@ export function setupGrooving() {
       if (!entry) {
         // The end of the first group, after Library
         entry = createEntry(guide.collapsed);
-        entry.classList.toggle(ClassName.EntryActive, open);
         items.append(entry);
       }
       applyEntryIcon(entry);
     }
 
     if (!host.isConnected) document.querySelector(CONTENT_SELECTOR)?.append(host);
+    // YTM may draw the sidebar again; the mark is put back from the last state main sent
+    updateEntries();
   }
 
   // Only additions and removals of children are watched, and the work is batched with a timer.
@@ -160,28 +235,44 @@ export function setupGrooving() {
   observer.observe(document.querySelector("ytmusic-app-layout") ?? document.body, { childList: true, subtree: true });
 
   function applyState(state: GroovingViewMessage) {
-    const wasOpen = open;
-    open = state.screen !== GroovingScreen.Closed;
-    // Closing stops the YTM reads in progress on the page (the queue additions of grooving-playback.ts go on)
-    if (wasOpen && !open) cancelGroovingYtm();
+    const wasGone = visibility === GroovingVisibility.Gone;
+    const wasShown = visibility === GroovingVisibility.Shown;
+    visibility = state.visibility;
+    mark = state.mark;
+    // Closing (not hiding) stops the YTM reads in progress on the page (the queue additions of grooving-playback.ts go on)
+    if (!wasGone && visibility === GroovingVisibility.Gone) cancelGroovingYtm();
     view.render(state);
-    host.hidden = !open;
+    host.hidden = visibility !== GroovingVisibility.Shown;
+    // The replacement of the queue folds the player page only while the screen is shown
+    setGroovingShown(visibility === GroovingVisibility.Shown);
+    // Shown again while the player page is open: fold it, so the screen kept from when it was hidden stays in view.
+    // The navigation this causes is held back by the flag of grooving-playback.ts (see the listener below)
+    if (!wasShown && visibility === GroovingVisibility.Shown) foldPlayerPage();
     updateEntries();
   }
 
-  // Moving to another page closes Grooving. Previews, queue replacements and the next track in the queue
-  // all show up as a navigation to /watch, so those do not close it.
+  // Moving to another page hides Grooving. Previews, queue replacements and the next track in the queue
+  // all show up as a navigation to /watch, so those do not hide it.
+  // Folding the player page after a queue replacement moves away from /watch as a push; that one is held back
+  // so the URL stays and the screen does not read as left.
   navigation.addEventListener("navigate", event => {
-    if (!open) return;
-    // YTM sometimes writes the same address again; that is not moving to another page
-    if (event.navigationType === "replace" && event.destination.url === location.href) return;
-    let pathname: string;
+    let pathname: string | null = null;
     try {
       pathname = new URL(event.destination.url).pathname;
     } catch {
-      return;
+      pathname = null;
     }
-    if (pathname !== "/watch") send({ type: "leave" });
+    if (isFoldingPlayerPage()) {
+      if (pathname !== null && pathname !== "/watch") {
+        event.preventDefault();
+        endFoldingPlayerPage();
+        return;
+      }
+    }
+    if (visibility !== GroovingVisibility.Shown) return;
+    // YTM sometimes writes the same address again; that is not moving to another page
+    if (event.navigationType === "replace" && event.destination.url === location.href) return;
+    if (pathname !== null && pathname !== "/watch") send({ type: "leave" });
   });
 
   window.addEventListener("message", event => {

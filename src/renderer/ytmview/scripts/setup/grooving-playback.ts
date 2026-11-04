@@ -32,6 +32,8 @@ const QUEUE_ADD_TIMEOUT_MS = 10_000;
 // since after its request it still waits for the item to appear and for playback to switch
 const PREVIEW_WAIT_TIMEOUT_MS = 5_000;
 const SAVE_WAIT_TIMEOUT_MS = 10_000;
+// How long the flag that holds back the navigation of folding the player page stays up when no navigation comes
+const FOLD_RESTORE_MS = 1_000;
 
 // What previewStart remembers, kept until previewEnd
 type PreviewMemory = {
@@ -463,6 +465,51 @@ function waitStoreQuiet(quietMs: number, deadline: number): Promise<boolean> {
   });
 }
 
+// Folding the player page after a queue replacement moves away from /watch. While the flag is up, grooving.ts holds
+// that navigation back, so it is not taken for moving to another page
+let foldingPlayerPage = false;
+let foldRestoreTimer: ReturnType<typeof setTimeout> | null = null;
+
+// True while the close of the player page caused by foldPlayerPage still has to be kept from looking like leaving
+export function isFoldingPlayerPage(): boolean {
+  return foldingPlayerPage;
+}
+
+// Main side of the pairing: the navigation listener in grooving.ts calls this once it held the navigation back
+export function endFoldingPlayerPage() {
+  foldingPlayerPage = false;
+  if (foldRestoreTimer !== null) {
+    clearTimeout(foldRestoreTimer);
+    foldRestoreTimer = null;
+  }
+}
+
+function beginFoldingPlayerPage() {
+  foldingPlayerPage = true;
+  if (foldRestoreTimer !== null) clearTimeout(foldRestoreTimer);
+  // A navigation may not come; the flag goes back on its own
+  foldRestoreTimer = setTimeout(endFoldingPlayerPage, FOLD_RESTORE_MS);
+}
+
+// Whether Grooving's screen is shown now, told by grooving.ts on every state it applies. The player page covers the
+// screen, so it is only folded when the screen is there to be seen
+let groovingShown = false;
+
+export function setGroovingShown(shown: boolean) {
+  groovingShown = shown;
+}
+
+// The open player page sits over the finished screen. The player bar's toggle folds it back to the page underneath,
+// which keeps playing. Closed page or missing toggle: nothing to do
+export function foldPlayerPage() {
+  const layout = document.querySelector("ytmusic-app-layout");
+  if (!layout?.hasAttribute("player-page-open")) return;
+  const toggle = document.querySelector<HTMLElement>(".toggle-player-page-button");
+  if (!toggle) return;
+  beginFoldingPlayerPage();
+  toggle.click();
+}
+
 // The fill of replaceQueue: one generation per replaceQueue. A newer replaceQueue moves the number on and aborts the old signal
 let fillGeneration = 0;
 let fillController: AbortController | null = null;
@@ -558,6 +605,9 @@ async function replaceQueue(args: unknown[]): Promise<GroovingPageResult<null>> 
   //    (only after the store settled: adding earlier can be wiped by YTM's CLEAR)
   if (rest.length > 0) void fillQueue(generation, controller.signal, first, rest);
   else fillController = null;
+  // The queue is in place. Only with the screen shown must the player page not cover it: with Grooving hidden,
+  // the player page the user opened is theirs to keep
+  if (groovingShown) foldPlayerPage();
   return { ok: true, value: null };
 }
 
