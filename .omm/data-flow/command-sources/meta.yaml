@@ -1,0 +1,17 @@
+created: 2026-11-03T06:10:26.160Z
+updated: 2026-11-03T06:14:05.274Z
+update_count: 3
+last_field: concern
+kind: nested-class
+title: command-sources
+children:
+  - companion-server
+  - global-shortcuts
+  - media-service
+  - miniplayer
+  - protocol
+  - remote-control-api
+  - song-recognition
+  - taskbar-buttons
+  - tray
+parentPath: []

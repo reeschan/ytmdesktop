@@ -1,0 +1,1 @@
+- `ytmViewRecreate` が送る `ytmView:recreate` は main に受け手が無い。今はどこからも呼ばれていない。

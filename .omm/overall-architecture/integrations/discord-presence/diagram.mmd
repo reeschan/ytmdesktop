@@ -1,0 +1,15 @@
+graph LR
+    presence["DiscordPresence\nsrc/main/integrations/discord-presence/index.ts"]
+    minimal-discord-client["DiscordClient\nsrc/main/integrations/discord-presence/minimal-discord-client/index.ts"]
+    ipc["IPCClient\nsrc/main/integrations/discord-presence/minimal-discord-client/ipc.ts"]
+    discord-app["Discord クライアント\ndiscord-ipc-0〜9"]
+
+    presence -->|"connect・setActivity(buildActivity の結果)・clearActivity"| minimal-discord-client
+    minimal-discord-client -->|"connect / close を受けて再接続する"| presence
+    minimal-discord-client -->|"discord-ipc-0〜9 を順に試し HANDSHAKE を送る"| ipc
+    ipc -->|"op と長さと JSON のフレームを書く"| discord-app
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class discord-app external
+    class presence entry

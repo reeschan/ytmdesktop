@@ -1,0 +1,1 @@
+Fastify (TypeBox の型プロバイダー付き) の HTTP サーバー。`@fastify/cors` (`companionServerCORSWildcardEnabled` なら `*`)、`fastify-socket.io`、API v1 (`/api/v1`) を登録し、`GET /metadata` で対応する API の版 (`["v1"]`) を返す。決まったエラー以外の 500 番台は中身を隠して返す。既定の名前空間への Socket.IO の接続はすぐ切る。

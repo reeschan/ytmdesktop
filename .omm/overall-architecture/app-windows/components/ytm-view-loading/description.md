@@ -1,0 +1,1 @@
+`YTMViewLoading.vue`。YTM 画面の上に重ねるローディング表示。`ytmViewStatusChanged` で状態 (Loading → Hooking → Ready) を受けて文を変え、5 秒たっても Ready にならなければ「いつもより時間がかかっている」と出す。`ytmViewLoadError` を受けたらエラーと「Refresh YouTube Music」ボタン (`ytmViewReload`) を出す。memoryStore の `ytmViewUnresponsive` が真なら半透明の層をかぶせる。Ready で表示が消える、または `appViewHiding` を受けるとフェードし、消え終わったら `appViewHide()` で main に伝える。`appViewShowing` でまた出す。

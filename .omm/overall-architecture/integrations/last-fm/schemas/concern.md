@@ -1,0 +1,1 @@
+- `src/` のどこからも import されていない。`LastFMClient` は body や応答を型なし (`any`) で扱っている。

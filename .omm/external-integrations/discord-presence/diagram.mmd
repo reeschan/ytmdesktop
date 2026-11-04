@@ -1,0 +1,18 @@
+graph LR
+    state-input["再生状態と表示設定\n(PlayerStateStore と ConfigStore)"]
+    presence-integration["DiscordPresence\nsrc/main/integrations/discord-presence/index.ts"]
+    activity-builder["buildActivity\nsrc/shared/discord-presence/activity.ts"]
+    discord-client["DiscordClient\nsrc/main/integrations/discord-presence/minimal-discord-client/index.ts"]
+    ipc-client["IPCClient\nsrc/main/integrations/discord-presence/minimal-discord-client/ipc.ts"]
+    discord-app["Discord\n(外部・ローカル IPC)"]
+
+    state-input -->|"state-changed と integrations の変更"| presence-integration
+    presence-integration -->|"表示テンプレートと曲の情報を渡す"| activity-builder
+    presence-integration -->|"setActivity と clearActivity"| discord-client
+    discord-client -->|"HANDSHAKE と SET_ACTIVITY の JSON"| ipc-client
+    ipc-client -->|"op と長さを付けたフレームを書く"| discord-app
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class discord-app external
+    class state-input entry

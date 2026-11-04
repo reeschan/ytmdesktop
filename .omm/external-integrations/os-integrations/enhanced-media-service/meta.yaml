@@ -1,0 +1,9 @@
+created: 2026-11-03T06:19:31.058Z
+updated: 2026-11-03T06:19:46.842Z
+update_count: 2
+last_field: description
+kind: nested-class
+title: enhanced-media-service
+children: []
+parentPath:
+  - os-integrations

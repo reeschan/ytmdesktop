@@ -1,0 +1,3 @@
+- `StoreSchema` にキーを足すときは、`defaults` に既定値を書き、既存の利用者の `config.json` 向けに、次の版の `migrations` で「無ければ `set`」を足す (これまでの版はすべてこの形)。
+- ConfigStore の `onDidAnyChange` は、別プロセスやファイルの直接編集 (`watch: true`) による変化でも全ウィンドウに `configStore:stateChanged` を流す。
+- `reconcileConfig` (ログイン時の起動) にはコード上で「ConfigStore の仕事ではない」という TODO が付いている。

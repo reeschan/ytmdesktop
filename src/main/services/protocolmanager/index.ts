@@ -102,7 +102,7 @@ export default class ProtocolManager extends Service {
 
   public override onTerminated(): void {}
 
-  public async handleYTMDProtocol(url: string) {
+  public handleYTMDProtocol(url: string) {
     const ytmViewManager = this.getDependency(YTMViewManager);
     const protectedApiManager = this.getDependency(ProtectedAPIManager);
 

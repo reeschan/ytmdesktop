@@ -1,0 +1,4 @@
+- YTM 画面は Google のページで、アプリはその内部 (DI のトークン `PLAYER_CONTROLLER_TOKEN` / `STATE_STORE_TOKEN` で作られるプレイヤーとストア) を横取りして状態を読み、操作する。公開された API は無い。
+- YTM 画面は sandbox + contextIsolation で開かれる。ページの main world とメインプロセスの間は、preload が一度だけ橋渡しする MessagePort (Protected API) を使い、API 名 (`PlayerState`・`RemoteControl`) ごとに専用のポートを持つ。
+- 設定は `conf` のファイル (userData の config.json) に保存され、型は `src/shared/store/schema.ts` の `StoreSchema`。一時的な状態 (認可の受付中・Last.fm の認証の段階など) は `MemoryStore` に置く。
+- 全体の構成は `overall-architecture` を見る。この視点は流れだけに絞る。

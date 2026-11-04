@@ -1,0 +1,14 @@
+created: 2026-11-03T06:10:15.948Z
+updated: 2026-11-03T06:10:22.576Z
+update_count: 2
+last_field: diagram
+kind: nested-class
+title: windows-and-views
+children:
+  - background-video
+  - protocol-manager
+  - theme-manager
+  - window-manager
+  - ytm-view-manager
+parentPath:
+  - services

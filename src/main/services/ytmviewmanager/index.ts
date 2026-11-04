@@ -9,6 +9,12 @@ import StateManager from "../statemanager";
 import MemoryStore from "../memorystore";
 import { MemoryStoreSchema } from "~shared/store/schema";
 import AppWindowManager from "../windowmanager";
+import { YtmStartupIpc } from "~shared/ytm-startup";
+
+// The packaged and development builds keep separate sessions for the YTM view
+function getYTMViewPartition(): string {
+  return app.isPackaged ? "persist:ytmview" : "persist:ytmview-dev";
+}
 
 export type YTMViewManagerEventMap = {
   "status-changed": [];
@@ -45,7 +51,7 @@ function openExternalFromYtmView(urlString: string) {
   domainSplit.reverse();
   const domain = `${domainSplit[1]}.${domainSplit[0]}`;
   if (domain === "google.com" || domain === "youtube.com" || domain === "googleusercontent.com" || domain === "ggpht.com") {
-    shell.openExternal(urlString);
+    void shell.openExternal(urlString);
   } else {
     log.warn(`Attempted to open ${urlString} from YTMView but was denied`);
   }
@@ -95,7 +101,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
     });
 
     //#region Permission handlers
-    session.fromPartition("persist:ytmview").setPermissionCheckHandler((webContents, permission) => {
+    session.fromPartition(getYTMViewPartition()).setPermissionCheckHandler((webContents, permission) => {
       if (webContents == this.ytmView?.webContents) {
         if (permission === "fullscreen") {
           return true;
@@ -104,7 +110,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
 
       return false;
     });
-    session.fromPartition("persist:ytmview").setPermissionRequestHandler((webContents, permission, callback) => {
+    session.fromPartition(getYTMViewPartition()).setPermissionRequestHandler((webContents, permission, callback) => {
       if (webContents == this.ytmView?.webContents) {
         if (permission === "fullscreen") {
           return callback(true);
@@ -159,7 +165,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
         webPreferences: {
           sandbox: true,
           contextIsolation: true,
-          partition: app.isPackaged ? "persist:ytmview" : "persist:ytmview-dev",
+          partition: getYTMViewPartition(),
           preload: path.join(__dirname, `../renderer/windows/ytmview/preload.cjs`),
           devTools: !app.isPackaged ? true : configStore.get("developer.enableDevTools"),
           autoplayPolicy:
@@ -363,7 +369,7 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
         (url.hostname === "youtube.com" && url.pathname === "/musicpremium")
       ) {
         // This users region requires a premium subscription to use YTM
-        this.ytmView!.webContents!.loadURL(
+        void this.ytmView!.webContents!.loadURL(
           "https://accounts.google.com/ServiceLogin?ltmpl=music&service=youtube&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26next%3Dhttps%253A%252F%252Fmusic.youtube.com%252F"
         );
       }
@@ -399,12 +405,17 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
     this.setWindowOpenHandler();
 
     // YTM View IPC
-    this.ytmView.ipcOn("ytmView:ready", async (_event, setupCompletionFlags) => {
+    this.ytmView.ipcOn(YtmStartupIpc.Ready, async (_event, setupCompletionFlags) => {
       this.hooksReady = true;
       this.setupCompletionFlags = setupCompletionFlags;
       this.setStatus(YTMViewStatus.Ready);
     });
-    this.ytmView.ipcOn("ytmView:errored", (_event, error) => {
+    this.ytmView.ipcOn(YtmStartupIpc.SetupUpdated, (_event, flags: unknown) => {
+      if (typeof flags !== "number") return;
+      this.setupCompletionFlags = flags;
+      log.info("YTM view setup updated", flags);
+    });
+    this.ytmView.ipcOn(YtmStartupIpc.Errored, (_event, error) => {
       this.hookError = error;
     });
   }
@@ -439,6 +450,10 @@ export default class YTMViewManager extends EventEmitterService<YTMViewManagerEv
   }
 
   private setStatus(status: YTMViewStatus) {
+    if (status === YTMViewStatus.Loading || status === YTMViewStatus.Hooking) {
+      this._loadError = null;
+      this.getDependency(MemoryStore<MemoryStoreSchema>).set("ytmViewUnresponsive", false);
+    }
     this._status = status;
     this.emit("status-changed");
   }

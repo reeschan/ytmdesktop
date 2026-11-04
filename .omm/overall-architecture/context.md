@@ -1,0 +1,3 @@
+- 上流は ytmdesktop/ytmdesktop (作者 NovusTheory)。このフォークでは、テーマ・背景動画・Discord 表示テンプレート・曲の聞き取りを足している (仕様は `docs/specs/`、判断は `docs/adr/`)。
+- 用語は `GLOSSARY.md` に従う。YouTube Music のページそのものは「YTM 画面」、アプリが自分で作る画面は「アプリ画面」と呼ぶ。
+- README 用の構成図は `docs/architecture/architecture.d2` (arch-diagram で描く)。`.omm/` はコードを辿るための詳しい地図で、役割が違う。

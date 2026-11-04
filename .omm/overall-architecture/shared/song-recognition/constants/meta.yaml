@@ -1,0 +1,10 @@
+created: 2026-11-03T06:17:08.422Z
+updated: 2026-11-03T06:17:08.423Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: constants
+children: []
+parentPath:
+  - shared
+  - song-recognition

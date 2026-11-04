@@ -1,4 +1,4 @@
-import { WindowsEventArguments, YTMViewStatus } from "~shared/types";
+import { FocusContext, WindowsEventArguments, YTMViewStatus } from "~shared/types";
 import Store from "../store-ipc/store";
 import { StoreSchema, MemoryStoreSchema } from "~shared/store/schema";
 import MemoryStore from "../store-ipc/memory-store";
@@ -35,7 +35,8 @@ declare global {
       getCode(): string;
 
       // Main window specific
-      switchFocus(context: "main" | "ytm"): void;
+      isMainWindow(): boolean;
+      switchFocus(context: FocusContext): void;
 
       // YTM view specific
       ytmViewNavigateDefault(): void;

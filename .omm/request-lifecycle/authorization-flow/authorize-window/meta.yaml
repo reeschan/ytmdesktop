@@ -1,0 +1,9 @@
+created: 2026-11-03T06:22:57.056Z
+updated: 2026-11-03T06:22:57.057Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: authorize-window
+children: []
+parentPath:
+  - authorization-flow

@@ -1,0 +1,10 @@
+created: 2026-11-03T06:10:01.699Z
+updated: 2026-11-03T06:10:01.700Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: player-state-store
+children: []
+parentPath:
+  - services
+  - playback-control

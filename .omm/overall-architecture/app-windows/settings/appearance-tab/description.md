@@ -1,0 +1,1 @@
+`appearance.*` の設定: テーマ (Default / Midnight / Forest / Glass / Theme file) とテーマファイルのパス、背景動画 (オン・オフ、元が「再生中の動画」か「ローカルの動画ファイル」か、動画ファイルのパス、マスクの濃さとぼかし)、カスタム CSS (オン・オフとパス)、音量スライダーを常に出す、ズーム、トレイアイコンの形。ファイルは `<input type="file">` で選び、`getTrueFilePath` で得た実パスを `store.set` する。

@@ -1,0 +1,25 @@
+graph LR
+    network-clients["Companion クライアント\nLAN 上のアプリ・端末"]
+    local-ipc-clients["ローカル IPC クライアント\n同じ PC のアプリ"]
+    server["CompanionServer\nsrc/main/integrations/companion-server/index.ts"]
+    api-v1["API v1\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    auth["認可とトークン\nsrc/main/integrations/companion-server/api-shared/auth.ts"]
+    errors["API エラー\nsrc/main/integrations/companion-server/api-shared/errors.ts"]
+    schemas["リクエストの型\nsrc/main/integrations/companion-server/api-shared/schemas.ts"]
+    ipc-client["IPC クライアント\nsrc/main/integrations/companion-server/ipc-client.ts"]
+
+    network-clients -->|"mDNS で _ytmdesktop._tcp を探す"| server
+    network-clients -->|"HTTP :9863 と socket.io /api/v1/realtime"| api-v1
+    local-ipc-clients -->|"ytmdesktop-ipc に接続し版を選ぶ"| server
+    server -->|"/api/v1 に register する"| api-v1
+    server -->|"接続ごとに socket と版を持たせる"| ipc-client
+    server -->|"transformPlayerState で状態を整えて IPC に流す"| api-v1
+    server -->|"isDefinedAPIError で定義外の 5xx を伏せる"| errors
+    api-v1 -->|"コードとトークンを発行・検証する"| auth
+    api-v1 -->|"定義済みのエラーを投げる"| errors
+    api-v1 -->|"body を検証する"| schemas
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class network-clients,local-ipc-clients external
+    class server entry

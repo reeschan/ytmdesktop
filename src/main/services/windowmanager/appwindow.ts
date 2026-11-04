@@ -15,6 +15,11 @@ import log from "electron-log";
 import { AppView } from "./appview";
 import AppWindowManager from ".";
 import EventEmitter from "node:events";
+import {
+  KeyboardShortcut,
+  KeyboardShortcutSelection,
+  matchKeyboardShortcut,
+} from "./keyboard-shortcuts";
 
 export type AppWindowType = "Base" | "Browser";
 export type AppWindowEventMap = {
@@ -87,6 +92,12 @@ export type AppWindowOptions<T extends AppWindowType> = {
    * @see url Cannot be specified if using this property
    */
   file?: string;
+  /**
+   * The keyboard shortcuts that work while this window or one of its attached views has focus
+   *
+   * This only works if AppWindowType is set to "Browser"
+   */
+  keyboardShortcuts?: KeyboardShortcutSelection;
 };
 
 export class AppWindow<
@@ -114,6 +125,14 @@ export class AppWindow<
   private localViewReady = false;
   private windowReady = false;
   private ipcEventProxy = new EventEmitter();
+  private shortcutViewContents = new Map<AppView, Electron.WebContents>();
+  private shortcutViewRecreatedListeners = new Map<AppView, () => void>();
+  private readonly shortcutInputListener = (
+    event: Electron.Event,
+    input: Electron.Input,
+  ) => {
+    this.handleShortcutInput(event, input);
+  };
 
   private thumbarButtons: Electron.ThumbarButton[] = [];
   private progressBar: number = -1;
@@ -210,6 +229,7 @@ export class AppWindow<
       view,
       index,
     };
+    this.attachViewShortcuts(view);
   }
 
   public detachView(view: AppView) {
@@ -220,8 +240,74 @@ export class AppWindow<
       return;
     }
 
+    this.detachViewShortcuts(view);
     view._detachFromWindow(this);
     delete this.activeViews[view.name];
+  }
+
+  private hasKeyboardShortcuts() {
+    if (this.windowType !== "Browser") return false;
+    return Object.values(this.options.keyboardShortcuts ?? {}).some(
+      (enabled) => enabled,
+    );
+  }
+
+  private handleShortcutInput(event: Electron.Event, input: Electron.Input) {
+    if (this.destroyed) return;
+
+    const shortcut = matchKeyboardShortcut(
+      input,
+      process.platform === "darwin",
+    );
+    if (shortcut === null || !this.options.keyboardShortcuts?.[shortcut])
+      return;
+
+    event.preventDefault();
+    switch (shortcut) {
+      case KeyboardShortcut.CloseWindow: {
+        this.closeWindow();
+        break;
+      }
+      case KeyboardShortcut.ToggleFullScreen: {
+        this.electronWindow?.setFullScreen(!this.electronWindow.isFullScreen());
+        break;
+      }
+    }
+  }
+
+  private attachViewShortcuts(view: AppView) {
+    if (!this.hasKeyboardShortcuts()) return;
+
+    this.bindViewShortcutContents(view);
+    // A recreated view has new webContents that need the listener again
+    const onRecreated = () => {
+      this.unbindViewShortcutContents(view);
+      this.bindViewShortcutContents(view);
+    };
+    view.on("recreated", onRecreated);
+    this.shortcutViewRecreatedListeners.set(view, onRecreated);
+  }
+
+  private detachViewShortcuts(view: AppView) {
+    const onRecreated = this.shortcutViewRecreatedListeners.get(view);
+    if (onRecreated) view.off("recreated", onRecreated);
+    this.shortcutViewRecreatedListeners.delete(view);
+    this.unbindViewShortcutContents(view);
+  }
+
+  private bindViewShortcutContents(view: AppView) {
+    const webContents = view.webContents;
+    if (!webContents) return;
+
+    webContents.on("before-input-event", this.shortcutInputListener);
+    this.shortcutViewContents.set(view, webContents);
+  }
+
+  private unbindViewShortcutContents(view: AppView) {
+    const webContents = this.shortcutViewContents.get(view);
+    if (webContents && !webContents.isDestroyed())
+      webContents.off("before-input-event", this.shortcutInputListener);
+    this.shortcutViewContents.delete(view);
   }
 
   /**
@@ -284,7 +370,7 @@ export class AppWindow<
     listener: (
       event: IpcMainInvokeEvent,
       ...args: unknown[]
-    ) => Promise<unknown> | unknown,
+    ) => unknown,
   ) {
     assert(
       this.windowType === "Browser",
@@ -466,8 +552,8 @@ export class AppWindow<
         (this.electronWindow as BrowserWindow).webContents.openDevTools();
 
       const browserWindow = this.electronWindow as BrowserWindow;
-      if (this.options.url) browserWindow.loadURL(this.options.url);
-      else if (this.options.file) browserWindow.loadFile(this.options.file);
+      if (this.options.url) void browserWindow.loadURL(this.options.url);
+      else if (this.options.file) void browserWindow.loadFile(this.options.file);
     }
 
     this.initialCreation = false;
@@ -582,10 +668,20 @@ export class AppWindow<
         this.sendWindowControlsStateIpc.bind(this),
       );
       browserWindow.on("restore", this.sendWindowControlsStateIpc.bind(this));
+      // The thumbar buttons are set only when they change, and Windows can drop them while the window is hidden
+      browserWindow.on("show", () => {
+        if (this.thumbarButtons.length > 0)
+          browserWindow.setThumbarButtons(this.thumbarButtons);
+      });
       browserWindow.on(
         "always-on-top-changed",
         this.sendWindowControlsStateIpc.bind(this),
       );
+      if (this.hasKeyboardShortcuts())
+        browserWindow.webContents.on(
+          "before-input-event",
+          this.shortcutInputListener,
+        );
       browserWindow.webContents.on("render-process-gone", () => {
         log.debug(`AppWindow '${this.name}' webContents render process gone`);
         this.recreateWindowInternal();

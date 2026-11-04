@@ -7,6 +7,12 @@ import ConfigStore from "../../services/configstore";
 import { MemoryStoreSchema, StoreSchema } from "~shared/store/schema";
 import { PlayerState, VideoDetails, VideoState } from "~shared/playerstatestore/types";
 import { buildActivity, PresenceDisplaySettings } from "~shared/discord-presence/activity";
+import {
+  DISCORD_CONNECTION_FAILED_AFTER_MS,
+  DISCORD_RETRY_INITIAL_DELAY_MS,
+  DISCORD_RETRY_MAX_DELAY_MS,
+  retryDelayMs
+} from "~shared/discord-presence/connection";
 
 const DISCORD_CLIENT_ID = "1143202598460076053";
 
@@ -28,6 +34,7 @@ export default class DiscordPresence extends Integration {
   private activityDebounceTimeout: NodeJS.Timeout | string | number | undefined = undefined;
   private pauseTimeout: NodeJS.Timeout | string | number | undefined = undefined;
   private connectionRetryTimeout: NodeJS.Timeout | string | number | undefined = undefined;
+  private connectionFailedTimeout: NodeJS.Timeout | string | number | undefined = undefined;
   private stateCallback: ((event: PlayerState) => void) | null = null;
   private storeListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
 
@@ -112,29 +119,41 @@ export default class DiscordPresence extends Integration {
     this.pauseTimeout = undefined;
     if (state.trackState == VideoState.Playing) return;
     this.pauseTimeout = setTimeout(() => {
-      if (!this.discordClient && !this.ready) return;
+      if (!this.discordClient || !this.ready) return;
       this.discordClient?.clearActivity();
       this.activityClearedByPause = true;
       this.pauseTimeout = undefined;
     }, 30 * 1000);
   }
 
+  // Forget the remembered track and state so nothing stale is sent once connected again
+  private resetActivityState() {
+    clearTimeout(this.activityDebounceTimeout);
+    clearTimeout(this.pauseTimeout);
+    this.activityDebounceTimeout = this.pauseTimeout = undefined;
+    this.activityClearedByPause = false;
+    this.videoState = VideoState.Unknown;
+    this.videoDetails = null;
+    this.progress = 0;
+  }
+
+  private clearConnectionFailedTimeout() {
+    clearTimeout(this.connectionFailedTimeout);
+    this.connectionFailedTimeout = undefined;
+  }
+
   private retryDiscordConnection() {
     if (!this.isEnabled) return;
-    if (this.connectionRetries >= 30) {
-      const memoryStore = this.getService(MemoryStore<MemoryStoreSchema>);
-      memoryStore.set("discordPresenceConnectionFailed", true);
-      return;
-    }
 
     this.connectionRetries++;
-    log.info(`Connecting to Discord attempt ${this.connectionRetries}/30`);
+    const delay = retryDelayMs(this.connectionRetries, DISCORD_RETRY_INITIAL_DELAY_MS, DISCORD_RETRY_MAX_DELAY_MS);
+    log.debug(`Retrying the Discord connection in ${delay} ms`);
 
     clearTimeout(this.connectionRetryTimeout);
     this.connectionRetryTimeout = setTimeout(() => {
       if (!this.discordClient) return;
       this.discordClient.connect().catch(() => this.retryDiscordConnection());
-    }, 5 * 1000);
+    }, delay);
   }
 
   public onSetup() {}
@@ -143,15 +162,27 @@ export default class DiscordPresence extends Integration {
     if (this.discordClient) return;
     this.discordClient = new DiscordClient(DISCORD_CLIENT_ID);
 
+    this.clearConnectionFailedTimeout();
+    this.connectionFailedTimeout = setTimeout(() => {
+      this.connectionFailedTimeout = undefined;
+      if (this.ready) return;
+      const memoryStore = this.getService(MemoryStore<MemoryStoreSchema>);
+      memoryStore.set("discordPresenceConnectionFailed", true);
+    }, DISCORD_CONNECTION_FAILED_AFTER_MS);
+
     this.discordClient.on("connect", () => {
       this.ready = true;
       this.connectionRetries = 0;
+      this.clearConnectionFailedTimeout();
       const memoryStore = this.getService(MemoryStore<MemoryStoreSchema>);
       memoryStore.set("discordPresenceConnectionFailed", false);
+      // Send the current playback state, since anything sent while disconnected was dropped
+      this.playerStateChanged(this.getService(PlayerStateStore).getState());
     });
     this.discordClient.on("close", () => {
       log.info("Discord connection closed");
       this.ready = false;
+      this.resetActivityState();
       this.retryDiscordConnection();
     });
     this.discordClient.connect().catch(() => this.retryDiscordConnection());
@@ -171,11 +202,10 @@ export default class DiscordPresence extends Integration {
     const memoryStore = this.getService(MemoryStore<MemoryStoreSchema>);
     memoryStore.set("discordPresenceConnectionFailed", false);
 
-    clearTimeout(this.activityDebounceTimeout);
-    clearTimeout(this.pauseTimeout);
+    this.clearConnectionFailedTimeout();
     clearTimeout(this.connectionRetryTimeout);
-    this.activityDebounceTimeout = this.pauseTimeout = this.connectionRetryTimeout = undefined;
-    this.activityClearedByPause = false;
+    this.connectionRetryTimeout = undefined;
+    this.resetActivityState();
 
     if (this.stateCallback) {
       const playerStateStore = this.getService(PlayerStateStore);

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:13:16.975Z
+updated: 2026-11-03T06:13:16.975Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: app-screen-css
+children: []
+parentPath:
+  - config-listeners

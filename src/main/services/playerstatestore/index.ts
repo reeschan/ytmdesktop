@@ -106,7 +106,9 @@ function mapYTMThumbnails(thumbnail: YTMThumbnail) {
 function mapCounterpart(counterpart: YTMPlayerQueueItemCounterpart) {
   // Explicit mapping to keep a consistent API
   // If YouTube Music changes how this is presented internally then it's easier to update without breaking the API
-  return transformPlaylistPanelVideoRenderer(counterpart.counterpartRenderer.playlistPanelVideoRenderer);
+  const renderer = counterpart?.counterpartRenderer?.playlistPanelVideoRenderer;
+  if (!renderer) return null;
+  return transformPlaylistPanelVideoRenderer(renderer);
 }
 
 function transformPlaylistPanelVideoRenderer(
@@ -114,13 +116,13 @@ function transformPlaylistPanelVideoRenderer(
   counterpart?: YTMPlayerQueueItemCounterpart[]
 ): PlayerQueueItem {
   return {
-    thumbnails: playlistPanelVideoRenderer.thumbnail ? playlistPanelVideoRenderer.thumbnail.thumbnails.map(mapYTMThumbnails) : [],
+    thumbnails: playlistPanelVideoRenderer.thumbnail?.thumbnails?.map(mapYTMThumbnails) ?? [],
     title: getYTMTextRun(playlistPanelVideoRenderer.title?.runs ?? [{ text: "" }]),
     author: getYTMTextRun(playlistPanelVideoRenderer.shortBylineText?.runs ?? [{ text: "" }]),
     duration: getYTMTextRun(playlistPanelVideoRenderer.lengthText?.runs ?? [{ text: "" }]),
     selected: playlistPanelVideoRenderer.selected,
     videoId: playlistPanelVideoRenderer.videoId,
-    counterparts: counterpart ? counterpart.map(mapCounterpart) : null
+    counterparts: counterpart ? counterpart.map(mapCounterpart).filter((item): item is PlayerQueueItem => item !== null) : null
   };
 }
 
@@ -313,7 +315,7 @@ export default class PlayerStateStore extends EventEmitterService<PlayerStateSto
       album: album?.text ?? null,
       albumId: album?.id ?? null,
       likeStatus: transformLikeStatus(likeStatus),
-      thumbnails: videoDetails.thumbnail ? videoDetails.thumbnail.thumbnails.map(mapYTMThumbnails) : [], // There are cases where the thumbnails simply don't exist on the videoDetails but can be found via other means. Podcasts notably can do this
+      thumbnails: videoDetails.thumbnail?.thumbnails?.map(mapYTMThumbnails) ?? [], // There are cases where the thumbnails simply don't exist on the videoDetails but can be found via other means. Podcasts notably can do this
       durationSeconds: parseInt(videoDetails.lengthSeconds),
       id: videoDetails.videoId,
       videoType: transformVideoType(videoDetails.musicVideoType),
@@ -393,6 +395,9 @@ export default class PlayerStateStore extends EventEmitterService<PlayerStateSto
       lastVideoId: state.videoDetails?.id ?? "",
       lastPlaylistId: state.playlistId ?? ""
     });
+    // The position changes every second while playing, so it does not schedule a disk write and is written along with the next write.
+    // Whole seconds keep the number of state changes low; while an ad plays the previous position is kept
+    if (!this.adPlaying) stateManager.updateState({ lastVideoProgress: Math.floor(this.videoProgress) }, { deferWrite: true });
 
     this.emit("state-changed", this.getState());
   }

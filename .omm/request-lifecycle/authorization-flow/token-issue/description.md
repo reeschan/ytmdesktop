@@ -1,0 +1,1 @@
+トークンの発行 (`createAuthTokenAsync`)。今の一覧を復号し、同じ `appId` のものを消してから、`crypto.randomBytes(256)` の hex をトークンに、その SHA-256 と `randomUUID` の id を一覧に足す。一覧を `safeStorage.encryptStringAsync` で暗号化して `ConfigStore` に書き、生のトークンだけをクライアントに返す。

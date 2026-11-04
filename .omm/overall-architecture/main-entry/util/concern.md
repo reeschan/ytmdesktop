@@ -1,0 +1,2 @@
+- `index.ts` は `v1ConfigMigration(...)` を `await` せずに呼ぶ。移行のダイアログは、メインウィンドウやトレイを作るのと並んで進む。
+- v1 の `config.json` を読む処理と移行を 1 つの `try` で囲み、`catch` で「Settings not migrated!」の警告を出している。コード上は、v1 を入れていない環境の初回起動でも、ファイルが無いためにこの警告が出る。

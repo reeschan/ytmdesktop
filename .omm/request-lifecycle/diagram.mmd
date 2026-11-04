@@ -1,0 +1,44 @@
+graph LR
+    client["Companion のクライアント\n(外部・HTTP と WebSocket)"]
+    fastify-server["Fastify サーバー\nsrc/main/integrations/companion-server/index.ts"]
+    ip-rate-limit["IP ごとのレート制限\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    schema-validation["本文の検証\nsrc/main/integrations/companion-server/api-shared/schemas.ts"]
+    authorization-flow["認可の流れ\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    token-auth["トークンの検証\nsrc/main/integrations/companion-server/api-shared/auth.ts"]
+    token-rate-limit["トークンごとのレート制限\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    api-routes["API v1 のルート\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    realtime["realtime の名前空間\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    error-handling["エラーの返し方\nsrc/main/integrations/companion-server/api-shared/errors.ts"]
+    config-store["ConfigStore\nsrc/main/services/configstore/"]
+    remote-control["RemoteControl API\nsrc/main/services/protectedapimanager/"]
+    ytm-remote["YTM 画面の remote.ts\nsrc/renderer/ytmview/scripts/setup/remote.ts"]
+    player-state-store["PlayerStateStore\nsrc/main/services/playerstatestore/"]
+
+    client -->|"HTTP リクエスト"| fastify-server
+    fastify-server -->|"/auth の 2 本は onRequest で制限"| ip-rate-limit
+    ip-rate-limit -->|"制限内なら検証へ"| schema-validation
+    fastify-server -->|"/state・/playlists・/command"| schema-validation
+    schema-validation -->|"/auth/requestcode と /auth/request"| authorization-flow
+    schema-validation -->|"preHandler で Authorization を確かめる"| token-auth
+    token-auth -->|"authId をキーに制限"| token-rate-limit
+    token-rate-limit -->|"制限内ならハンドラーへ"| api-routes
+    authorization-flow -->|"許可されたトークンを暗号化して保存"| config-store
+    token-auth -->|"保存したトークンを復号して照合"| config-store
+    client -->|"auth.token 付きで接続"| realtime
+    realtime -->|"handshake のトークンを照合"| token-auth
+    api-routes -->|"execute と getPlaylists"| remote-control
+    remote-control -->|"MessagePort で渡す"| ytm-remote
+    ytm-remote -->|"変わった状態は PlayerState API で戻る"| player-state-store
+    api-routes -->|"/state で getState を読む"| player-state-store
+    player-state-store -->|"state-changed を state-update にする"| realtime
+    api-routes -->|"範囲外の値は決まったエラーを投げる"| error-handling
+    error-handling -->|"状態コードと code で返す"| client
+    api-routes -->|"JSON か 204 を返す"| client
+    realtime -->|"state-update を送る"| client
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    classDef store fill:#a6e3a1,stroke:#a6e3a1,color:#1e1e2e
+    class client external
+    class fastify-server entry
+    class config-store,player-state-store store

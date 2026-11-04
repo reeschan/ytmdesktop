@@ -1,0 +1,1 @@
+Discord のアクティビティを組み立てる純関数 (`buildActivity`、テストは `activity.test.ts`)。表示テンプレートに差し込み項目 (曲名・アーティスト・アルバムなど) を埋めて各欄を作り、再生中なら開始・終了の時刻を、ボタンの有無と表示の種類 (`status_display_type`) を設定から決める。既定値は `DEFAULT_PRESENCE_DISPLAY_SETTINGS`。

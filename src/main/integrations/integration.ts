@@ -52,7 +52,12 @@ export default abstract class Integration {
    */
   public async [IntegrationManager.ENABLE]() {
     this.#isEnabled = true;
-    await this.onEnabled();
+    try {
+      await this.onEnabled();
+    } catch (error) {
+      this.#isEnabled = false;
+      throw error;
+    }
   }
 
   /**
@@ -97,11 +102,11 @@ export default abstract class Integration {
    *
    * @remarks This is always run after the app has emitted ready
    */
-  protected abstract onEnabled(): void;
+  protected abstract onEnabled(): void | Promise<void>;
   /**
    * The integration has been enabled
    *
    * @remarks This is always run after the app has emitted ready
    */
-  protected abstract onDisabled(): void;
+  protected abstract onDisabled(): void | Promise<void>;
 }

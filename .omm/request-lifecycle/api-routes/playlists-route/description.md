@@ -1,0 +1,1 @@
+`GET /api/v1/playlists`。`RemoteControl` に `invokeMessage("getPlaylists")` を送り、YTM 画面が YTM に出した本物の要求の答え (`{ id, title }` の配列) を返す。30 秒で答えが無いか失敗すると `YOUTUBE_MUSIC_TIME_OUT` (504)。重い処理なので 30 秒に 1 回に絞り、クライアントにはキャッシュと realtime の `playlist-created` / `playlist-deleted` の利用を求めている (コードのコメント)。

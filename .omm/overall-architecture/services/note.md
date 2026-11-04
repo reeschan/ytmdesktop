@@ -1,0 +1,4 @@
+- Service が `ipcMain` に直接登録するチャンネル: `configStore:get` / `configStore:set` (ConfigStore)、`memoryStore:get` / `memoryStore:set` (MemoryStore)、`autoUpdater:isUpdateAvailable` / `autoUpdater:isUpdateDownloaded` (AutoUpdater)、`protectedApi:bindPort` (ProtectedAPIManager)。未登録の FlagManager は `flags:getFlag` / `flags:getFlags` を持つ。
+- ウィンドウ・ビュー単位の IPC (`windowControls:*`・`appView:hide`・`ytmView:ready` など) は `windowmanager/` の AppWindow・AppView を通して受ける。
+- 状態の変化は `ipcBroadcast` で `configStore:stateChanged`・`memoryStore:stateChanged`・`playerStateStore:stateChanged` としてアプリ画面へ流す。
+- YTM 画面のビューは Service の初期化後に `src/main/index.ts` が `YTMViewManager.createView()` で作るため、ThemeManager と BackgroundVideoManager は `status-changed` を待ってからビューを掴む。

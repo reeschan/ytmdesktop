@@ -1,0 +1,1 @@
+RapidAPI 上の Shazam API (`https://shazam.p.rapidapi.com/songs/v2/detect`)。録った音 (44.1kHz・5 秒・モノラルの PCM を base64 にしたもの) を `text/plain` で POST し、ヘッダー `X-RapidAPI-Key` / `X-RapidAPI-Host` を付ける。API Key は利用者が RapidAPI で取って設定に入れる。

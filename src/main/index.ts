@@ -15,7 +15,7 @@ import {
 import log from "electron-log";
 import { getIconPath, v1ConfigMigration } from "./util";
 import { AppView } from "./services/windowmanager/appview";
-import { SettingsTab, YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
+import { FocusContext, SettingsTab, YTMViewSetupCompletionFlags, YTMViewSetupCompletionFlagsNames, YTMViewStatus } from "~shared/types";
 import CompanionServer from "./integrations/companion-server";
 import CustomCSS from "./integrations/custom-css";
 import DiscordPresence from "./integrations/discord-presence";
@@ -48,9 +48,29 @@ import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
 import Grooving from "./services/grooving";
-import { VideoType } from "~shared/playerstatestore/types";
+import { PlayerState, VideoType } from "~shared/playerstatestore/types";
+import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
+import { buildTrayTooltip } from "~shared/tray-tooltip";
+import { startMiniplayerVideo } from "./miniplayer-video";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
+
+// Tray tooltip shown when nothing is playing
+const TRAY_IDLE_TOOLTIP = "YTMDesktop";
+// Windows only accepts tray tooltips shorter than 128 characters
+const WINDOWS_TRAY_TOOLTIP_MAX_LENGTH = 127;
+
+// How much of a restored window has to overlap a display on each axis for it to stay where it was saved
+const MINIMUM_VISIBLE_WINDOW_SIZE = 64;
+
+// Saved bounds can point at a display that is no longer connected or has moved, so move them back onto a display when needed
+const getVisibleWindowBounds = (bounds: Electron.Rectangle): Electron.Rectangle =>
+  ensureBoundsAreVisible(
+    bounds,
+    screen.getAllDisplays().map(display => display.workArea),
+    screen.getDisplayMatching(bounds).workArea,
+    MINIMUM_VISIBLE_WINDOW_SIZE
+  );
 
 // Squirrel shortcut creation/removal
 // This is part of application installation/uninstallation process close the app immediately
@@ -119,7 +139,7 @@ serviceHost.runNextLifecycle();
 const integrationManager = serviceHost.getService(IntegrationManager);
 integrationManager.on("enable-error", (integration, error) => {
   const dialogMessage = `The '${integration.name}' integration failed to be enabled and will be unavailable.\n\n` + `${error.stack}`;
-  dialog.showMessageBox({
+  void dialog.showMessageBox({
     title: "Integration Error",
     message: "An integration could not be enabled",
     detail: dialogMessage,
@@ -213,7 +233,7 @@ app.on("ready", async () => {
   // At this stage the next lifecycle is PostInitialized
   serviceHost.runNextLifecycle();
 
-  v1ConfigMigration(serviceHost.getService(ConfigStore));
+  void v1ConfigMigration(serviceHost.getService(ConfigStore));
 
   //#region safeStorage setup and checks
   if (!(await safeStorage.isAsyncEncryptionAvailable())) {
@@ -250,11 +270,32 @@ app.on("ready", async () => {
     app.relaunch();
     app.quit();
   });
+
+  // Installs an update that was downloaded while the app was running
+  function restartApplicationForUpdate() {
+    if (!autoUpdater.isUpdateDownloaded()) return;
+
+    // Hide to tray would otherwise stop the main window from closing and the install from quitting the app
+    windowManager.forceWindowClosures();
+    autoUpdater.quitAndInstall();
+  }
+
+  // The settings window shows the update state while it is open
+  function sendUpdateStateToSettings(channel: string) {
+    if (windowManager.hasWindow("Settings")) windowManager.getWindow("Settings").webContents?.send(channel);
+  }
+  autoUpdater.on("checking", () => sendUpdateStateToSettings("autoUpdater:checkingForUpdate"));
+  autoUpdater.on("available", () => sendUpdateStateToSettings("autoUpdater:updateAvailable"));
+  autoUpdater.on("not-available", () => sendUpdateStateToSettings("autoUpdater:updateNotAvailable"));
+  autoUpdater.on("downloaded", () => sendUpdateStateToSettings("autoUpdater:updateDownloaded"));
+  // The settings window has no error state, so a failed check is shown as no update
+  autoUpdater.on("error", () => sendUpdateStateToSettings("autoUpdater:updateNotAvailable"));
   //#endregion
 
   //#region Main Window
   const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-  const windowBounds = configStore.get("state.windowBounds");
+  const savedWindowBounds = configStore.get("state.windowBounds");
+  const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
   const mainView = new AppView({
     name: "Main",
@@ -305,6 +346,7 @@ app.on("ready", async () => {
       maximized: configStore.get("state.windowMaximized")
     },
     views: [mainView],
+    keyboardShortcuts: { closeWindow: true, toggleFullScreen: true },
     url: app.isPackaged ? "ytmd-app://titlebar" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/titlebar/index.html",
     electronOptions: {
       width: windowBounds?.width ?? 1280 / scaleFactor,
@@ -388,6 +430,7 @@ app.on("ready", async () => {
       name: "Settings",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: tab === SettingsTab.Integrations ? `${settingsUrl}?tab=${SettingsTab.Integrations}` : settingsUrl,
       electronOptions: {
         width: 800,
@@ -418,7 +461,7 @@ app.on("ready", async () => {
     });
     settingsWindow.setWindowOpenHandler(details => {
       if (settingsExternalUrls.has(details.url)) {
-        shell.openExternal(details.url);
+        void shell.openExternal(details.url);
       }
 
       return {
@@ -430,6 +473,11 @@ app.on("ready", async () => {
       const playerStateStore = serviceHost.getService(PlayerStateStore);
       return playerStateStore.getState();
     });
+
+    settingsWindow.ipcOn("app:checkForUpdates", () => {
+      if (!autoUpdater.isDisabled()) void autoUpdater.checkForUpdates(false);
+    });
+    settingsWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
   }
 
   mainWindow.ipcOn("window:openSettings", (_event, tab?: unknown) => {
@@ -443,13 +491,15 @@ app.on("ready", async () => {
     }
 
     const scaleFactor = screen.getPrimaryDisplay().scaleFactor;
-    const windowBounds = configStore.get("state.miniplayerWindowBounds");
+    const savedWindowBounds = configStore.get("state.miniplayerWindowBounds");
+    const windowBounds = savedWindowBounds ? getVisibleWindowBounds(savedWindowBounds) : null;
 
     const mainWindowBounds = mainWindow._getElectronWindow().getBounds();
     const miniplayerWindow = windowManager.createWindow("Browser", {
       name: "Miniplayer",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://miniplayer" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/miniplayer/index.html",
       electronOptions: {
         width: windowBounds?.width ?? 600 / scaleFactor,
@@ -493,11 +543,18 @@ app.on("ready", async () => {
       });
     });
 
-    miniplayerWindow.once("electronwindow-close", () => {
-      stateManager.updateState({
-        miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
-      });
-      mainWindow.showAndFocus();
+    // Holds the first close until the YTM view is back in the main window, so the main window is shown with it
+    startMiniplayerVideo({
+      ytmView: ytmViewManager.getView(),
+      mainWindow,
+      miniplayerWindow,
+      playerStateStore,
+      onClose: () => {
+        stateManager.updateState({
+          miniplayerWindowBounds: miniplayerWindow._getElectronWindow().getBounds()
+        });
+        mainWindow.showAndFocus();
+      }
     });
 
     miniplayerWindow.ipcOn("remoteControl:execute", (event, command: string, ...args: unknown[]) => {
@@ -515,7 +572,21 @@ app.on("ready", async () => {
 
   mainWindow.ipcOn("ytmView:navigateDefault", () => {
     const ytmView = ytmViewManager.getView();
-    if (ytmView) ytmView.webContents?.loadURL("https://music.youtube.com/");
+    if (ytmView) void ytmView.webContents?.loadURL("https://music.youtube.com/");
+  });
+
+  mainWindow.ipcOn("app:restartApplicationForUpdate", restartApplicationForUpdate);
+
+  // Keyboard navigation moves between the titlebar and the YTM view
+  mainWindow.ipcOn("ytmView:switchFocus", (_event, context: unknown) => {
+    const ytmWebContents = ytmViewManager.getView()?.webContents;
+    if (!ytmWebContents) return;
+
+    if (context === FocusContext.Ytm && mainWindow.webContents?.isFocused()) {
+      ytmWebContents.focus();
+    } else if (context === FocusContext.Main && ytmWebContents.isFocused()) {
+      mainWindow.webContents?.focus();
+    }
   });
   //#endregion
 
@@ -610,9 +681,28 @@ app.on("ready", async () => {
       }
     }
   ]);
-  tray.setToolTip("YTMDesktop");
+  const trayTooltipMaxLength = process.platform === "win32" ? WINDOWS_TRAY_TOOLTIP_MAX_LENGTH : undefined;
+  let currentTrayTooltip: string | undefined;
+  // The state also changes on every progress update, so the tooltip is only set when its text changes
+  const updateTrayTooltip = (state: PlayerState) => {
+    const tooltip = buildTrayTooltip(
+      { title: state.videoDetails?.title, artist: state.videoDetails?.author },
+      { idleText: TRAY_IDLE_TOOLTIP, maxLength: trayTooltipMaxLength }
+    );
+    if (tooltip === currentTrayTooltip) return;
+    currentTrayTooltip = tooltip;
+    tray.setToolTip(tooltip);
+  };
+  updateTrayTooltip(playerStateStore.getState());
+  playerStateStore.on("state-changed", updateTrayTooltip);
   tray.setContextMenu(trayContextMenu);
   tray.on("click", () => {
+    if (windowManager.hasWindow("Miniplayer")) {
+      // Closing the miniplayer shows and focuses the main window once the YTM view is back in it
+      windowManager.getWindow("Miniplayer").closeWindow();
+      return;
+    }
+
     mainWindow.showAndFocus();
   });
 
@@ -639,7 +729,7 @@ app.on("ready", async () => {
         const dialogMessage =
           `Features from YTMDesktop may not be present or function correctly\n\nThis usually means there's a bug and a bug report should be filed on the GitHub\n\nHook log:\n${setFlags.map(flag => `    ${flag}... OK\n`).join("")}${unsetFlags.map(flag => `    ${flag}... FAIL\n`).join("")}\n` +
           `${hookError?.stack}`;
-        dialog
+        void dialog
           .showMessageBox({
             title: "Hook Error",
             message: "YTMDesktop could not hook YouTube Music",
@@ -649,19 +739,19 @@ app.on("ready", async () => {
           })
           .then(result => {
             if (result.response === 0) {
-              clipboard.writeText(`${dialogMessage}`);
+              void clipboard.writeText(`${dialogMessage}`);
             }
           });
       }
     } else {
-      await mainView.show(true);
+      mainView.show(true);
     }
   });
-  ytmViewManager.on("view-recreated", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("view-recreated", () => {
+    mainView.show(true);
   });
-  ytmViewManager.on("unresponsive", async () => {
-    await mainView.show(true);
+  ytmViewManager.on("unresponsive", () => {
+    mainView.show(true);
   });
   ytmViewManager.on("responsive", async () => {
     await mainView.hide(true);
@@ -682,7 +772,7 @@ app.on("ready", async () => {
   serviceHost.getService(BackgroundVideoManager).attachToMainWindow(mainWindow);
 
   // This hides the main view if it was recreated and the YTMView is in a ready state
-  await mainView.on("recreated", async () => {
+  mainView.on("recreated", async () => {
     await ytmViewManager.ready();
     await mainView.hide(true);
   });
@@ -696,6 +786,7 @@ app.on("ready", async () => {
       name: "Changelog",
       autoRecreate: false,
       waitForViews: true,
+      keyboardShortcuts: { closeWindow: true },
       url: app.isPackaged ? "ytmd-app://changelog" : ALL_WINDOWS_VITE_DEV_SERVER_URL + "/windows/changelog/index.html",
       electronOptions: {
         width: 800,
@@ -746,7 +837,7 @@ app.on("ready", async () => {
       }
     });
     changelogWindow.setWindowOpenHandler(details => {
-      shell.openExternal(details.url);
+      void shell.openExternal(details.url);
 
       return {
         action: "deny"
@@ -754,11 +845,11 @@ app.on("ready", async () => {
     });
     changelogWindow.webContents?.on("will-navigate", event => {
       event.preventDefault();
-      shell.openExternal(event.url);
+      void shell.openExternal(event.url);
     });
     changelogWindow.webContents?.on("will-redirect", event => {
       event.preventDefault();
-      shell.openExternal(event.url);
+      void shell.openExternal(event.url);
     });
     changelogWindow.on("electronwindow-close", () => {
       configStore.set("metadata.appVersion", app.getVersion());

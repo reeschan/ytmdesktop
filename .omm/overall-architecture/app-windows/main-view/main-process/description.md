@@ -1,0 +1,1 @@
+メインプロセス側。`src/main/index.ts` が `mainView` を作り、YTMViewManager の状態に合わせて `ytmView:statusChanged` / `ytmView:loadError` を送り、ビューを表示・非表示にする。曲の聞き取りの Integration は `recordOnAppView` / `cancelRecordingOnAppView` (`src/main/integrations/song-recognition/media.ts`) で、このビューに `executeJavaScript` して録音を頼む。

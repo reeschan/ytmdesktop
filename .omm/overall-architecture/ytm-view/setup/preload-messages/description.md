@@ -1,0 +1,1 @@
+ページのスクリプトと YTM 画面の preload の間の `window.postMessage`。op は `~shared/background-video` の `BackgroundVideoMessage` (`ytmd-background-video-state` / `-report`) と、`~shared/song-recognition` の `SongRecognitionMessageOp` (`ytmd-song-recognition-state` / `-search` / `-press` / `-listening`)。preload が main の IPC と付け替える。

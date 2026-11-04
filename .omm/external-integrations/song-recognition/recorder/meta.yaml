@@ -1,0 +1,9 @@
+created: 2026-11-03T06:17:35.998Z
+updated: 2026-11-03T06:17:35.999Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: recorder
+children: []
+parentPath:
+  - song-recognition

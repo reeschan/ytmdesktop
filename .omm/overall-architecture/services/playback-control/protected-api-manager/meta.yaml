@@ -1,0 +1,10 @@
+created: 2026-11-03T06:09:59.354Z
+updated: 2026-11-03T06:10:00.468Z
+update_count: 2
+last_field: constraint
+kind: nested-class
+title: protected-api-manager
+children: []
+parentPath:
+  - services
+  - playback-control

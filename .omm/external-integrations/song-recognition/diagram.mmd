@@ -1,0 +1,20 @@
+graph LR
+    ytm-button["聞き取りのボタン\nsrc/renderer/ytmview/scripts/setup/song-recognition.ts"]
+    recognition-core["SongRecognition\nsrc/main/integrations/song-recognition/index.ts"]
+    media-handlers["録音の権限と取り込み\nsrc/main/integrations/song-recognition/media.ts"]
+    recorder["録音する側\nsrc/renderer/windows/main/song-recognition-recorder.ts"]
+    shazam-client["detectSong\nsrc/main/integrations/song-recognition/shazam.ts"]
+    shazam-api["Shazam API\n(外部・shazam.p.rapidapi.com)"]
+
+    ytm-button -->|"preload 経由で songRecognition:press"| recognition-core
+    recognition-core -->|"recordOnAppView で録音を頼む"| media-handlers
+    media-handlers -->|"executeJavaScript で録音を始める"| recorder
+    recorder -->|"PCM の base64 を返す"| media-handlers
+    recognition-core -->|"API Key と PCM を渡す"| shazam-client
+    shazam-client -->|"HTTPS の POST"| shazam-api
+    recognition-core -->|"songRecognition:state と search"| ytm-button
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class shazam-api external
+    class ytm-button entry

@@ -1,0 +1,9 @@
+created: 2026-11-03T06:07:53.422Z
+updated: 2026-11-03T06:08:14.947Z
+update_count: 2
+last_field: note
+kind: nested-class
+title: flag-manager
+children: []
+parentPath:
+  - services

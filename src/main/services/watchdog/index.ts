@@ -1,9 +1,36 @@
 import { app, clipboard, crashReporter, dialog } from "electron";
 import log, { LogMessage } from "electron-log";
+import { inspect } from "node:util";
 import Service from "../service";
 
+// Any value can be thrown as a cause, so objects are inspected instead of showing [object Object]
+function formatCause(cause: unknown): string {
+  if (cause === undefined || cause === null) return "Unknown";
+  if (typeof cause === "string" || cause instanceof Error) return cause.toString();
+  return inspect(cause);
+}
+
+/**
+ * Redacts URL paths from the string parts of a log message
+ *
+ * @returns False if the message should not be written at all
+ */
+export function sanitizeLogMessage(message: LogMessage): false | LogMessage {
+  for (let i = 0; i < message.data.length; i++) {
+    const data: unknown = message.data[i];
+
+    if (typeof data === "string") {
+      if (data.includes("Third-party cookie will be blocked.")) return false;
+
+      message.data[i] = data.replaceAll(/(?<=((https|http):\/\/)?.{1,64}(\..{1,64})?\..{1,64}\/)([\S]+)/gm, "[REDACTED]");
+    }
+  }
+
+  return message;
+}
+
 export type WatchDogEvent = "crash";
-export type WatchDogEventCallback = () => void;
+export type WatchDogEventCallback = () => void | Promise<void>;
 export enum WatchDogApplicationState {
   Normal,
   Crashed
@@ -24,20 +51,6 @@ export default class WatchDog extends Service {
     return this._applicationState;
   }
 
-  private sanitizeMessage(message: LogMessage): false | LogMessage {
-    for (let i = 0; i < message.data.length; i++) {
-      const data = message.data[i];
-
-      if (data instanceof String) {
-        if (data.includes("Third-party cookie will be blocked.")) return false;
-
-        message.data[i] = data.replaceAll(/(?<=((https|http):\/\/)?.{1,64}(\..{1,64})?\..{1,64}\/)([\S]+)/gm, "[REDACTED]");
-      }
-    }
-
-    return message;
-  }
-
   public override onPreInitialized() {}
 
   public override onInitialized() {
@@ -53,7 +66,7 @@ export default class WatchDog extends Service {
     log.hooks.push((message, transport) => {
       if (transport !== log.transports.file) return message;
 
-      return this.sanitizeMessage(message);
+      return sanitizeLogMessage(message);
     });
 
     log.errorHandler.startCatching({
@@ -78,7 +91,7 @@ export default class WatchDog extends Service {
 
         const dialogMessage =
           `Environment Details:\n    ${versions.app}\n    ${versions.electron}\n    ${versions.os}\n\n` +
-          `Name: ${error.name}\nMessage: ${error.message}\nCause: ${error.cause ?? "Unknown"}\n\n` +
+          `Name: ${error.name}\nMessage: ${error.message}\nCause: ${formatCause(error.cause)}\n\n` +
           `${error.stack}`;
 
         if (!app.isReady()) {
@@ -99,7 +112,13 @@ export default class WatchDog extends Service {
 
           // Copy to Clipboard
           if (result === 0 || result === 2) {
-            clipboard.writeText(`YTMDesktop Crashed\n\n${dialogMessage}`);
+            // Written before exiting so the copy is not lost
+            try {
+              await clipboard.writeText(`YTMDesktop Crashed\n\n${dialogMessage}`);
+            } catch (clipboardError) {
+              log.warn("Could not copy the crash details to the clipboard");
+              log.error(clipboardError);
+            }
           }
         }
 
@@ -117,12 +136,12 @@ export default class WatchDog extends Service {
 
   public override onTerminated() {}
 
-  public on(event: WatchDogEvent, callback: () => void) {
+  public on(event: WatchDogEvent, callback: WatchDogEventCallback) {
     this.eventCallbacks[event].push(callback);
   }
 
-  public off(event: WatchDogEvent, callback: () => void) {
+  public off(event: WatchDogEvent, callback: WatchDogEventCallback) {
     const index = this.eventCallbacks[event].indexOf(callback, 0);
-    if (index > -1) this.eventCallbacks[event] = this.eventCallbacks[event].splice(index, 1);
+    if (index > -1) this.eventCallbacks[event].splice(index, 1);
   }
 }

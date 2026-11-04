@@ -1,0 +1,10 @@
+created: 2026-11-03T06:17:05.324Z
+updated: 2026-11-03T06:17:05.325Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: navigation
+children: []
+parentPath:
+  - ytm-view
+  - setup

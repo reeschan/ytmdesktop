@@ -1,0 +1,10 @@
+created: 2026-11-03T06:14:57.069Z
+updated: 2026-11-03T07:02:32.706Z
+update_count: 3
+last_field: description
+kind: nested-class
+title: controller
+children: []
+parentPath:
+  - integrations
+  - volume-ratio

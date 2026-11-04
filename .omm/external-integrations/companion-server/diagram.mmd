@@ -1,0 +1,17 @@
+graph LR
+    lan-clients["LAN のクライアント\n(外部・HTTP と WebSocket)"]
+    local-clients["同じ PC のクライアント\n(外部・名前付きパイプ)"]
+    http-api["Fastify の HTTP\nsrc/main/integrations/companion-server/index.ts"]
+    realtime["Socket.IO の realtime\nsrc/main/integrations/companion-server/api/v1/index.ts"]
+    ipc-server["IPC サーバー\nsrc/main/integrations/companion-server/index.ts ほか"]
+    mdns["mDNS の広告\nsrc/main/integrations/companion-server/index.ts"]
+
+    lan-clients -->|"0.0.0.0:9863 に HTTP"| http-api
+    lan-clients -->|"トークン付きで WebSocket"| realtime
+    mdns -->|"_ytmdesktop._tcp.local に答える"| lan-clients
+    local-clients -->|"SELECT_VERSION と PING"| ipc-server
+    ipc-server -->|"EVENT の state-update と PONG"| local-clients
+    realtime -->|"state-update と playlist-* を送る"| lan-clients
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class lan-clients,local-clients external

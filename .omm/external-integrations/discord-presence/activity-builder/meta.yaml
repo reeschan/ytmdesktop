@@ -1,0 +1,9 @@
+created: 2026-11-03T06:16:54.819Z
+updated: 2026-11-03T06:16:54.821Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: activity-builder
+children: []
+parentPath:
+  - discord-presence

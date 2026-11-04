@@ -1,0 +1,9 @@
+created: 2026-11-03T06:11:56.845Z
+updated: 2026-11-03T06:11:56.846Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: discord-presence
+children: []
+parentPath:
+  - state-consumers

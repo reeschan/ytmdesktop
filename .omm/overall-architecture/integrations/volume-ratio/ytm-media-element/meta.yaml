@@ -1,0 +1,10 @@
+created: 2026-11-03T06:15:03.946Z
+updated: 2026-11-03T06:15:03.947Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: ytm-media-element
+children: []
+parentPath:
+  - integrations
+  - volume-ratio

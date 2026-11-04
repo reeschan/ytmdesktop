@@ -1,0 +1,1 @@
+この図の入力。`PlayerStateStore` の `state-changed` (曲の詳細・再生状態・進み具合・`hasFullMetadata`) と、`ConfigStore` の `integrations` の表示設定 (`discordPresenceDetailsTemplate` / `StateTemplate` / `LargeTextTemplate` / `ShowButton` / `StatusDisplay`)。

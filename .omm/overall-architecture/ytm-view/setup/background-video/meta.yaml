@@ -1,0 +1,10 @@
+created: 2026-11-03T06:17:07.618Z
+updated: 2026-11-03T06:17:07.619Z
+update_count: 1
+last_field: description
+kind: nested-class
+title: background-video
+children: []
+parentPath:
+  - ytm-view
+  - setup

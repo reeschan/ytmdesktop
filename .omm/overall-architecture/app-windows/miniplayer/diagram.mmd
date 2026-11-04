@@ -1,0 +1,16 @@
+graph LR
+    main-process["Main Process\nsrc/main/"]
+    preload["Preload\nwindows/miniplayer/preload.ts"]
+    top-bar["Top Bar\nwindows/miniplayer/Index.vue"]
+    player["Player\nwindows/miniplayer/Miniplayer.vue"]
+
+    top-bar -->|"Suspense で下に出す"| player
+    top-bar -->|"setAlwaysOnTopWindow / closeWindow / isWayland"| preload
+    player -->|"playerStore で状態を読み、executeCommandInYTMView で操作"| preload
+    preload -->|"remoteControl:execute / windowControls:* を送り、playerStateStore:getState を invoke"| main-process
+    main-process -->|"playerStateStore:stateChanged / windowControls:stateChanged を送る"| preload
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class main-process external
+    class top-bar entry

@@ -1,0 +1,33 @@
+graph LR
+    config-change["ConfigStore の変更通知\n(この図の入力)"]
+    theme-manager["ThemeManager\nsrc/main/services/thememanager/"]
+    background-video-manager["BackgroundVideoManager\nsrc/main/services/backgroundvideo/"]
+    custom-css["CustomCSS\nsrc/main/integrations/custom-css/"]
+    ytm-view-manager["YTMViewManager\nsrc/main/services/ytmviewmanager/"]
+    integration-manager["IntegrationManager\nsrc/main/services/integrationmanager/"]
+    shortcut-manager["ShortcutManager\nsrc/main/services/shortcutmanager/"]
+    taskbar-manager["TaskbarManager\nsrc/main/services/taskbarmanager/"]
+    app-screen-css["アプリ画面の webContents\n(ytmd-app:// の画面)"]
+    ytm-view-css["YTM 画面の webContents\n(persist:ytmview)"]
+    integrations["各 Integration\nsrc/main/integrations/"]
+
+    config-change -->|"appearance.theme と themeFilePath"| theme-manager
+    config-change -->|"appearance.backgroundVideo*"| background-video-manager
+    config-change -->|"appearance.customCSS*"| custom-css
+    config-change -->|"appearance.zoom"| ytm-view-manager
+    config-change -->|"onDidAnyChange で全体"| integration-manager
+    config-change -->|"shortcuts"| shortcut-manager
+    config-change -->|"playback.progressInTaskbar"| taskbar-manager
+    theme-manager -->|"insertCSS で色の変数と setTitleBarOverlay"| app-screen-css
+    theme-manager -->|"insertCSS で YTM の変数と面の色"| ytm-view-css
+    theme-manager -->|"colors-changed と ytm-theme-applied"| background-video-manager
+    theme-manager -->|"ytm-theme-applied で入れ直しを促す"| custom-css
+    background-video-manager -->|"透明化の CSS と背景色と状態の IPC"| ytm-view-css
+    custom-css -->|"テーマの後に insertCSS"| ytm-view-css
+    ytm-view-manager -->|"setZoomFactor"| ytm-view-css
+    integration-manager -->|"ENABLE と DISABLE で切り替える"| integrations
+
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    class config-change entry
+    class app-screen-css,ytm-view-css,integrations external

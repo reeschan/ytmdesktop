@@ -1,0 +1,28 @@
+graph LR
+    scripts-index["起動順の制御\nsrc/renderer/ytmview/scripts/index.ts"]
+    ytm-hook["YTMHook\nsrc/renderer/ytmview/scripts/ytmhook.ts"]
+    ytm-internals["YTM のプレイヤーとストア\n(外部・YTM の内部オブジェクト)"]
+    page-player-state["再生状態の送り出し\nsrc/renderer/ytmview/scripts/playerstatestore.ts"]
+    page-protected-api["Protected API (ページ側)\nsrc/renderer/ytmview/scripts/protectedapimanager.ts"]
+    remote["RemoteControl の受け手\nsrc/renderer/ytmview/scripts/setup/remote.ts"]
+    preload["preload\nsrc/renderer/ytmview/preload.ts"]
+    main-process["メインプロセス\n(ipcMain と MessagePortMain)"]
+
+    preload -->|"executeJavaScript で scripts を main world に入れる"| scripts-index
+    scripts-index -->|"init で Map.prototype.set を差し替える"| ytm-hook
+    ytm-hook -->|"DI の登録を横取りしてインスタンスを握る"| ytm-internals
+    scripts-index -->|"プレイヤー API の準備後に init"| page-player-state
+    ytm-internals -->|"playerApi のイベントと store.subscribe"| page-player-state
+    page-player-state -->|"PlayerState API に postMessage"| page-protected-api
+    page-protected-api -->|"window.postMessage で親ポートを渡す"| preload
+    preload -->|"protectedApi:bindPort と ytmView:ready"| main-process
+    page-protected-api -->|"API ごとの MessagePort で送る"| main-process
+    main-process -->|"RemoteControl の execute と getPlaylists"| page-protected-api
+    page-protected-api -->|"execute イベントと handleMessage"| remote
+    remote -->|"playerApi と dispatch で操作する"| ytm-internals
+    main-process -->|"ytmView:executeScript と各状態の IPC"| preload
+
+    classDef external fill:#585b70,stroke:#585b70,color:#cdd6f4
+    classDef entry fill:#89b4fa,stroke:#89b4fa,color:#1e1e2e
+    class ytm-internals,main-process external
+    class preload entry
