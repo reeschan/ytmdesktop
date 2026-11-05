@@ -31,7 +31,13 @@ import {
   isGroovingSignal,
   resolveGroovingLanguage
 } from "~shared/grooving";
-import { checkGroovingList, checkGroovingPair, groovingCandidatesEnough, groovingFamiliarCount } from "~shared/grooving/answer";
+import {
+  checkGroovingList,
+  checkGroovingPair,
+  groovingCandidatesEnough,
+  groovingFamiliarCount,
+  groovingListCandidates
+} from "~shared/grooving/answer";
 import { alternate, buildGroovingCandidates } from "~shared/grooving/candidates";
 import { createGroovingCallWindow } from "~shared/grooving/pace";
 import {
@@ -707,7 +713,9 @@ export default class Grooving extends Service {
   }
 
   private async requestList(epoch: number, requestId: string, session: GroovingSession) {
-    const { candidates, direction, history } = session;
+    const { direction, history } = session;
+    // The prompt, the familiar count and the check all use the same candidates, so a dropped track is never asked for
+    const candidates = groovingListCandidates({ candidates: session.candidates, direction, history });
     const familiarCount = groovingFamiliarCount({ direction, history, candidates });
 
     const result = await this.runLlm((llm, config, signal) =>
