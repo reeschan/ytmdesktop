@@ -75,6 +75,7 @@ export function readSources(value: unknown): GroovingSources | null {
   // Only a song mood has these. The page decides the seed's videoId when the mood had none
   const sources: GroovingSources = { history, liked, related, mood };
   if (value.seedMissing === true) sources.seedMissing = true;
+  if (value.seedFilled === true) sources.seedFilled = true;
   if (typeof value.seedVideoId === "string" && value.seedVideoId !== "") sources.seedVideoId = value.seedVideoId.slice(0, SEED_VIDEO_ID_MAX);
   return sources;
 }

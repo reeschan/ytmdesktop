@@ -1,10 +1,12 @@
 import type protectedapimanager from "../protectedapimanager";
 import {
+  GROOVING_FAMILIAR_MINIMUM,
   GroovingDirection,
   GroovingMoodSection,
   GroovingPageCall,
   type GroovingMoodItem,
   type GroovingPageResult,
+  type GroovingSeedSong,
   type GroovingSourceRequest,
   type GroovingSources,
   type GroovingTrack
@@ -147,33 +149,70 @@ async function blendTracks(items: unknown[], signal: AbortSignal): Promise<Groov
   return results.flatMap(tracks => tracks ?? []);
 }
 
+// The seed song of a "From a song" run: the track playing now (its videoId) or the first search result for
+// "<title> <artist>" when the song was recognized (videoId null). null when it is not on YouTube Music
+async function seedTrack(song: GroovingSeedSong, signal: AbortSignal): Promise<GroovingTrack | null> {
+  if (song.videoId !== null) return { videoId: song.videoId, title: song.title, artists: [song.artist], thumbnailUrl: song.thumbnail };
+  const found = await search([`${song.title} ${song.artist}`.trim()], signal);
+  return found[0] ?? null;
+}
+
+// Below GROOVING_FAMILIAR_MINIMUM the related tracks are short, so the seed artist's songs fill the mood up.
+// The added tracks keep the same shape as the mood's playlists, so the existing "filled" mark tells about them
+async function fillFromSeedArtist(mood: GroovingTrack[], artist: string, signal: AbortSignal): Promise<GroovingTrack[]> {
+  const name = artist.trim();
+  if (name === "" || mood.length >= GROOVING_FAMILIAR_MINIMUM) return mood;
+  const found = await optional(search([name], signal));
+  return found && found.length > 0 ? [...mood, ...found] : mood;
+}
+
 async function collectSources(request: GroovingSourceRequest, signal: AbortSignal): Promise<GroovingSources> {
   if (
     !request ||
     !Object.values(GroovingDirection).includes(request.direction) ||
     typeof request.historyShared !== "boolean" ||
     !request.mood ||
-    (request.mood.kind !== "text" && request.mood.kind !== "item" && request.mood.kind !== "blend") ||
+    (request.mood.kind !== "text" && request.mood.kind !== "item" && request.mood.kind !== "blend" && request.mood.kind !== "song") ||
     (request.mood.kind === "blend" && !Array.isArray(request.mood.items))
   )
     throw new Error("invalid-request");
+  const seed = request.mood.kind === "song" ? request.mood.song : null;
+  // The seed song is looked up first: when it cannot be found, the other lists are not read and the run fails with seed-not-found
+  const seedFound = seed === null ? null : await seedTrack(seed, signal);
+  if (seed !== null && seedFound === null) return { history: [], liked: [], related: [], mood: [], seedMissing: true };
+
   const historyTask = optional(fetchRead(InnertubeEndpoint.Browse, { browseId: "FEmusic_history" }, readHistoryTracks, tracksCache, signal));
   const likedTask = optional(fetchRead(InnertubeEndpoint.Browse, { browseId: "VLLM" }, readPlaylistTracks, tracksCache, signal));
-  const moodTask =
-    request.mood.kind === "item"
-      ? optional(moodTracks(request.mood.item.params, signal))
-      : request.mood.kind === "blend"
-        ? blendTracks(request.mood.items, signal)
-        : Promise.resolve(null);
+  // A song's related tracks (mood) take the place of the history's related tracks, so those are not read
   const relatedTask =
-    request.historyShared && request.direction !== GroovingDirection.Discover
+    seed === null && request.historyShared && request.direction !== GroovingDirection.Discover
       ? historyTask.then(history => (history ? relatedTracks(history, signal) : []))
       : Promise.resolve([]);
+  const moodTask =
+    seedFound !== null
+      ? relatedTracks([seedFound], signal)
+      : request.mood.kind === "item"
+        ? optional(moodTracks(request.mood.item.params, signal))
+        : request.mood.kind === "blend"
+          ? blendTracks(request.mood.items, signal)
+          : Promise.resolve(null);
   const [history, liked, mood, related] = await Promise.all([historyTask, likedTask, moodTask, relatedTask]);
   if (history === null && liked === null) throw new Error("sources:unreadable");
   if (request.mood.kind === "item" && request.direction !== GroovingDirection.Familiar && (!mood || mood.length === 0))
     throw new Error("mood:unreadable");
-  return { history: history ?? [], liked: liked ?? [], related, mood: mood ?? [] };
+  const moodList = mood ?? [];
+  if (seedFound !== null) {
+    const filled = await fillFromSeedArtist(moodList, seedFound.artists[0] ?? "", signal);
+    return {
+      history: history ?? [],
+      liked: liked ?? [],
+      related,
+      mood: filled,
+      seedVideoId: seedFound.videoId,
+      seedFilled: filled.length > moodList.length
+    };
+  }
+  return { history: history ?? [], liked: liked ?? [], related, mood: moodList };
 }
 
 async function search(queries: string[], signal: AbortSignal): Promise<GroovingTrack[]> {

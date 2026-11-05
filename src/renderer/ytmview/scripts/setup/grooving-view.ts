@@ -22,6 +22,7 @@ import {
   GroovingSaveStatus,
   GroovingSaveAction,
   GroovingScreen,
+  type GroovingSeedSong,
   GroovingSignal,
   GroovingStep,
   GroovingTrackKind,
@@ -30,7 +31,9 @@ import {
   GroovingVisibility
 } from "~shared/grooving";
 import { GROOVING_PRICES_AS_OF } from "~shared/grooving/usage";
+import { SongRecognitionMessageOp, SongRecognitionPhase, type SongRecognitionViewState } from "~shared/song-recognition";
 import { GROOVING_TEXT, GroovingText } from "./grooving-text";
+import { isViewState } from "./song-recognition";
 
 type ViewOf<S extends GroovingScreen> = Extract<GroovingViewState, { screen: S }>;
 
@@ -55,7 +58,8 @@ const FAILURES: Record<GroovingFailureReason, { icon: string; settings: boolean 
   [GroovingFailureReason.Network]: { icon: "wifi_off", settings: false },
   [GroovingFailureReason.Unusable]: { icon: "error", settings: false },
   [GroovingFailureReason.YtmUnreadable]: { icon: "cloud_off", settings: false },
-  [GroovingFailureReason.NotEnough]: { icon: "queue_music", settings: false }
+  [GroovingFailureReason.NotEnough]: { icon: "queue_music", settings: false },
+  [GroovingFailureReason.SeedNotFound]: { icon: "music_off", settings: false }
 };
 
 // Stand-ins for album art that has no thumbnail (all mixed from the theme's colors)
@@ -167,6 +171,27 @@ export const GROOVING_VIEW_CSS = `
   }
   .ytmd-grooving .g-field input::placeholder { color: var(--ytmd-color-text-muted); font-style: italic; }
   .ytmd-grooving .g-field:focus-within { border-color: var(--ytmd-color-accent); }
+
+  .ytmd-grooving .g-modes { margin-bottom: 20px; }
+  .ytmd-grooving .g-modes .g-opt { min-width: 0; }
+
+  .ytmd-grooving .g-seeds {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; max-width: 760px; margin-bottom: 22px;
+  }
+  .ytmd-grooving .g-card.g-seed { flex-direction: row; align-items: center; gap: 14px; padding: 12px; text-align: left; }
+  .ytmd-grooving .g-card.g-seed .g-art { width: 64px; height: 64px; aspect-ratio: 1 / 1; max-height: none; flex: none; border-radius: 8px; }
+  .ytmd-grooving .g-card.g-seed .g-meta { gap: 2px; }
+  .ytmd-grooving .g-seed-title { font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ytmd-grooving .g-seed-artist { font-size: 13px; color: var(--ytmd-color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ytmd-grooving .g-card.g-seed[aria-pressed="true"] {
+    border-color: var(--ytmd-color-accent); background: color-mix(in oklab, var(--ytmd-color-accent) 12%, transparent);
+  }
+  .ytmd-grooving .g-seed-empty { margin: 0; padding: 10px 0; }
+  .ytmd-grooving .g-rec { align-self: flex-start; }
+  .ytmd-grooving .g-rec .material-symbols-outlined { display: inline-block; }
+  .ytmd-grooving .g-rec.g-recording .material-symbols-outlined { animation: ytmd-grooving-blink 1s ease-in-out infinite; }
+  .ytmd-grooving .g-rec.g-rec-searching .material-symbols-outlined { animation: ytmd-grooving-spin 1s linear infinite; }
+  .ytmd-grooving .g-rec-message { margin-top: 10px; color: var(--ytmd-color-accent); }
 
   .ytmd-grooving .g-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px 40px; margin-top: 20px; }
   .ytmd-grooving .g-seg {
@@ -343,6 +368,8 @@ export const GROOVING_VIEW_CSS = `
   @keyframes ytmd-grooving-eq { 0%, 100% { height: 4px; } 50% { height: 14px; } }
   @keyframes ytmd-grooving-grow { from { transform: scaleX(0.4); } to { transform: scaleX(1.6); } }
   @keyframes ytmd-grooving-shimmer { from { background-position: 200% 0; } to { background-position: 0 0; } }
+  @keyframes ytmd-grooving-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+  @keyframes ytmd-grooving-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
   @media (prefers-reduced-motion: reduce) {
     .ytmd-grooving *, .ytmd-grooving *::before, .ytmd-grooving *::after { animation: none !important; transition: none !important; }
@@ -350,11 +377,17 @@ export const GROOVING_VIEW_CSS = `
 `;
 
 // What the setup screen remembers while the same setup lasts (a new state may arrive, for example when the moods load)
+type SetupMode = "items" | "words" | "song";
+type SeedChoice = "playing" | "recognized";
 type SetupMemory = {
+  // Which way of choosing the mood the screen shows (one at a time; a song is never blended)
+  mode: SetupMode;
   // 0-1 item of "Moods & activities" and 0-GROOVING_BLEND_GENRE_LIMIT items of "Genres" (in the order chosen)
   mood: GroovingMoodItem | null;
   genres: GroovingMoodItem[];
   text: string;
+  // The seed song card chosen on "From a song" (the card, not the song: a playing song may change under it)
+  seed: SeedChoice | null;
   direction: GroovingDirection | null;
   rounds: GroovingRounds;
   expanded: Set<GroovingMoodSection>;
@@ -363,7 +396,7 @@ type SetupMemory = {
 type FocusMemory = { key: string; selectionStart: number | null; selectionEnd: number | null };
 
 function newSetupMemory(): SetupMemory {
-  return { mood: null, genres: [], text: "", direction: null, rounds: DEFAULT_ROUNDS, expanded: new Set() };
+  return { mode: "items", mood: null, genres: [], text: "", seed: null, direction: null, rounds: DEFAULT_ROUNDS, expanded: new Set() };
 }
 
 // The chosen items, moods first and then genres in the order chosen
@@ -473,6 +506,11 @@ function artistsOf(track: GroovingCandidate): string {
   return track.artists.join(", ");
 }
 
+// What tells one recognized song from the next (the player's song may change under its card, a recognized one is replaced)
+function recognizedKey(song: GroovingSeedSong | null): string | null {
+  return song === null ? null : `${song.videoId ?? ""}\n${song.title}\n${song.artist}`;
+}
+
 function openSettings() {
   window.postMessage({ op: GroovingMessageOp.OpenSettings }, "*");
 }
@@ -500,6 +538,11 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
   let preview: { videoId: string; startedAt: number } | null = null;
   let previewClock: HTMLElement | null = null;
   let previewTimer: number | null = null;
+  // The notice main sends for song recognition; the button on "From a song" draws the same blink, spin and message as the icon
+  let recognition: SongRecognitionViewState = { visible: false, phase: SongRecognitionPhase.Idle, message: null };
+  // The recognized song seen last, so a newly recognized song has its card chosen
+  let seenRecognized: string | null = null;
+  let sawSetup = false;
 
   function header(hint: string): HTMLDivElement {
     const head = el("div", "g-head");
@@ -566,6 +609,7 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     const items: { icon: string; text: string; when: string; always: boolean }[] = [
       { icon: "history", text: text.sendsHistory, when: text.sendsHistoryWhen, always: false },
       { icon: "mood", text: text.sendsMood, when: text.sendsAlways, always: true },
+      { icon: "music_note", text: text.sendsSong, when: text.sendsWhenChosen, always: false },
       { icon: "queue_music", text: text.sendsCandidates, when: text.sendsAlways, always: true }
     ];
     for (const item of items) {
@@ -620,6 +664,8 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
 
     const chips: { node: HTMLButtonElement; item: GroovingMoodItem }[] = [];
     let genreLimit: HTMLSpanElement | null = null;
+    const modeButtons: { node: HTMLButtonElement; mode: SetupMode }[] = [];
+    const seedButtons: { node: HTMLButtonElement; choice: SeedChoice }[] = [];
     const directionButtons: { node: HTMLButtonElement; direction: GroovingDirection }[] = [];
     const roundButtons: { node: HTMLButtonElement; rounds: GroovingRounds }[] = [];
 
@@ -627,13 +673,27 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       if (!state.historyShared) return GroovingDirection.Discover;
       return memory.direction ?? GroovingDirection.Mix;
     };
-    // One item stays kind "item"; 2-3 items are a blend (moods first, then genres in the order chosen)
+    // The card chosen on "From a song" gives the song as it is in the latest state (a playing song may have changed)
+    const seedSong = (): GroovingSeedSong | null => {
+      if (memory.seed === "playing") return state.seed.playing;
+      // The recognized card is not offered when Shazam cannot recognize; a remembered choice of it starts nothing
+      if (memory.seed === "recognized") return state.seed.canRecognize ? state.seed.recognized : null;
+      return null;
+    };
+    // Exactly one of the three ways is used: a song is never blended with items, and words are not combined with either
     const chosenMood = (): GroovingMood | null => {
+      if (memory.mode === "song") {
+        const song = seedSong();
+        return song ? { kind: "song", song } : null;
+      }
+      if (memory.mode === "words") {
+        const words = memory.text.trim();
+        return words ? { kind: "text", text: words } : null;
+      }
       const items = chosenItems(memory);
       const [first, ...rest] = items;
       if (first) return rest.length === 0 ? { kind: "item", item: first } : { kind: "blend", items };
-      const text = memory.text.trim();
-      return text ? { kind: "text", text } : null;
+      return null;
     };
     // A mood replaces the mood chosen before; a genre is added up to GROOVING_BLEND_GENRE_LIMIT. Pressing a chosen item again lets it go
     const toggleItem = (item: GroovingMoodItem) => {
@@ -644,10 +704,6 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       } else {
         memory.mood = memory.mood !== null && sameMoodItem(memory.mood, item) ? null : item;
       }
-      if (isChosen(memory, item)) {
-        memory.text = "";
-        input.value = "";
-      }
       sync();
     };
 
@@ -655,83 +711,144 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     if (state.notice) nodes.push(buildNotice());
     nodes.push(el("h1", "g-big", text.setupTitle), el("p", "g-lead", text.setupLead(GROOVING_BLEND_GENRE_LIMIT)));
 
-    const moods = state.moods ?? [];
-    if (state.moods === null && !state.moodsFailed) {
-      const loading = el("p", "g-status", text.moodsLoading);
-      loading.setAttribute("role", "status");
-      nodes.push(loading);
-    } else if (state.moodsFailed || moods.length === 0) {
-      const failed = note("cloud_off", text.moodsFailed);
-      failed.setAttribute("role", "status");
-      failed.style.marginBottom = "20px";
-      nodes.push(failed);
-    } else {
-      for (const section of MOOD_SECTION_ORDER) {
-        const label = text.moodSections[section];
-        const items = moods.filter(item => item.section === section);
-        if (items.length === 0) continue;
-        const expanded = memory.expanded.has(section) || items.length <= CHIP_LIMIT + 1;
-        const shown = expanded ? items : items.filter((item, index) => index < CHIP_LIMIT || isChosen(memory, item));
-        const row = el("div", "g-chips");
-        row.setAttribute("role", "group");
-        row.setAttribute("aria-label", label);
-        shown.forEach((item, index) => {
-          const chip = button(item.name, {
-            className: "g-chip",
-            focusKey: `chip:${item.section}:${item.params}:${item.name}`,
-            onPress: () => toggleItem(item)
+    // One way of choosing at a time. A press only switches the shown part, so a draft in another one is kept
+    const modeGroup = el("div", "g-seg g-modes");
+    modeGroup.setAttribute("role", "tablist");
+    modeGroup.setAttribute("aria-label", text.setupTitle);
+    for (const mode of ["items", "words", "song"] as SetupMode[]) {
+      const tab = button(text.setupModes[mode], {
+        className: "g-opt",
+        focusKey: `mode:${mode}`,
+        onPress: () => {
+          memory.mode = mode;
+          render(current);
+        }
+      });
+      tab.setAttribute("role", "tab");
+      modeButtons.push({ node: tab, mode });
+      modeGroup.append(tab);
+    }
+    nodes.push(modeGroup);
+
+    if (memory.mode === "items") {
+      const moods = state.moods ?? [];
+      if (state.moods === null && !state.moodsFailed) {
+        const loading = el("p", "g-status", text.moodsLoading);
+        loading.setAttribute("role", "status");
+        nodes.push(loading);
+      } else if (state.moodsFailed || moods.length === 0) {
+        const failed = note("cloud_off", text.moodsFailed);
+        failed.setAttribute("role", "status");
+        failed.style.marginBottom = "20px";
+        nodes.push(failed);
+      } else {
+        for (const section of MOOD_SECTION_ORDER) {
+          const label = text.moodSections[section];
+          const items = moods.filter(item => item.section === section);
+          if (items.length === 0) continue;
+          const expanded = memory.expanded.has(section) || items.length <= CHIP_LIMIT + 1;
+          const shown = expanded ? items : items.filter((item, index) => index < CHIP_LIMIT || isChosen(memory, item));
+          const row = el("div", "g-chips");
+          row.setAttribute("role", "group");
+          row.setAttribute("aria-label", label);
+          shown.forEach((item, index) => {
+            const chip = button(item.name, {
+              className: "g-chip",
+              focusKey: `chip:${item.section}:${item.params}:${item.name}`,
+              onPress: () => toggleItem(item)
+            });
+            chip.style.setProperty("--g-stripe", CHIP_STRIPES[index % CHIP_STRIPES.length]);
+            chips.push({ node: chip, item });
+            row.append(chip);
           });
-          chip.style.setProperty("--g-stripe", CHIP_STRIPES[index % CHIP_STRIPES.length]);
-          chips.push({ node: chip, item });
-          row.append(chip);
+          if (!expanded) {
+            row.append(
+              button(text.moreChips(items.length - shown.length), {
+                className: "g-chip g-more",
+                focusKey: `more:${section}`,
+                onPress: () => {
+                  memory.expanded.add(section);
+                  render(current);
+                }
+              })
+            );
+          }
+          const heading = el("p", "g-label", label);
+          if (section === GroovingMoodSection.Genres) {
+            // Shown while the genres are full (see sync)
+            genreLimit = el("span", undefined, text.genreLimit(GROOVING_BLEND_GENRE_LIMIT));
+            genreLimit.style.marginLeft = "8px";
+            genreLimit.style.textTransform = "none";
+            genreLimit.style.letterSpacing = "normal";
+            heading.append(genreLimit);
+          }
+          nodes.push(heading, row);
+        }
+      }
+    } else if (memory.mode === "words") {
+      const field = el("label", "g-field");
+      const input = el("input");
+      input.type = "text";
+      input.value = memory.text;
+      input.placeholder = text.moodPlaceholder;
+      input.setAttribute("aria-label", text.moodTextLabel);
+      input.dataset.focusKey = "mood-text";
+      input.addEventListener("input", () => {
+        memory.text = input.value;
+        sync();
+      });
+      input.addEventListener("keydown", event => {
+        if (event.key !== "Enter" || event.isComposing) return;
+        event.preventDefault();
+        start.click();
+      });
+      field.append(icon("edit"), input);
+      nodes.push(field);
+    } else {
+      const seedCard = (choice: SeedChoice, song: GroovingSeedSong, gradient: number): HTMLButtonElement => {
+        const card = el("button", "g-card g-glass g-seed");
+        card.type = "button";
+        card.dataset.focusKey = `seed:${choice}`;
+        card.setAttribute("aria-pressed", String(memory.seed === choice));
+        const meta = el("div", "g-meta");
+        meta.append(el("span", "g-seed-title", song.title), el("span", "g-seed-artist", song.artist));
+        card.append(art(song.thumbnail, gradient), meta);
+        card.addEventListener("click", () => {
+          memory.seed = choice;
+          sync();
         });
-        if (!expanded) {
-          row.append(
-            button(text.moreChips(items.length - shown.length), {
-              className: "g-chip g-more",
-              focusKey: `more:${section}`,
-              onPress: () => {
-                memory.expanded.add(section);
-                render(current);
-              }
-            })
-          );
+        seedButtons.push({ node: card, choice });
+        return card;
+      };
+      nodes.push(el("p", "g-label", text.seedPlayingLabel));
+      const playingRow = el("div", "g-seeds");
+      if (state.seed.playing) playingRow.append(seedCard("playing", state.seed.playing, 1));
+      else playingRow.append(el("p", "g-hint g-seed-empty", text.seedNothingPlaying));
+      nodes.push(playingRow);
+      if (state.seed.canRecognize) {
+        nodes.push(el("p", "g-label", text.seedRecognizedLabel));
+        const recognizedRow = el("div", "g-seeds");
+        if (state.seed.recognized) recognizedRow.append(seedCard("recognized", state.seed.recognized, 3));
+        else recognizedRow.append(el("p", "g-hint g-seed-empty", text.seedNothingRecognized));
+        nodes.push(recognizedRow);
+        // The same notice the search bar's icon takes: blink while recording, spin while searching, then its message
+        const phase = recognition.phase;
+        const recording = phase === SongRecognitionPhase.Recording;
+        const searching = phase === SongRecognitionPhase.Searching;
+        const listen = button(text.recognize, {
+          className: `g-rec${recording ? " g-recording" : searching ? " g-rec-searching" : ""}`,
+          icon: "graphic_eq",
+          focusKey: "recognize",
+          onPress: () => window.postMessage({ op: SongRecognitionMessageOp.PressForGrooving }, "*")
+        });
+        nodes.push(listen);
+        if (phase === SongRecognitionPhase.Message && recognition.message) {
+          const message = el("p", "g-hint g-rec-message", recognition.message);
+          message.setAttribute("role", "status");
+          nodes.push(message);
         }
-        const heading = el("p", "g-label", label);
-        if (section === GroovingMoodSection.Genres) {
-          // Shown while the genres are full (see sync)
-          genreLimit = el("span", undefined, text.genreLimit(GROOVING_BLEND_GENRE_LIMIT));
-          genreLimit.style.marginLeft = "8px";
-          genreLimit.style.textTransform = "none";
-          genreLimit.style.letterSpacing = "normal";
-          heading.append(genreLimit);
-        }
-        nodes.push(heading, row);
       }
     }
-
-    const field = el("label", "g-field");
-    const input = el("input");
-    input.type = "text";
-    input.value = memory.text;
-    input.placeholder = text.moodPlaceholder;
-    input.setAttribute("aria-label", text.moodTextLabel);
-    input.dataset.focusKey = "mood-text";
-    input.addEventListener("input", () => {
-      memory.text = input.value;
-      if (memory.text.trim() !== "") {
-        memory.mood = null;
-        memory.genres = [];
-      }
-      sync();
-    });
-    input.addEventListener("keydown", event => {
-      if (event.key !== "Enter" || event.isComposing) return;
-      event.preventDefault();
-      start.click();
-    });
-    field.append(icon("edit"), input);
-    nodes.push(field);
 
     const directionColumn = el("div");
     const directionGroup = el("div", "g-seg");
@@ -798,6 +915,14 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     nodes.push(actions);
 
     function sync() {
+      for (const option of modeButtons) {
+        const on = option.mode === memory.mode;
+        option.node.classList.toggle("g-on", on);
+        option.node.setAttribute("aria-selected", String(on));
+      }
+      for (const option of seedButtons) {
+        option.node.setAttribute("aria-pressed", String(memory.seed === option.choice));
+      }
       const genresFull = memory.genres.length >= GROOVING_BLEND_GENRE_LIMIT;
       for (const chip of chips) {
         const on = isChosen(memory, chip.item);
@@ -836,7 +961,7 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     const title = el("h1", "g-big", text.working[state.step]);
     title.setAttribute("role", "status");
     nodes.push(title);
-    if (state.filledFromMood) nodes.push(filledNote());
+    if (state.filledFromMood) nodes.push(filledNote(state.fromSong));
     const waiting = el("div", "g-waiting");
     waiting.setAttribute("aria-hidden", "true");
     const skeleton = el("div", "g-sk");
@@ -846,8 +971,8 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     return nodes;
   }
 
-  function filledNote(): HTMLParagraphElement {
-    const filled = note("info", text.filledFromMood);
+  function filledNote(fromSong: boolean): HTMLParagraphElement {
+    const filled = note("info", fromSong ? text.filledFromSeedArtist : text.filledFromMood);
     filled.style.margin = "0 0 20px";
     return filled;
   }
@@ -907,7 +1032,7 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       el("h1", "g-big", text.chooseTitle),
       el("p", "g-lead", text.chooseLead(state.round, state.rounds, GROOVING_PREVIEW_SECONDS))
     ];
-    if (state.filledFromMood) nodes.push(filledNote());
+    if (state.filledFromMood) nodes.push(filledNote(state.fromSong));
 
     const pair = el("div", "g-pair");
     const vs = el("span", "g-vs", text.or);
@@ -1178,6 +1303,13 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     // Chromium's word-break: auto-phrase works only when the content's language is ja
     element.lang = state.language;
     if (state.screen !== GroovingScreen.Setup) setup = newSetupMemory();
+    if (state.screen === GroovingScreen.Setup) {
+      // A song recognized now (with the button here or the search bar's icon) has its card chosen
+      const key = recognizedKey(state.seed.recognized);
+      if (sawSetup && key !== null && key !== seenRecognized) setup.seed = "recognized";
+      seenRecognized = key;
+      sawSetup = true;
+    }
     updatePreview(state);
 
     if (previewTimer !== null) {
@@ -1196,6 +1328,16 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       previewTimer = window.setInterval(tickPreview, PREVIEW_CLOCK_INTERVAL_MS);
     }
   }
+
+  window.addEventListener("message", event => {
+    // Only messages from the preload of this page are accepted (not from embedded frames)
+    if (event.source !== window || event.data?.op !== SongRecognitionMessageOp.State) return;
+    if (!isViewState(event.data.state)) return;
+    recognition = event.data.state;
+    if (current.screen === GroovingScreen.Setup) render(current);
+  });
+  // The preload sends the last notice again once the page listens
+  window.postMessage({ op: SongRecognitionMessageOp.Listening }, "*");
 
   return { element, render };
 }

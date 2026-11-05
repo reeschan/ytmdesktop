@@ -33,8 +33,10 @@ export type GroovingText = {
   sendsHistory: string;
   sendsHistoryWhen: string;
   sendsMood: string;
+  sendsSong: string;
   sendsCandidates: string;
   sendsAlways: string;
+  sendsWhenChosen: string;
   // Around the provider's name (shown in bold)
   sentToBefore: string;
   sentToAfter: string;
@@ -50,6 +52,7 @@ export type GroovingText = {
   setupHint: string;
   setupTitle: string;
   setupLead: (genreLimit: number) => string;
+  setupModes: { items: string; words: string; song: string };
   moodsLoading: string;
   moodsFailed: string;
   moodSections: Record<GroovingMoodSection, string>;
@@ -58,6 +61,11 @@ export type GroovingText = {
   genreLimitTitle: (limit: number) => string;
   moodPlaceholder: string;
   moodTextLabel: string;
+  seedPlayingLabel: string;
+  seedRecognizedLabel: string;
+  seedNothingPlaying: string;
+  seedNothingRecognized: string;
+  recognize: string;
   direction: string;
   directions: Record<GroovingDirection, { label: string; detail: string }>;
   needsHistory: string;
@@ -71,6 +79,7 @@ export type GroovingText = {
   // Working
   working: Record<GroovingStep, string>;
   filledFromMood: string;
+  filledFromSeedArtist: string;
 
   // Choose
   chooseTitle: string;
@@ -151,8 +160,10 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     sendsHistory: "Song titles and artists from your history and likes",
     sendsHistoryWhen: "Only if you share",
     sendsMood: "The mood you picked or typed, and your choices",
+    sendsSong: "The song you pick (when starting from a song)",
     sendsCandidates: "Titles and artists of the candidate songs",
     sendsAlways: "Always",
+    sendsWhenChosen: "When picked",
     sentToBefore: "Sent to ",
     sentToAfter: ", with your API key. Nothing is sent to YouTube Music.",
     shareHistory: "Share history",
@@ -166,7 +177,8 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     setupHint: "Step 1 of 3 · Set the mood",
     setupTitle: "What's the mood?",
     setupLead: genreLimit =>
-      `Pick one mood and up to ${genreLimit} genres from YouTube Music, or say it in your own words. Then choose how far from your usual picks to go.`,
+      `Pick one mood and up to ${genreLimit} genres from YouTube Music, say it in your own words, or start from a song. Then choose how far from your usual picks to go.`,
+    setupModes: { items: "Items", words: "Words", song: "From a song" },
     moodsLoading: "Loading moods and genres from YouTube Music…",
     moodsFailed: "Couldn't load the moods and genres from YouTube Music. You can still describe the mood in your own words.",
     moodSections: { [GroovingMoodSection.Moods]: "Moods & activities", [GroovingMoodSection.Genres]: "Genres" },
@@ -175,6 +187,11 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     genreLimitTitle: limit => `Up to ${limit} genres`,
     moodPlaceholder: "…or describe it: rainy night, lo-fi, a little nostalgic",
     moodTextLabel: "Describe the mood in your own words",
+    seedPlayingLabel: "Playing now",
+    seedRecognizedLabel: "Recognized",
+    seedNothingPlaying: "Nothing is playing",
+    seedNothingRecognized: "No song recognized yet",
+    recognize: "Listen",
     direction: "Direction",
     directions: {
       [GroovingDirection.Familiar]: { label: "Stay familiar", detail: "Artists you know" },
@@ -196,6 +213,7 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
       [GroovingStep.List]: "Building your list…"
     },
     filledFromMood: "Your history is short, so some songs come from the mood's playlists.",
+    filledFromSeedArtist: "There were few related songs, so some come from a search for the artist.",
 
     chooseTitle: "Which one fits right now?",
     chooseLead: (round, rounds, previewSeconds) =>
@@ -277,6 +295,10 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
       [GroovingFailureReason.NotEnough]: {
         title: "Not enough songs",
         text: "There weren't enough songs for this mood and direction. Retry, or close and try another mood."
+      },
+      [GroovingFailureReason.SeedNotFound]: {
+        title: "That song isn't on YouTube Music",
+        text: "The song you picked could not be found on YouTube Music. Retry, or close and pick another song."
       }
     }),
     unusableCollect: {
@@ -309,8 +331,10 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     sendsHistory: "履歴と高評価の曲名・アーティスト",
     sendsHistoryWhen: "共有するときだけ",
     sendsMood: "選んだか書いた気分と、組での選択",
+    sendsSong: "選んだ曲 (曲から選んだとき)",
     sendsCandidates: "候補の曲の曲名・アーティスト",
     sendsAlways: "常に",
+    sendsWhenChosen: "選んだとき",
     sentToBefore: "送り先は ",
     sentToAfter: "。自分の API Key で送る。YouTube Music には何も送らない。",
     shareHistory: "履歴を共有する",
@@ -324,7 +348,8 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     setupHint: "ステップ 1 / 3 · 気分を決める",
     setupTitle: "今の気分は?",
     setupLead: genreLimit =>
-      `YouTube Music のムードを 1 つとジャンルを ${genreLimit} つまで選ぶか、自分の言葉で書く。それから、いつもの曲からどれだけ離れるかを選ぶ。`,
+      `YouTube Music のムードを 1 つとジャンルを ${genreLimit} つまで選ぶか、自分の言葉で書くか、曲から始める。それから、いつもの曲からどれだけ離れるかを選ぶ。`,
+    setupModes: { items: "項目", words: "言葉", song: "曲から" },
     moodsLoading: "YouTube Music から気分とジャンルを読み込み中…",
     moodsFailed: "YouTube Music から気分とジャンルを読み込めなかった。気分は自分の言葉で書ける。",
     moodSections: { [GroovingMoodSection.Moods]: "ムードとアクティビティ", [GroovingMoodSection.Genres]: "ジャンル" },
@@ -333,6 +358,11 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     genreLimitTitle: limit => `ジャンルは ${limit} つまで`,
     moodPlaceholder: "…または言葉で: 雨の夜、lo-fi、少し懐かしい",
     moodTextLabel: "気分を自分の言葉で書く",
+    seedPlayingLabel: "再生中",
+    seedRecognizedLabel: "直近に聞き取った曲",
+    seedNothingPlaying: "何も再生していない",
+    seedNothingRecognized: "まだ聞き取った曲が無い",
+    recognize: "聞き取る",
     direction: "方向",
     directions: {
       [GroovingDirection.Familiar]: { label: "寄せる", detail: "知っているアーティスト" },
@@ -353,6 +383,7 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
       [GroovingStep.List]: "Grooving のリストを作成中…"
     },
     filledFromMood: "履歴が少ないので、一部の曲は気分のプレイリストから足した。",
+    filledFromSeedArtist: "関連曲が少ないので、一部はアーティスト名で検索した曲から足した。",
 
     chooseTitle: "今の気分に合うのはどっち?",
     chooseLead: (round, rounds, previewSeconds) =>
@@ -434,6 +465,10 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
       [GroovingFailureReason.NotEnough]: {
         title: "曲が足りない",
         text: "この気分と方向に合う曲が足りなかった。やり直すか、閉じてほかの気分を試す。"
+      },
+      [GroovingFailureReason.SeedNotFound]: {
+        title: "その曲が YouTube Music で見つからない",
+        text: "選んだ曲が YouTube Music で見つからなかった。やり直すか、閉じて別の曲を選ぶ。"
       }
     }),
     unusableCollect: {

@@ -1772,7 +1772,7 @@ describe("toGroovingViewState", () => {
         seed: NO_SEED
       }
     ],
-    ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false }],
+    ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false, fromSong: false }],
     [
       "pair wait (second round)",
       stateOf({
@@ -1781,7 +1781,7 @@ describe("toGroovingViewState", () => {
         requestId: "r9",
         retry: true
       }),
-      { screen: "working", step: GroovingStep.Pair, round: 2, rounds: 3, filledFromMood: true }
+      { screen: "working", step: GroovingStep.Pair, round: 2, rounds: 3, filledFromMood: true, fromSong: false }
     ],
     [
       "choose",
@@ -1795,7 +1795,8 @@ describe("toGroovingViewState", () => {
         left: CANDIDATES[0],
         right: CANDIDATES[1],
         previewing: "a",
-        filledFromMood: false
+        filledFromMood: false,
+        fromSong: false
       }
     ],
     [
@@ -1810,15 +1811,16 @@ describe("toGroovingViewState", () => {
         left: CANDIDATES[4],
         right: CANDIDATES[5],
         previewing: null,
-        filledFromMood: false
+        filledFromMood: false,
+        fromSong: false
       }
     ],
     [
       "choose (a track not in the candidates)",
       stateOf({ kind: "choose", session: SHOWING, pair: { left: "a", right: "zz", reason: "" }, prefetch: { left: null, right: null } }),
-      { screen: "working", step: GroovingStep.Pair, round: 1, rounds: 3, filledFromMood: false }
+      { screen: "working", step: GroovingStep.Pair, round: 1, rounds: 3, filledFromMood: false, fromSong: false }
     ],
-    ["list wait", LIST_RETRY, { screen: "working", step: GroovingStep.List, round: null, rounds: null, filledFromMood: false }],
+    ["list wait", LIST_RETRY, { screen: "working", step: GroovingStep.List, round: null, rounds: null, filledFromMood: false, fromSong: false }],
     [
       "failed (collect)",
       FAILED_COLLECT,
@@ -2052,6 +2054,13 @@ describe("a song as the mood (From a song)", () => {
     const { state, effects } = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady]);
     expect(state.flow.kind).toBe("pair-wait");
     expect(effects.at(-1)).toMatchObject({ type: "request-pair", session: { mood: SONG_MOOD } });
+  });
+
+  it("shows fromSong with the artist fill while working and choosing", () => {
+    const state = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady]).state;
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "working", fromSong: true, filledFromMood: true });
+    const choose = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady, pairArrived("r10", PAIR_1)]).state;
+    expect(toGroovingViewState(choose, EXTRA)).toMatchObject({ screen: "choose", fromSong: true, filledFromMood: true });
   });
 
   it("names the mood after the song on the choose screen and the done screen, in the display language", () => {

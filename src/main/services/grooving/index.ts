@@ -869,7 +869,11 @@ export default class Grooving extends Service {
 
     // The page's search may have decided the videoId when the mood's song had none
     const seed: GroovingSeedMatch = { videoId: song.videoId ?? sources.seedVideoId ?? null, title: song.title, artist: song.artist };
-    this.buildCandidates(request, rounds, sources, fail, seed);
+    // A song run's mood tracks are its related tracks, so the "filled from the mood" note is only used for the artist fill
+    const built = buildGroovingCandidates({ direction: request.direction, historyShared: request.historyShared, sources, seed });
+    if (!groovingCandidatesEnough(built.candidates, request.direction, rounds)) return fail(GroovingFailureReason.NotEnough);
+    this.runKnownArtists = knownArtists(sources.history, sources.liked);
+    this.dispatch({ type: "candidates-ready", candidates: built.candidates, filledFromMood: sources.seedFilled === true });
   }
 
   /**

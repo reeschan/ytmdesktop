@@ -822,7 +822,8 @@ function pairWorking(session: GroovingSession): GroovingScreenView {
     step: GroovingStep.Pair,
     round: session.history.length + 1,
     rounds: session.rounds,
-    filledFromMood: session.filledFromMood
+    filledFromMood: session.filledFromMood,
+    fromSong: session.mood.kind === "song"
   };
 }
 
@@ -888,7 +889,14 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
         seed: state.seed
       };
     case "collect":
-      return { screen: GroovingScreen.Working, step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: flow.session.filledFromMood };
+      return {
+        screen: GroovingScreen.Working,
+        step: GroovingStep.Collect,
+        round: null,
+        rounds: null,
+        filledFromMood: flow.session.filledFromMood,
+        fromSong: flow.session.mood.kind === "song"
+      };
     case "pair-wait":
       return pairWorking(flow.session);
     case "choose": {
@@ -905,11 +913,19 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
         left,
         right,
         previewing: state.previewing,
-        filledFromMood: flow.session.filledFromMood
+        filledFromMood: flow.session.filledFromMood,
+        fromSong: flow.session.mood.kind === "song"
       };
     }
     case "list-wait":
-      return { screen: GroovingScreen.Working, step: GroovingStep.List, round: null, rounds: null, filledFromMood: flow.session.filledFromMood };
+      return {
+        screen: GroovingScreen.Working,
+        step: GroovingStep.List,
+        round: null,
+        rounds: null,
+        filledFromMood: flow.session.filledFromMood,
+        fromSong: flow.session.mood.kind === "song"
+      };
     case "failed": {
       const session = flow.step === GroovingStep.Pair ? flow.session : null;
       return {

@@ -249,6 +249,7 @@ export type GroovingSources = {
   // Only for a song mood
   seedMissing?: boolean; // The seed song was not found on YouTube Music (the other lists are empty)
   seedVideoId?: string | null; // The seed song's videoId; the one the search decided when the mood's song had none
+  seedFilled?: boolean; // The related tracks were short, so the seed artist's songs were added to the mood
 };
 
 // page -> main: what the user did
@@ -339,7 +340,15 @@ export type GroovingScreenView =
       // What "From a song" offers: the song playing now, the song recognized last, and whether the screen can recognize
       seed: GroovingSeedOptions;
     }
-  | { screen: typeof GroovingScreen.Working; step: GroovingStep; round: number | null; rounds: number | null; filledFromMood: boolean }
+  | {
+      screen: typeof GroovingScreen.Working;
+      step: GroovingStep;
+      round: number | null;
+      rounds: number | null;
+      filledFromMood: boolean;
+      // The run started from a song (the fill, if any, came from a search for the seed artist)
+      fromSong: boolean;
+    }
   | {
       screen: typeof GroovingScreen.Choose;
       round: number;
@@ -350,6 +359,8 @@ export type GroovingScreenView =
       right: GroovingCandidate;
       previewing: string | null;
       filledFromMood: boolean;
+      // The run started from a song (the fill, if any, came from a search for the seed artist)
+      fromSong: boolean;
     }
   | {
       screen: typeof GroovingScreen.Done;
