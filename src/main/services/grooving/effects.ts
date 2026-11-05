@@ -33,6 +33,8 @@ const MAX_TRACKS = 500;
 const MAX_MOODS = 300;
 export const MAX_TEXT = 300;
 export const MOOD_TEXT_MAX = 200;
+// The seed song's videoId from the page, kept as a plain string; longer than any real one
+export const SEED_VIDEO_ID_MAX = 64;
 
 // Why an LLM call gave nothing: an answer that was not usable (worth one more ask) or a failed call
 export const GroovingLlmFailureKind = {
@@ -68,7 +70,13 @@ export function readSources(value: unknown): GroovingSources | null {
   const liked = readTracks(value.liked);
   const related = readTracks(value.related);
   const mood = readTracks(value.mood);
-  return history && liked && related && mood ? { history, liked, related, mood } : null;
+  if (!history || !liked || !related || !mood) return null;
+
+  // Only a song mood has these. The page decides the seed's videoId when the mood had none
+  const sources: GroovingSources = { history, liked, related, mood };
+  if (value.seedMissing === true) sources.seedMissing = true;
+  if (typeof value.seedVideoId === "string" && value.seedVideoId !== "") sources.seedVideoId = value.seedVideoId.slice(0, SEED_VIDEO_ID_MAX);
+  return sources;
 }
 
 export function readMoods(value: unknown): GroovingMoodItem[] | null {

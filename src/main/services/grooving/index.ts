@@ -13,6 +13,7 @@ import {
   GROOVING_PROTECTED_API,
   GROOVING_PROVIDER_LABELS,
   GROOVING_SAVE_TIMEOUT_MS,
+  GROOVING_TRACK_TEXT_MAX,
   GroovingCandidate,
   GroovingDirection,
   GroovingDisplayLanguage,
@@ -26,6 +27,8 @@ import {
   GroovingProvider,
   GroovingRoundRecord,
   GroovingRounds,
+  GroovingSeedOptions,
+  GroovingSeedSong,
   GroovingSignal,
   GroovingSourceRequest,
   GroovingSources,
@@ -43,6 +46,7 @@ import {
   groovingListCandidates
 } from "~shared/grooving/answer";
 import { alternate, buildGroovingCandidates, knownArtists } from "~shared/grooving/candidates";
+import type { GroovingSeedMatch } from "~shared/grooving/candidates";
 import { groovingReaction, GroovingReaction } from "~shared/grooving/continuation";
 import { createGroovingCallWindow } from "~shared/grooving/pace";
 import {
@@ -76,12 +80,12 @@ import {
   knownArtistsOfCandidates,
   MAX_TEXT,
   MOOD_TEXT_MAX,
-  moodLabelOf,
   observeTrack,
   PageAnswer,
   readMoods,
   readSources,
   readTracks,
+  SEED_VIDEO_ID_MAX,
   TrackWatch,
   Usage
 } from "./effects";
@@ -126,6 +130,15 @@ export default class Grooving extends Service {
   private ytmContents: Electron.WebContents | null = null;
   private consentListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
   private languageListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
+  private shazamEnabledListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
+  private shazamKeyListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
+  private memoryListener = () => {
+    try {
+      this.updateSeedOptions();
+    } catch (error) {
+      log.error("Grooving failed to read the remembered song", error);
+    }
+  };
   private writingConsent = false;
   // The page's HL from the last open signal (null when unreadable), for the Auto language
   private pageLanguage: string | null = null;
@@ -188,9 +201,11 @@ export default class Grooving extends Service {
     this.resetForNewDocument();
   };
 
-  // The player changes every second, so the work is done only when the track changes (and never while an ad plays)
+  // The player changes every second, so the work is done only when the track changes (and never while an ad plays).
+  // The seed song offered on the setup screen follows the same state
   private playerStateListener = (state: PlayerState) => {
     try {
+      this.updateSeedOptions(state);
       this.observePlayer(state);
     } catch (error) {
       log.error("Grooving failed to watch the player", error);
@@ -229,6 +244,15 @@ export default class Grooving extends Service {
     this.languageListener = this.getDependency(ConfigStore).onDidChange("integrations.groovingLanguage", () => this.sendState());
     // The reactions and the track that started are read from the player while a done / saving / saved run is on
     this.getDependency(PlayerStateStore).on("state-changed", this.playerStateListener);
+    // The setup screen's seed song follows the player, the remembered song and the Shazam settings
+    this.getDependency(MemoryStore<MemoryStoreSchema>).onStateChanged(this.memoryListener);
+    this.shazamEnabledListener = this.getDependency(ConfigStore).onDidChange("integrations.shazamEnabled", this.memoryListener);
+    this.shazamKeyListener = this.getDependency(ConfigStore).onDidChange("integrations.shazamApiKey", this.memoryListener);
+    try {
+      this.updateSeedOptions();
+    } catch (error) {
+      log.error("Grooving failed to read the seed options at startup", error);
+    }
 
     log.info("Grooving initialized");
   }
@@ -237,6 +261,7 @@ export default class Grooving extends Service {
 
   public override onTerminated() {
     this.getDependency(PlayerStateStore).off("state-changed", this.playerStateListener);
+    this.getDependency(MemoryStore<MemoryStoreSchema>).removeOnStateChanged(this.memoryListener);
     const viewManager = this.getDependency(YTMViewManager);
     viewManager.off("status-changed", this.statusListener);
     viewManager.off("view-recreated", this.recreatedListener);
@@ -244,6 +269,10 @@ export default class Grooving extends Service {
     this.consentListener = null;
     this.languageListener?.();
     this.languageListener = null;
+    this.shazamEnabledListener?.();
+    this.shazamEnabledListener = null;
+    this.shazamKeyListener?.();
+    this.shazamKeyListener = null;
     this.restoreThrottling();
     this.detachYTMView();
     this.ytmContents = null;
@@ -371,6 +400,8 @@ export default class Grooving extends Service {
     try {
       const event = this.toEvent(signal);
       if (!event) return;
+      // The setup screen shows the seed song as it is now, not as it was at the last change
+      if (event.type === "open") this.updateSeedOptions();
 
       // Opening a setup screen hidden through a reload reads the moods from the new page
       const readsMoods =
@@ -434,6 +465,25 @@ export default class Grooving extends Service {
     if (mood.kind === "item") {
       const known = this.findMood(mood.item);
       return known ? { kind: "item", item: known } : null;
+    }
+
+    if (mood.kind === "song") {
+      const { title, artist, videoId, thumbnail } = mood.song;
+      if (typeof title !== "string" || typeof artist !== "string") return null;
+
+      const clippedTitle = title.trim().slice(0, GROOVING_TRACK_TEXT_MAX);
+      const clippedArtist = artist.trim().slice(0, GROOVING_TRACK_TEXT_MAX);
+      if (clippedTitle === "" || clippedArtist === "") return null;
+
+      return {
+        kind: "song",
+        song: {
+          title: clippedTitle,
+          artist: clippedArtist,
+          videoId: typeof videoId === "string" && videoId !== "" ? videoId.slice(0, SEED_VIDEO_ID_MAX) : null,
+          thumbnail: typeof thumbnail === "string" && thumbnail.startsWith("https://") ? thumbnail.slice(0, MAX_TEXT) : null
+        }
+      };
     }
 
     return this.toKnownBlend(mood.items);
@@ -558,6 +608,75 @@ export default class Grooving extends Service {
       return null;
     }
   }
+
+  //#region The seed song ("From a song")
+  // What the page sends into a mood is not trusted: only strings, cut like a track's text
+  private clipSeedSong(song: GroovingSeedSong): GroovingSeedSong {
+    return {
+      title: song.title.slice(0, GROOVING_TRACK_TEXT_MAX),
+      artist: song.artist.slice(0, GROOVING_TRACK_TEXT_MAX),
+      videoId: song.videoId === null ? null : song.videoId.slice(0, SEED_VIDEO_ID_MAX),
+      thumbnail: song.thumbnail === null ? null : song.thumbnail.slice(0, MAX_TEXT)
+    };
+  }
+
+  private playingSeed(state: PlayerState | null): GroovingSeedSong | null {
+    const details = state?.videoDetails ?? null;
+    // An ad is not the track, and without details there is no song to start from
+    if (state === null || state.adPlaying || details === null) return null;
+
+    const thumbnails = details.thumbnails;
+    const thumbnail = thumbnails.length === 0 ? null : thumbnails[thumbnails.length - 1].url;
+    return this.clipSeedSong({ title: details.title, artist: details.author, videoId: details.id, thumbnail });
+  }
+
+  private recognizedSeed(): GroovingSeedSong | null {
+    const remembered = this.getDependency(MemoryStore<MemoryStoreSchema>).get("groovingRecognizedSong");
+    if (!isRecord(remembered) || typeof remembered.title !== "string" || typeof remembered.artist !== "string") return null;
+    return this.clipSeedSong({ title: remembered.title, artist: remembered.artist, videoId: null, thumbnail: null });
+  }
+
+  // Shazam's conditions, as in song-recognition: enabled, a key is saved and safeStorage can be used (the key itself is not read)
+  private canRecognizeSong(): boolean {
+    const configStore = this.getDependency(ConfigStore);
+    const apiKey = configStore.get("integrations.shazamApiKey");
+    if (configStore.get("integrations.shazamEnabled") !== true) return false;
+    return typeof apiKey === "string" && apiKey !== "" && this.safeStorageAvailable();
+  }
+
+  private sameSeedSong(a: GroovingSeedSong | null, b: GroovingSeedSong | null): boolean {
+    if (a === b) return true;
+    if (a === null || b === null) return false;
+    return a.title === b.title && a.artist === b.artist && a.videoId === b.videoId && a.thumbnail === b.thumbnail;
+  }
+
+  private sameSeedOptions(a: GroovingSeedOptions, b: GroovingSeedOptions): boolean {
+    return a.canRecognize === b.canRecognize && this.sameSeedSong(a.playing, b.playing) && this.sameSeedSong(a.recognized, b.recognized);
+  }
+
+  /**
+   * Sends the seed options when one of them changed. The player state can be handed in when the caller has it already
+   */
+  private updateSeedOptions(playerState?: PlayerState | null) {
+    let player = playerState;
+    if (player === undefined) {
+      try {
+        player = this.getDependency(PlayerStateStore).getState();
+      } catch (error) {
+        log.error("Grooving failed to read the player for the seed options", error);
+        player = null;
+      }
+    }
+
+    const next: GroovingSeedOptions = {
+      playing: this.playingSeed(player),
+      recognized: this.recognizedSeed(),
+      canRecognize: this.canRecognizeSong()
+    };
+    if (this.sameSeedOptions(this.state.seed, next)) return;
+    this.dispatch({ type: "seed-options", ...next });
+  }
+  //#endregion
 
   /**
    * Turns a player state into a reaction for the track that ended and a start for the track that began.
@@ -702,6 +821,7 @@ export default class Grooving extends Service {
     };
 
     if (request.mood.kind === "blend") return this.collectBlend(request, rounds, groovingMoodLabel(request.mood), current, fail);
+    if (request.mood.kind === "song") return this.collectSong(request, rounds, current, fail);
 
     // The sources are collected with the request as it is. A text mood has nothing for the page to collect itself, so its
     // mood tracks come from the searches the LLM thinks of, and the history and liked tracks still come from the page.
@@ -723,6 +843,33 @@ export default class Grooving extends Service {
       sources.mood = tracks;
     }
     this.buildCandidates(request, rounds, sources, fail);
+  }
+
+  /**
+   * A song's mood tracks are its related tracks, which the page collects (and fills with the artist's songs when there are
+   * too few). The seed song itself is left out of the candidates. No search queries are asked of the LLM
+   */
+  private async collectSong(
+    request: GroovingSourceRequest,
+    rounds: GroovingRounds,
+    current: () => boolean,
+    fail: (reason: GroovingFailureReason) => void
+  ) {
+    if (request.mood.kind !== "song") return;
+    const song = request.mood.song;
+
+    const collected = await this.callPage(GroovingPageCall.CollectSources, request);
+    if (!current()) return;
+
+    const sources = collected.ok ? readSources(collected.value) : null;
+    if (!sources) return fail(collected.ok ? GroovingFailureReason.YtmUnreadable : collected.reason);
+    // The page could not find the song it searched for (a recognized song has no videoId, so the page searches).
+    // This is seed-not-found: the user can retry or pick another song
+    if (sources.seedMissing === true) return fail(GroovingFailureReason.SeedNotFound);
+
+    // The page's search may have decided the videoId when the mood's song had none
+    const seed: GroovingSeedMatch = { videoId: song.videoId ?? sources.seedVideoId ?? null, title: song.title, artist: song.artist };
+    this.buildCandidates(request, rounds, sources, fail, seed);
   }
 
   /**
@@ -759,9 +906,10 @@ export default class Grooving extends Service {
     request: GroovingSourceRequest,
     rounds: GroovingRounds,
     sources: GroovingSources,
-    fail: (reason: GroovingFailureReason) => void
+    fail: (reason: GroovingFailureReason) => void,
+    seed: GroovingSeedMatch | null = null
   ) {
-    const built = buildGroovingCandidates({ direction: request.direction, historyShared: request.historyShared, sources });
+    const built = buildGroovingCandidates({ direction: request.direction, historyShared: request.historyShared, sources, seed });
     if (!groovingCandidatesEnough(built.candidates, request.direction, rounds)) return fail(GroovingFailureReason.NotEnough);
 
     // Kept for the continuation, which marks the related tracks with the same artists (the history is not read again)
@@ -804,7 +952,14 @@ export default class Grooving extends Service {
     const result = await this.runLlm((llm, config, signal) =>
       llm.requestPair(
         config,
-        { mood: moodLabelOf(session.mood), direction: session.direction, candidates: session.candidates, history, shown: session.shown },
+        {
+          mood: session.mood,
+          language: this.language(),
+          direction: session.direction,
+          candidates: session.candidates,
+          history,
+          shown: session.shown
+        },
         { signal }
       )
     );
@@ -835,11 +990,7 @@ export default class Grooving extends Service {
     const familiarCount = groovingFamiliarCount({ direction, history, candidates });
 
     const result = await this.runLlm((llm, config, signal) =>
-      llm.requestList(
-        config,
-        { mood: moodLabelOf(session.mood), direction, candidates, history, familiarCount, language: this.llmLanguage() },
-        { signal }
-      )
+      llm.requestList(config, { mood: session.mood, language: this.language(), direction, candidates, history, familiarCount }, { signal })
     );
     if (epoch !== this.epoch) return;
 
@@ -935,12 +1086,12 @@ export default class Grooving extends Service {
       llm.requestContinuation(
         config,
         {
-          mood: moodLabelOf(flow.session.mood),
+          mood: flow.session.mood,
+          language: this.language(),
           direction: input.direction,
           candidates: input.candidates,
           history: input.history,
           familiarCount: input.familiarCount,
-          language: this.llmLanguage(),
           listed: input.listed,
           reactions: input.reactions,
           avoidedArtists: input.avoidedArtists

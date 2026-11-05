@@ -18,14 +18,19 @@ import {
 import { z } from "zod";
 import { groovingArtistLimit } from "~shared/grooving/answer";
 import {
+  GROOVING_LANGUAGE_NAMES,
   GROOVING_LIST_LENGTH,
   GROOVING_LLM_TIMEOUT_MS,
   GROOVING_MOOD_JOINER,
   GROOVING_SEARCH_QUERY_LIMIT,
   GroovingCandidate,
   GroovingDirection,
+  GroovingDisplayLanguage,
   GroovingFailureReason,
+  GroovingLanguage,
   GroovingList,
+  GroovingMood,
+  groovingMoodLabel,
   GroovingPair,
   GroovingProvider,
   GroovingRoundRecord
@@ -151,6 +156,16 @@ function candidateLines(candidates: GroovingCandidate[]): string {
   return candidates.map(({ videoId, title, artists, kind }) => [videoId, title, artists.join(", "), kind].map(flatten).join(" | ")).join("\n");
 }
 
+// The mood as the prompts call it. A song is described as songs like it, in the display language, so the pairs and the
+// list stay near it. Its title and artist are the listener's own choice, so they go in even when the history is not shared
+export function groovingPromptMood(mood: GroovingMood, language: GroovingDisplayLanguage): string {
+  if (mood.kind !== "song") return groovingMoodLabel(mood, language);
+
+  const title = flatten(mood.song.title);
+  const artist = flatten(mood.song.artist);
+  return language === GroovingLanguage.Japanese ? `"${title}" / ${artist} のような曲` : `songs like "${title}" by ${artist}`;
+}
+
 function historyLines(history: GroovingRoundRecord[]): string {
   if (history.length === 0) return "(none yet)";
   return history
@@ -201,9 +216,18 @@ export async function requestSearchQueries(
   });
 }
 
+type PairInput = {
+  mood: GroovingMood;
+  language: GroovingDisplayLanguage;
+  direction: GroovingDirection;
+  candidates: GroovingCandidate[];
+  history: GroovingRoundRecord[];
+  shown: string[];
+};
+
 export async function requestPair(
   config: GroovingLlmConfig,
-  input: { mood: string; direction: GroovingDirection; candidates: GroovingCandidate[]; history: GroovingRoundRecord[]; shown: string[] },
+  input: PairInput,
   options?: GroovingLlmOptions
 ): Promise<GroovingLlmResult<GroovingPair>> {
   const prompt: GroovingPrompt = {
@@ -216,7 +240,7 @@ export async function requestPair(
       CANDIDATE_DATA_NOTE
     ].join("\n"),
     prompt: [
-      `Mood: ${flatten(input.mood)}`,
+      `Mood: ${flatten(groovingPromptMood(input.mood, input.language))}`,
       `Direction: ${directionLine(input.direction, null)}`,
       `Already shown videoIds: ${input.shown.length === 0 ? "(none)" : input.shown.map(flatten).join(", ")}`,
       `Earlier pairs and choices:\n${historyLines(input.history)}`,
@@ -227,12 +251,12 @@ export async function requestPair(
 }
 
 type ListInput = {
-  mood: string;
+  mood: GroovingMood;
   direction: GroovingDirection;
   candidates: GroovingCandidate[];
   history: GroovingRoundRecord[];
   familiarCount: number;
-  language: string;
+  language: GroovingDisplayLanguage;
 };
 
 // The prompt of a list and of a continuation list. Without the extras it is exactly the list prompt as it was
@@ -241,11 +265,11 @@ function listPrompt(input: ListInput, extras: { system?: string[]; sections?: st
     "You build a playlist for a listener's mood from the candidates, guided by the choices they made between pairs of tracks.",
     `videoIds lists exactly ${GROOVING_LIST_LENGTH} different videoIds copied exactly from the candidates, in a good listening order.`,
     `No artist may have more than ${groovingArtistLimit(input.candidates, input.familiarCount)} tracks in the list; count each track under its first artist.`,
-    `moodDescription describes the mood the choices point to, in at most ${GROOVING_MOOD_DESCRIPTION_MAX} characters, written in the language ${flatten(input.language)}. It becomes the playlist's title.`,
+    `moodDescription describes the mood the choices point to, in at most ${GROOVING_MOOD_DESCRIPTION_MAX} characters, written in the language ${GROOVING_LANGUAGE_NAMES[input.language]}. It becomes the playlist's title.`,
     CANDIDATE_DATA_NOTE
   ];
   const prompt = [
-    `Mood: ${flatten(input.mood)}`,
+    `Mood: ${flatten(groovingPromptMood(input.mood, input.language))}`,
     `Direction: ${directionLine(input.direction, input.familiarCount)}`,
     `Pairs and choices:\n${historyLines(input.history)}`,
     `${CANDIDATE_FORMAT}\n${candidateLines(input.candidates)}`
