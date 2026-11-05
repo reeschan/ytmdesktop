@@ -15,6 +15,8 @@ import {
   GroovingPair,
   GroovingSaveAction,
   GroovingScreenView,
+  GroovingSeedOptions,
+  GroovingSeedSong,
   GroovingStep,
   GroovingTrackKind,
   GroovingVisibility
@@ -56,6 +58,10 @@ const CANDIDATES: GroovingCandidate[] = [
 const MOOD_ITEM: GroovingMoodItem = { name: "Chill", section: GroovingMoodSection.Moods, params: "chill-params" };
 const MOOD: GroovingMood = { kind: "item", item: MOOD_ITEM };
 const TEXT_MOOD: GroovingMood = { kind: "text", text: "rainy night" };
+const PLAYING_SONG: GroovingSeedSong = { title: "Blue Hour", artist: "Alpha", videoId: "v-playing", thumbnail: "https://example.com/blue.jpg" };
+const RECOGNIZED_SONG: GroovingSeedSong = { title: "Night Drive", artist: "Beta", videoId: null, thumbnail: null };
+const SONG_MOOD: GroovingMood = { kind: "song", song: PLAYING_SONG };
+const NO_SEED: GroovingSeedOptions = { playing: null, recognized: null, canRecognize: false };
 const PAIR_1: GroovingPair = { left: "a", right: "b", reason: "tempo" };
 const PAIR_2: GroovingPair = { left: "c", right: "d", reason: "genre" };
 const PAIR_3: GroovingPair = { left: "e", right: "f", reason: "mood" };
@@ -110,6 +116,7 @@ const stateOf = (flow: Flow, overrides: Partial<Omit<GroovingState, "flow">> = {
   notice: false,
   previewing: null,
   queue: "original",
+  seed: NO_SEED,
   nextRequestId: 10,
   ...overrides
 });
@@ -1071,6 +1078,7 @@ describe("decideGrooving", () => {
       notice: false,
       previewing: null,
       queue: "original",
+      seed: { playing: null, recognized: null, canRecognize: false },
       nextRequestId: 1
     });
   });
@@ -1760,7 +1768,8 @@ describe("toGroovingViewState", () => {
         historyShared: false,
         providerLabel: "Gemini",
         model: "gemini-3.5-flash-lite",
-        notice: false
+        notice: false,
+        seed: NO_SEED
       }
     ],
     ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false }],
@@ -1989,5 +1998,124 @@ describe("toGroovingViewState", () => {
     expect(toGroovingViewState(SETUP, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
     expect(toGroovingViewState(CHOOSE, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
     expect(toGroovingViewState(CLOSED, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Gone, mark: null });
+  });
+});
+
+describe("a song as the mood (From a song)", () => {
+  const SEED_REQUEST = { direction: GroovingDirection.Mix, historyShared: true, mood: SONG_MOOD };
+
+  it("starts collecting from the setup screen, with the song in the request", () => {
+    const { state, effects } = decideGrooving(SETUP, start(GroovingDirection.Mix, SONG_MOOD));
+    expect(state.flow).toEqual({ kind: "collect", session: { ...EMPTY_SESSION, mood: SONG_MOOD } });
+    expect(effects).toEqual([{ type: "collect", request: SEED_REQUEST }]);
+  });
+
+  it("starts with a recognized song that has no videoId", () => {
+    const mood: GroovingMood = { kind: "song", song: RECOGNIZED_SONG };
+    const { effects } = decideGrooving(SETUP, start(GroovingDirection.Familiar, mood, 5));
+    expect(effects).toEqual([{ type: "collect", request: { direction: GroovingDirection.Familiar, historyShared: true, mood } }]);
+  });
+
+  it("starts without history only in the discover direction, like any mood", () => {
+    expect(decideGrooving(SETUP_NO_HISTORY, start(GroovingDirection.Mix, SONG_MOOD))).toEqual({ state: SETUP_NO_HISTORY, effects: [] });
+    expect(decideGrooving(SETUP_NO_HISTORY, start(GroovingDirection.Discover, SONG_MOOD)).effects).toHaveLength(1);
+  });
+
+  it("fails with seed-not-found while collecting, and shows the reason", () => {
+    const { state } = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), { type: "collect-failed", reason: GroovingFailureReason.SeedNotFound }]);
+    expect(state.flow).toEqual({
+      kind: "failed",
+      session: { ...EMPTY_SESSION, mood: SONG_MOOD },
+      step: GroovingStep.Collect,
+      reason: GroovingFailureReason.SeedNotFound
+    });
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({
+      screen: "failed",
+      step: GroovingStep.Collect,
+      reason: "seed-not-found",
+      round: null,
+      rounds: null
+    });
+  });
+
+  it("collects again with the same song on retry", () => {
+    const failedState = run(SETUP, [
+      start(GroovingDirection.Mix, SONG_MOOD),
+      { type: "collect-failed", reason: GroovingFailureReason.SeedNotFound }
+    ]).state;
+    const { state, effects } = decideGrooving(failedState, RETRY);
+    expect(state.flow).toEqual({ kind: "collect", session: { ...EMPTY_SESSION, mood: SONG_MOOD } });
+    expect(effects).toEqual([{ type: "collect", request: SEED_REQUEST }]);
+  });
+
+  it("goes on to the pairs once the candidates are ready", () => {
+    const { state, effects } = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady]);
+    expect(state.flow.kind).toBe("pair-wait");
+    expect(effects.at(-1)).toMatchObject({ type: "request-pair", session: { mood: SONG_MOOD } });
+  });
+
+  it("names the mood after the song on the choose screen and the done screen, in the display language", () => {
+    const choose = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady, pairArrived("r10", PAIR_1)]).state;
+    expect(toGroovingViewState(choose, EXTRA)).toMatchObject({ screen: "choose", moodLabel: "From Blue Hour / Alpha" });
+    expect(toGroovingViewState(choose, { ...EXTRA, language: GroovingLanguage.Japanese })).toMatchObject({ moodLabel: "Blue Hour / Alpha から" });
+    const done = doneWith(continuationOf());
+    const song = stateOf({ ...(done.flow as Extract<Flow, { list: GroovingList }>), session: { ...ANSWERED_ALL, mood: SONG_MOOD } });
+    expect(toGroovingViewState(song, EXTRA)).toMatchObject({ screen: "done", moodLabel: "From Blue Hour / Alpha" });
+    expect(toGroovingViewState(song, { ...EXTRA, language: GroovingLanguage.Japanese })).toMatchObject({ moodLabel: "Blue Hour / Alpha から" });
+  });
+});
+
+describe("seed-options", () => {
+  const options = (overrides: Partial<GroovingSeedOptions> = {}): GroovingEvent => ({
+    type: "seed-options",
+    playing: PLAYING_SONG,
+    recognized: RECOGNIZED_SONG,
+    canRecognize: true,
+    ...overrides
+  });
+
+  it("shows on the setup screen", () => {
+    const { state, effects } = decideGrooving(SETUP, options());
+    expect(effects).toEqual([]);
+    expect(state.flow).toEqual(SETUP.flow);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({
+      screen: "setup",
+      seed: { playing: PLAYING_SONG, recognized: RECOGNIZED_SONG, canRecognize: true }
+    });
+  });
+
+  it("starts with nothing to offer", () => {
+    expect(toGroovingViewState(SETUP, EXTRA)).toMatchObject({ seed: { playing: null, recognized: null, canRecognize: false } });
+  });
+
+  it("is replaced by the next one", () => {
+    const { state } = run(SETUP, [options(), options({ playing: null, canRecognize: false })]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ seed: { playing: null, recognized: RECOGNIZED_SONG, canRecognize: false } });
+  });
+
+  it.each<[string, GroovingState]>([
+    ["closed", CLOSED],
+    ["need key", NEED_KEY],
+    ["consent", CONSENT],
+    ["hidden setup", HIDDEN_SETUP],
+    ["collect", COLLECT],
+    ["choose", CHOOSE],
+    ["done", DONE],
+    ["failed", FAILED_COLLECT]
+  ])("is kept in %s without changing anything else", (_name, state) => {
+    const { state: next, effects } = decideGrooving(state, options());
+    expect(effects).toEqual([]);
+    expect(next).toEqual({ ...state, seed: { playing: PLAYING_SONG, recognized: RECOGNIZED_SONG, canRecognize: true } });
+  });
+
+  it("is on the setup screen that opens afterwards", () => {
+    const { state } = run(CLOSED, [options(), SHARE]);
+    expect(state.flow).toEqual({ kind: "setup", historyShared: true });
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "setup", seed: { playing: PLAYING_SONG, canRecognize: true } });
+  });
+
+  it("is kept when the run ends and starts again", () => {
+    const { state } = run(DONE, [options(), { type: "again" }]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "setup", seed: { recognized: RECOGNIZED_SONG } });
   });
 });

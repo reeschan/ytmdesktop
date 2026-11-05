@@ -13,6 +13,8 @@ import {
   GROOVING_PROTECTED_API,
   GROOVING_PROVIDER_LABELS,
   GROOVING_SAVE_TIMEOUT_MS,
+  GroovingCandidate,
+  GroovingDirection,
   GroovingDisplayLanguage,
   GroovingFailureReason,
   GroovingIpc,
@@ -22,10 +24,12 @@ import {
   groovingMoodLabel,
   GroovingPageCall,
   GroovingProvider,
+  GroovingRoundRecord,
   GroovingRounds,
   GroovingSignal,
   GroovingSourceRequest,
   GroovingSources,
+  GroovingTrack,
   GroovingViewMessage,
   GroovingVisibility,
   isGroovingSignal,
@@ -38,7 +42,8 @@ import {
   groovingFamiliarCount,
   groovingListCandidates
 } from "~shared/grooving/answer";
-import { alternate, buildGroovingCandidates } from "~shared/grooving/candidates";
+import { alternate, buildGroovingCandidates, knownArtists } from "~shared/grooving/candidates";
+import { groovingReaction, GroovingReaction } from "~shared/grooving/continuation";
 import { createGroovingCallWindow } from "~shared/grooving/pace";
 import {
   decideGrooving,
@@ -52,26 +57,32 @@ import {
   toGroovingViewState
 } from "~shared/grooving/state";
 import { addGroovingUsage, estimateGroovingUsd, groovingMonth } from "~shared/grooving/usage";
+import type { PlayerState } from "~shared/playerstatestore/types";
 import Service from "../service";
 import ConfigStore from "../configstore";
 import MemoryStore from "../memorystore";
+import PlayerStateStore from "../playerstatestore";
 import StateManager from "../statemanager";
 import ProtectedAPIManager from "../protectedapimanager";
 import YTMViewManager from "../ytmviewmanager";
 import { AppView } from "../windowmanager/appview";
 import {
+  continuationRequest,
   failedLlm,
   GroovingLlmFailureKind,
   isConsent,
   isRecord,
   isUsage,
+  knownArtistsOfCandidates,
   MAX_TEXT,
   MOOD_TEXT_MAX,
   moodLabelOf,
+  observeTrack,
   PageAnswer,
   readMoods,
   readSources,
   readTracks,
+  TrackWatch,
   Usage
 } from "./effects";
 import type { GroovingLlmConfig, GroovingLlmResult } from "./llm";
@@ -85,10 +96,25 @@ const PAGE_BIND_TIMEOUT_MS = 15 * 1000;
 
 const emptyPendingUsage = () => ({ priced: { inputTokens: 0, outputTokens: 0, usd: 0 }, unpriced: { inputTokens: 0, outputTokens: 0 } });
 
+const isDoneKind = (kind: GroovingState["flow"]["kind"]): boolean => kind === "done" || kind === "saving" || kind === "saved";
+
+// The continuation's candidates and prompt input, kept for the request in flight (only the latest one; a retry reuses it)
+type ContinuationInput = {
+  requestId: number;
+  candidates: GroovingCandidate[];
+  familiarCount: number;
+  direction: GroovingDirection;
+  history: GroovingRoundRecord[];
+  listed: GroovingCandidate[];
+  reactions: Record<string, GroovingReaction>;
+  avoidedArtists: string[];
+};
+
 export default class Grooving extends Service {
   public static override readonly dependencies: DependencyConstructor<Service>[] = [
     ConfigStore,
     MemoryStore<MemoryStoreSchema>,
+    PlayerStateStore,
     ProtectedAPIManager,
     StateManager,
     YTMViewManager
@@ -126,6 +152,13 @@ export default class Grooving extends Service {
   // The run-in-progress flag last written to the settings, so a write happens only when the value changes
   private writtenRunInProgress = false;
 
+  // What main remembers of the track playing while a done / saving / saved run is on (see observeTrack)
+  private trackWatch: TrackWatch | null = null;
+  // The artists the run's candidates were marked with. Null when the run did not build any
+  private runKnownArtists: Set<string> | null = null;
+  // The continuation's candidates, waiting for the LLM request (the latest one only)
+  private continuationInput: ContinuationInput | null = null;
+
   // The usage of this run (shown on the done screen), and the usage not yet written to the settings,
   // split into the priced models' and the tokens of models missing from the price table
   private runUsage: Usage & { usd: number; usdKnown: boolean } = { inputTokens: 0, outputTokens: 0, usd: 0, usdKnown: true };
@@ -153,6 +186,15 @@ export default class Grooving extends Service {
   private recreatedListener = () => {
     this.attachYTMView();
     this.resetForNewDocument();
+  };
+
+  // The player changes every second, so the work is done only when the track changes (and never while an ad plays)
+  private playerStateListener = (state: PlayerState) => {
+    try {
+      this.observePlayer(state);
+    } catch (error) {
+      log.error("Grooving failed to watch the player", error);
+    }
   };
 
   public override onPreInitialized() {}
@@ -185,6 +227,8 @@ export default class Grooving extends Service {
     this.consentListener = this.getDependency(ConfigStore).onDidChange("integrations.groovingConsent", () => this.handleConsentChanged());
     // The screen's language follows the setting at once, also while a run goes on
     this.languageListener = this.getDependency(ConfigStore).onDidChange("integrations.groovingLanguage", () => this.sendState());
+    // The reactions and the track that started are read from the player while a done / saving / saved run is on
+    this.getDependency(PlayerStateStore).on("state-changed", this.playerStateListener);
 
     log.info("Grooving initialized");
   }
@@ -192,6 +236,7 @@ export default class Grooving extends Service {
   public override onPostInitialized() {}
 
   public override onTerminated() {
+    this.getDependency(PlayerStateStore).off("state-changed", this.playerStateListener);
     const viewManager = this.getDependency(YTMViewManager);
     viewManager.off("status-changed", this.statusListener);
     viewManager.off("view-recreated", this.recreatedListener);
@@ -331,9 +376,19 @@ export default class Grooving extends Service {
       const readsMoods =
         event.type === "open" && this.moods === null && this.state.flow.kind === "setup" && this.state.visibility === GroovingVisibility.Hidden;
       this.dispatch(event);
+      // The last choice is kept for the next run's done screen, also when the decision ignored this one
+      if (event.type === "continue-toggle") this.writeContinueToggle(event.enabled);
       if (readsMoods) void this.loadMoods(this.epoch, this.pageToken);
     } catch (error) {
       log.error("Grooving failed to handle a signal", error);
+    }
+  }
+
+  private writeContinueToggle(enabled: boolean) {
+    try {
+      this.getDependency(ConfigStore).set("integrations.groovingContinue", enabled);
+    } catch (error) {
+      log.error("Grooving failed to write the continue toggle", error);
     }
   }
 
@@ -354,6 +409,9 @@ export default class Grooving extends Service {
         return signal.videoId.length <= MAX_TEXT ? { type: "preview-start", videoId: signal.videoId } : null;
       case "previewStop":
         return { type: "preview-ended" };
+      case "continueToggle":
+        // The page can post anything, so a toggle that is not a boolean is dropped
+        return typeof signal.enabled === "boolean" ? { type: "continue-toggle", enabled: signal.enabled } : null;
       case "consent":
       case "close":
       case "leave":
@@ -418,6 +476,9 @@ export default class Grooving extends Service {
     const next = this.state.flow.kind;
     if (next === "closed" && previous !== "closed") this.endRun();
     if (next === "setup" && previous !== "setup") this.beginSetup();
+    // The player is watched only while the continue part can run. Entering done drops what was seen before the list
+    if (isDoneKind(next) && !isDoneKind(previous)) this.trackWatch = this.startTrackWatch();
+    else if (!isDoneKind(next)) this.trackWatch = null;
     // A hidden window would slow the page's timers while Grooving waits for the page, so they run freely while it is open
     // or a hidden run still waits for something
     this.syncThrottling();
@@ -483,6 +544,38 @@ export default class Grooving extends Service {
     this.abort.abort();
     this.abort = new AbortController();
     this.clearPreviewTimer();
+    this.trackWatch = null;
+    this.runKnownArtists = null;
+    this.continuationInput = null;
+  }
+
+  // Reads the current player state into a fresh watch, for the moment the list arrives (its position is not counted)
+  private startTrackWatch(): TrackWatch | null {
+    try {
+      return observeTrack(null, this.getDependency(PlayerStateStore).getState(), this.state.previewing).next;
+    } catch (error) {
+      log.error("Grooving failed to read the player", error);
+      return null;
+    }
+  }
+
+  /**
+   * Turns a player state into a reaction for the track that ended and a start for the track that began.
+   * Nothing is sent while the track stays the same (the state changes every second)
+   */
+  private observePlayer(playerState: PlayerState) {
+    if (!isDoneKind(this.state.flow.kind)) {
+      this.trackWatch = null;
+      return;
+    }
+
+    const observed = observeTrack(this.trackWatch, playerState, this.state.previewing);
+    this.trackWatch = observed.next;
+    // The reaction first, then the track that started (the decision takes both in this order)
+    if (observed.reaction !== null) {
+      this.dispatch({ type: "track-reaction", videoId: observed.reaction.videoId, reaction: groovingReaction(observed.reaction.last) });
+    }
+    if (observed.started !== null) this.dispatch({ type: "track-started", videoId: observed.started });
   }
 
   private beginSetup() {
@@ -567,6 +660,27 @@ export default class Grooving extends Service {
       case "save-playlist":
         void this.savePlaylist(this.epoch, this.pageToken, effect.title, effect.videoIds);
         break;
+      case "collect-continuation":
+        void this.collectContinuation(this.epoch, this.pageToken, effect.requestId, effect.relatedOf).catch(error =>
+          log.error("Grooving failed to collect the continuation candidates", error)
+        );
+        break;
+      case "request-continuation":
+        void this.requestContinuation(this.epoch, effect.requestId).catch(error =>
+          log.error("Grooving failed to request a continuation list", error)
+        );
+        break;
+      case "append-queue":
+        // The queue keeps playing whatever this answer is, so a failure is only logged (and the flow does not change)
+        this.enqueuePlayback(GroovingPageCall.AppendQueue, effect.videoIds, ok => {
+          if (!ok) log.warn("Grooving could not add the continuation to the queue");
+        });
+        break;
+      case "add-to-playlist":
+        void this.addToPlaylist(this.epoch, this.pageToken, effect.playlistId, effect.videoIds).catch(error =>
+          log.error("Grooving failed to add the tracks to the playlist", error)
+        );
+        break;
     }
   }
 
@@ -650,6 +764,8 @@ export default class Grooving extends Service {
     const built = buildGroovingCandidates({ direction: request.direction, historyShared: request.historyShared, sources });
     if (!groovingCandidatesEnough(built.candidates, request.direction, rounds)) return fail(GroovingFailureReason.NotEnough);
 
+    // Kept for the continuation, which marks the related tracks with the same artists (the history is not read again)
+    this.runKnownArtists = knownArtists(sources.history, sources.liked);
     this.dispatch({ type: "candidates-ready", candidates: built.candidates, filledFromMood: built.filledFromMood });
   }
 
@@ -738,11 +854,130 @@ export default class Grooving extends Service {
 
     const check = checkGroovingList(result.value, { candidates, direction, familiarCount });
     if (check.ok) {
-      this.dispatch({ type: "list-arrived", requestId, list: result.value });
+      // The toggle starts from its last choice, read when the list arrives rather than at startup
+      const continueEnabled = this.getDependency(ConfigStore).get("integrations.groovingContinue") ?? false;
+      this.dispatch({ type: "list-arrived", requestId, list: result.value, continueEnabled });
     } else {
       log.warn(`Grooving list was not usable: ${check.problem}`);
       this.dispatch({ type: "list-unusable", requestId });
     }
+  }
+
+  /**
+   * The related tracks of the listed track the reactions point to, then the continuation's candidates. Sends exactly one
+   * answer: the decision drops it by requestId when the toggle went off meanwhile (the epoch is the only silent drop)
+   */
+  private async collectContinuation(epoch: number, pageToken: number, requestId: number, relatedOf: string | null) {
+    let related: GroovingTrack[] = [];
+    if (relatedOf !== null) {
+      const answer = await this.callPage(GroovingPageCall.Related, relatedOf);
+      if (epoch !== this.epoch) return;
+      // A reload drops the page's answer: the flow is told it could not be collected, so it does not wait forever
+      const tracks = answer.ok && pageToken === this.pageToken ? readTracks(answer.value) : null;
+      if (tracks === null) {
+        this.dispatch({ type: "continuation-candidates", requestId, ok: false, reason: "failed" });
+        return;
+      }
+      related = tracks;
+    }
+
+    const flow = this.state.flow;
+    if (flow.kind !== "done" && flow.kind !== "saving" && flow.kind !== "saved") return;
+    if (flow.continuation.requestId !== requestId) {
+      // The toggle went off or another request began: the decision drops this answer by its requestId
+      this.dispatch({ type: "continuation-candidates", requestId, ok: false, reason: "failed" });
+      return;
+    }
+
+    const { session, continuation } = flow;
+    const request = continuationRequest({
+      candidates: session.candidates,
+      direction: session.direction,
+      history: session.history,
+      listed: continuation.listed,
+      reactions: continuation.reactions,
+      knownArtists: this.runKnownArtists ?? knownArtistsOfCandidates(session.candidates),
+      related
+    });
+    if (!request.enough) {
+      this.dispatch({ type: "continuation-candidates", requestId, ok: false, reason: "short" });
+      return;
+    }
+
+    this.continuationInput = {
+      requestId,
+      candidates: request.candidates,
+      familiarCount: request.familiarCount,
+      direction: session.direction,
+      history: session.history,
+      listed: continuation.listed,
+      reactions: continuation.reactions,
+      avoidedArtists: request.avoidedArtists
+    };
+    this.dispatch({ type: "continuation-candidates", requestId, ok: true });
+  }
+
+  /**
+   * Asks the LLM for the continuation list with the candidates kept at collect time, checks the answer with the same
+   * check as a list, and sends one answer. The state decides whether to ask once more
+   */
+  private async requestContinuation(epoch: number, requestId: number) {
+    const input = this.continuationInput;
+    if (input === null || input.requestId !== requestId) {
+      this.dispatch({ type: "continuation-failed", requestId });
+      return;
+    }
+
+    const flow = this.state.flow;
+    if (flow.kind !== "done" && flow.kind !== "saving" && flow.kind !== "saved") return;
+
+    const result = await this.runLlm((llm, config, signal) =>
+      llm.requestContinuation(
+        config,
+        {
+          mood: moodLabelOf(flow.session.mood),
+          direction: input.direction,
+          candidates: input.candidates,
+          history: input.history,
+          familiarCount: input.familiarCount,
+          language: this.llmLanguage(),
+          listed: input.listed,
+          reactions: input.reactions,
+          avoidedArtists: input.avoidedArtists
+        },
+        { signal }
+      )
+    );
+    if (epoch !== this.epoch) return;
+
+    if (!result.ok) {
+      this.dispatch(
+        result.kind === GroovingLlmFailureKind.Unusable ? { type: "continuation-unusable", requestId } : { type: "continuation-failed", requestId }
+      );
+      return;
+    }
+
+    const check = checkGroovingList(result.value, { candidates: input.candidates, direction: input.direction, familiarCount: input.familiarCount });
+    if (!check.ok) {
+      log.warn(`Grooving continuation was not usable: ${check.problem}`);
+      this.dispatch({ type: "continuation-unusable", requestId });
+      return;
+    }
+
+    const tracks = result.value.videoIds.flatMap(videoId => input.candidates.find(track => track.videoId === videoId) ?? []);
+    this.dispatch({ type: "continuation-arrived", requestId, tracks });
+  }
+
+  // Waits for the page as long as a save does, and only uses the playlist id after checking its shape
+  private async addToPlaylist(epoch: number, pageToken: number, playlistId: string, videoIds: string[]) {
+    if (playlistId === "" || playlistId.length > MAX_TEXT) {
+      this.dispatch({ type: "playlist-add-failed" });
+      return;
+    }
+
+    const answer = await this.enqueuePageCall(GROOVING_SAVE_TIMEOUT_MS, GroovingPageCall.AddToPlaylist, { playlistId, videoIds });
+    if (epoch !== this.epoch || pageToken !== this.pageToken) return;
+    this.dispatch(answer.ok ? { type: "playlist-added" } : { type: "playlist-add-failed" });
   }
 
   /**
@@ -813,8 +1048,13 @@ export default class Grooving extends Service {
     const answer = await this.enqueuePageCall(GROOVING_SAVE_TIMEOUT_MS, GroovingPageCall.SavePlaylist, { title, videoIds });
     if (epoch !== this.epoch || pageToken !== this.pageToken) return;
 
-    const saved = answer.ok && isRecord(answer.value) && typeof answer.value.playlistId === "string";
-    this.dispatch({ type: saved ? "saved" : "save-failed" });
+    // The id is used later to add the continuation lists to the same playlist, so only a plain id is taken
+    const playlistId = answer.ok && isRecord(answer.value) && typeof answer.value.playlistId === "string" ? answer.value.playlistId : null;
+    if (playlistId === null || playlistId === "" || playlistId.length > MAX_TEXT) {
+      this.dispatch({ type: "save-failed" });
+    } else {
+      this.dispatch({ type: "saved", playlistId });
+    }
   }
   //#endregion
 

@@ -11,7 +11,8 @@ import {
   GroovingProvider,
   GroovingTrackKind
 } from "~shared/grooving";
-import { GroovingLlmConfig, requestList, requestPair, requestSearchQueries } from "./llm";
+import { GroovingReaction } from "~shared/grooving/continuation";
+import { GroovingLlmConfig, requestContinuation, requestList, requestPair, requestSearchQueries } from "./llm";
 
 type DoGenerate = MockLanguageModelV4["doGenerate"];
 type GenerateResult = Awaited<ReturnType<DoGenerate>>;
@@ -208,6 +209,26 @@ describe("prompts", () => {
       expect(prompt).not.toContain("http");
       expect(prompt).toContain("bbb | Title bbb | Artist bbb | new");
     }
+  });
+
+  it("adds the listed tracks, the reactions and the avoided artists to a continuation prompt", async () => {
+    const model = answering(JSON.stringify({ videoIds: ["bbb"], moodDescription: "Calm" }));
+    const listed = [candidate("aaa", GroovingTrackKind.Familiar)];
+    await requestContinuation(
+      CONFIG,
+      {
+        ...LIST_INPUT,
+        listed,
+        reactions: { aaa: GroovingReaction.Skipped },
+        avoidedArtists: ["artist aaa"]
+      },
+      { model }
+    );
+    const prompt = JSON.stringify(model.doGenerateCalls[0].prompt);
+    expect(prompt).toContain("Already in the list (choose none of these):");
+    expect(prompt).toContain("aaa | Title aaa | Artist aaa");
+    expect(prompt).toContain("aaa | Title aaa | Artist aaa | skipped");
+    expect(prompt).toContain("Artists to avoid (their tracks were skipped or disliked):\\nartist aaa");
   });
 
   it("asks for search queries in the given language that combine every joined mood item", async () => {

@@ -70,6 +70,7 @@ export type StoreSchema = {
     groovingConsent: GroovingConsent | null;
     groovingUsage: GroovingUsage | null;
     groovingLanguage: GroovingLanguage;
+    groovingContinue: boolean; // The last choice of the continue toggle
   };
   shortcuts: {
     playPause: string;

@@ -10,6 +10,7 @@ import {
   GroovingAnswer,
   GroovingCandidate,
   GroovingConsentChoice,
+  GroovingContinuationPhase,
   GroovingDirection,
   GroovingFailureReason,
   GroovingLanguage,
@@ -19,6 +20,7 @@ import {
   GroovingMoodSection,
   GroovingRounds,
   GroovingSaveStatus,
+  GroovingSaveAction,
   GroovingScreen,
   GroovingSignal,
   GroovingStep,
@@ -290,6 +292,23 @@ export const GROOVING_VIEW_CSS = `
   .ytmd-grooving .g-list .g-t span { display: block; font-size: 12px; color: var(--ytmd-color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .ytmd-grooving .g-list .g-k { font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ytmd-color-text-muted); }
   .ytmd-grooving .g-list .g-k.g-kn { color: var(--ytmd-color-accent); }
+  .ytmd-grooving .g-list-column { min-width: 0; }
+  .ytmd-grooving .g-keep { margin-top: 22px; border-radius: 14px; padding: 16px 18px; }
+  .ytmd-grooving .g-keep-head { display: flex; align-items: center; gap: 12px; }
+  .ytmd-grooving .g-keep-head b { font-size: 15px; font-weight: 500; }
+  .ytmd-grooving .g-keep p { margin: 6px 0 0; }
+  .ytmd-grooving .g-keep .g-keep-line { font-size: 13px; color: var(--ytmd-color-accent); }
+  .ytmd-grooving .g-switch {
+    margin-left: auto; flex: none; width: 46px; height: 26px; padding: 3px; border-radius: 13px;
+    background: color-mix(in oklab, var(--ytmd-color-text) 22%, transparent); border: 1px solid var(--ytmd-color-border);
+    transition: background-color 0.15s ease;
+  }
+  .ytmd-grooving .g-switch[aria-checked="true"] { background: var(--ytmd-color-accent); border-color: transparent; }
+  .ytmd-grooving .g-switch-knob {
+    display: block; width: 18px; height: 18px; border-radius: 50%; background: var(--ytmd-color-background);
+    transition: transform 0.15s ease;
+  }
+  .ytmd-grooving .g-switch[aria-checked="true"] .g-switch-knob { transform: translateX(20px); }
 
   .ytmd-grooving .g-sheet { border-radius: 16px; padding: 28px; max-width: 620px; }
   .ytmd-grooving .g-sheet h2 { font-size: 26px; letter-spacing: -0.02em; margin: 0 0 8px; font-weight: 700; }
@@ -904,11 +923,56 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     return nodes;
   }
 
+  // The continue toggle and the one phase line under the list. The line stays empty while the toggle has never added a list
+  function buildKeepGoing(state: ViewOf<typeof GroovingScreen.Done>): HTMLDivElement {
+    const continuation = state.continuation;
+    const box = el("div", "g-keep g-glass");
+    const head = el("div", "g-keep-head");
+    // The press sends the continueToggle signal; main turns it into the state's "continue-toggle" event
+    const toggle = el("button", "g-switch");
+    toggle.type = "button";
+    toggle.setAttribute("role", "switch");
+    toggle.setAttribute("aria-checked", String(continuation.enabled));
+    toggle.setAttribute("aria-label", text.keepGoing);
+    toggle.dataset.focusKey = "continue-toggle";
+    toggle.addEventListener("click", () => send({ type: "continueToggle", enabled: !continuation.enabled }));
+    toggle.append(el("span", "g-switch-knob"));
+    head.append(el("b", undefined, text.keepGoing), toggle);
+    box.append(head, el("p", "g-hint", text.keepGoingDetail));
+
+    const line = keepGoingLine(continuation);
+    if (line !== null) {
+      const status = el("p", "g-keep-line", line);
+      status.setAttribute("role", "status");
+      box.append(status);
+    }
+    return box;
+  }
+
+  function keepGoingLine(continuation: ViewOf<typeof GroovingScreen.Done>["continuation"]): string | null {
+    switch (continuation.phase) {
+      case GroovingContinuationPhase.Collecting:
+      case GroovingContinuationPhase.Requesting:
+      case GroovingContinuationPhase.RequestingRetry:
+        return text.continuationWorking;
+      case GroovingContinuationPhase.Finished:
+        return text.continuationFinished;
+      case GroovingContinuationPhase.Failed:
+        return text.continuationFailed;
+      case GroovingContinuationPhase.Short:
+        return text.continuationShort;
+      case GroovingContinuationPhase.Idle:
+        return continuation.rounds > 0 ? text.continuationCount(continuation.rounds, continuation.maxRounds) : null;
+      default:
+        return null;
+    }
+  }
+
   function buildDone(state: ViewOf<typeof GroovingScreen.Done>): Node[] {
     const hero = el("div", "g-hero");
     const cover = el("div", "g-cover");
     cover.setAttribute("aria-hidden", "true");
-    [1, 3, 2, 5].forEach((gradient, index) => cover.append(art(state.tracks[index]?.thumbnailUrl ?? null, gradient)));
+    [1, 3, 2, 5].forEach((gradient, index) => cover.append(art(state.listed[index]?.thumbnailUrl ?? null, gradient)));
     hero.append(cover, el("p", "g-kicker", text.doneKicker), el("h1", undefined, state.moodDescription), el("p", "g-label", state.moodLabel));
 
     const total = state.familiarCount + state.newCount;
@@ -942,13 +1006,20 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
 
     const saving = state.saved === GroovingSaveStatus.Saving;
     const saved = state.saved === GroovingSaveStatus.Saved;
-    const save = button(saved ? text.saved : saving ? text.saving : text.save, {
+    const saveLabel = saving
+      ? text.saving
+      : state.saveAction === GroovingSaveAction.Saved
+        ? text.saved
+        : state.saveAction === GroovingSaveAction.Add
+          ? text.saveAdd
+          : text.save;
+    const save = button(saveLabel, {
       className: "g-btn g-primary",
-      icon: saved ? "check" : "playlist_add",
+      icon: state.saveAction === GroovingSaveAction.Saved ? "check" : "playlist_add",
       focusKey: "save",
       onPress: () => send({ type: "save" })
     });
-    setDisabled(save, saving || saved);
+    setDisabled(save, saving || state.saveAction === GroovingSaveAction.Saved);
     const again = button(text.again, { icon: "refresh", focusKey: "again", onPress: () => send({ type: "again" }) });
     setDisabled(again, saving);
     const buttons = el("div", "g-buttons");
@@ -981,7 +1052,7 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
     hero.append(usage);
 
     const list = el("ol", "g-list");
-    state.tracks.forEach((track, index) => {
+    state.listed.forEach((track, index) => {
       const familiar = track.kind === GroovingTrackKind.Familiar;
       const row = el("li");
       const names = el("span", "g-t");
@@ -995,8 +1066,11 @@ export function createGroovingView(send: (signal: GroovingSignal) => void): { el
       list.append(row);
     });
 
+    const column = el("div", "g-list-column");
+    column.append(list, buildKeepGoing(state));
+
     const grid = el("div", "g-done-grid");
-    grid.append(hero, list);
+    grid.append(hero, column);
     return [header(state.queueFailed ? text.queueFailedHint : text.doneHint), grid];
   }
 

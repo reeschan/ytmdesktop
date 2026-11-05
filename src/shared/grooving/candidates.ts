@@ -48,19 +48,41 @@ export const alternate = <T>(first: T[], second: T[]): T[] => {
   return result;
 };
 
-export function buildGroovingCandidates(input: { direction: GroovingDirection; historyShared: boolean; sources: GroovingSources }): {
+// The seed song of a "From a song" run. videoId is null when it is not known
+export type GroovingSeedMatch = { videoId: string | null; title: string; artist: string };
+
+const normalizeText = (text: string): string => text.trim().toLowerCase();
+
+// Whether the track is the seed song: the same videoId, or the same title and the same first artist (without case and surrounding spaces)
+export function isSeedTrack(track: GroovingTrack, seed: GroovingSeedMatch): boolean {
+  if (seed.videoId !== null && track.videoId === seed.videoId) return true;
+  const title = normalizeText(seed.title);
+  if (title === "") return false;
+  return normalizeText(track.title) === title && normalizeArtist(track.artists[0] ?? "") === normalizeArtist(seed.artist);
+}
+
+export function buildGroovingCandidates(input: {
+  direction: GroovingDirection;
+  historyShared: boolean;
+  sources: GroovingSources;
+  // The seed song, left out of the candidates; null or missing when the mood is not a song
+  seed?: GroovingSeedMatch | null;
+}): {
   candidates: GroovingCandidate[];
   filledFromMood: boolean;
 } {
-  const { direction, sources } = input;
+  const { direction, sources, seed = null } = input;
+  const notSeed = (track: GroovingCandidate): boolean => seed === null || !isSeedTrack(track, seed);
   // The history and the liked tracks decide the known artists even when the history is not shared (they are only used inside the app)
+  // The seed song is left out after the kinds are decided, so its removal never changes which artists are known
   const known = knownArtists(sources.history, sources.liked);
   const familiar = uniqueByVideoId(
     [...sources.history, ...sources.liked, ...sources.related]
       .map(track => mark(track, known))
       .filter(track => track.kind === GroovingTrackKind.Familiar)
+      .filter(notSeed)
   );
-  const moodTracks = sources.mood.map(track => mark(track, known));
+  const moodTracks = sources.mood.map(track => mark(track, known)).filter(notSeed);
   const discover = uniqueByVideoId(moodTracks.filter(track => track.kind === GroovingTrackKind.New));
 
   if (direction === GroovingDirection.Familiar) {

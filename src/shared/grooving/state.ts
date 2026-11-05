@@ -15,7 +15,7 @@ import {
   GroovingScreen,
   GroovingSourceRequest
 } from "./index";
-import { GroovingDisplayLanguage, GroovingScreenView, GroovingViewState, GroovingVisibility } from "./index";
+import { GroovingDisplayLanguage, GroovingScreenView, GroovingSeedOptions, GroovingViewState, GroovingVisibility } from "./index";
 import { GroovingReaction } from "./continuation";
 
 export type GroovingSession = {
@@ -112,6 +112,8 @@ export type GroovingState = {
   previewing: string | null;
   // The queue part
   queue: GroovingQueue;
+  // What "From a song" offers on the setup screen. Main sends it with seed-options; the latest is kept whether or not setup is shown
+  seed: GroovingSeedOptions;
   // Makes request ids (`r<n>`). Never goes back, not even on close, leave or again, so a late answer of an earlier run never matches
   nextRequestId: number;
 };
@@ -166,7 +168,9 @@ export type GroovingEvent =
   | { type: "queue-replaced" }
   // The × of the notice of the previous run
   | { type: "dismiss-notice" }
-  | { type: "again" };
+  | { type: "again" }
+  // The song playing now, the song recognized last and whether the screen can recognize (main sends it whenever one of them changes)
+  | ({ type: "seed-options" } & GroovingSeedOptions);
 
 export type GroovingEffect =
   | { type: "load-moods" }
@@ -208,6 +212,7 @@ export function initialGroovingState(options?: { notice?: boolean }): GroovingSt
     notice: options?.notice ?? false,
     previewing: null,
     queue: GroovingQueue.Original,
+    seed: { playing: null, recognized: null, canRecognize: false },
     nextRequestId: 1
   };
 }
@@ -755,6 +760,11 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       if (!shown || (flow.kind !== "done" && flow.kind !== "saved")) return ignored;
       return setup({ ...state, queue: GroovingQueue.EarlierRun }, flow.session.historyShared);
     }
+    case "seed-options": {
+      // Kept whatever the flow, so the setup screen shows the latest when it comes
+      const seed: GroovingSeedOptions = { playing: event.playing, recognized: event.recognized, canRecognize: event.canRecognize };
+      return { state: { ...state, seed }, effects: [] };
+    }
   }
 }
 
@@ -874,7 +884,8 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
         historyShared: flow.historyShared,
         providerLabel: extra.providerLabel,
         model: extra.model,
-        notice: state.notice
+        notice: state.notice,
+        seed: state.seed
       };
     case "collect":
       return { screen: GroovingScreen.Working, step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: flow.session.filledFromMood };
@@ -889,7 +900,7 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
         screen: GroovingScreen.Choose,
         round: flow.session.history.length + 1,
         rounds: flow.session.rounds,
-        moodLabel: groovingMoodLabel(flow.session.mood),
+        moodLabel: groovingMoodLabel(flow.session.mood, extra.language),
         direction: flow.session.direction,
         left,
         right,
@@ -918,7 +929,7 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
       const missing = listed.some(track => !continuation.savedVideoIds.includes(track.videoId));
       return {
         screen: GroovingScreen.Done,
-        moodLabel: groovingMoodLabel(flow.session.mood),
+        moodLabel: groovingMoodLabel(flow.session.mood, extra.language),
         moodDescription: flow.list.moodDescription,
         listed,
         familiarCount,

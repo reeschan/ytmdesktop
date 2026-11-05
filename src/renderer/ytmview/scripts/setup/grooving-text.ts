@@ -91,6 +91,7 @@ export type GroovingText = {
   doneKicker: string;
   doneCounts: (familiar: number, fresh: number) => string;
   save: string;
+  saveAdd: string;
   saving: string;
   saved: string;
   again: string;
@@ -98,6 +99,14 @@ export type GroovingText = {
   saveFailed: string;
   queueFailed: string;
   queueRetry: string;
+  // Continue (the toggle under the list and its one phase line)
+  keepGoing: string;
+  keepGoingDetail: string;
+  continuationWorking: string;
+  continuationCount: (rounds: number, maxRounds: number) => string;
+  continuationFinished: string;
+  continuationFailed: string;
+  continuationShort: string;
   thisRun: string;
   usageTokens: (input: string, output: string) => string;
   costUnknown: string;
@@ -206,6 +215,7 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     doneKicker: "Your mood, as Grooving heard it",
     doneCounts: (familiar, fresh) => `Familiar ${familiar} · New ${fresh}`,
     save: "Save as playlist",
+    saveAdd: "Add new tracks to the playlist",
     saving: "Saving…",
     saved: "Saved",
     again: "Again",
@@ -213,6 +223,13 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     saveFailed: "Could not save the playlist. Try again.",
     queueFailed: "Couldn't put the list into the queue. The player may still have the earlier queue.",
     queueRetry: "Load into the queue again",
+    keepGoing: "Keep it going",
+    keepGoingDetail: "Adds more when 5 tracks are left (up to 100). Uses your LLM.",
+    continuationWorking: "Making more…",
+    continuationCount: (rounds, maxRounds) => `More ${rounds} of ${maxRounds}`,
+    continuationFinished: "Done adding more",
+    continuationFailed: "Couldn't make more",
+    continuationShort: "Not enough tracks for more",
     thisRun: "This run",
     usageTokens: (input, output) => `${input} input + ${output} output tokens`,
     costUnknown: "Cost unknown for this model",
@@ -355,6 +372,7 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     doneKicker: "Grooving が受け取った気分",
     doneCounts: (familiar, fresh) => `聴き慣れた曲 ${familiar} · 新しい曲 ${fresh}`,
     save: "プレイリストとして保存",
+    saveAdd: "足した曲もプレイリストに足す",
     saving: "保存中…",
     saved: "保存した",
     again: "もう一度",
@@ -362,6 +380,13 @@ export const GROOVING_TEXT: Record<GroovingDisplayLanguage, GroovingText> = {
     saveFailed: "プレイリストを保存できなかった。もう一度試せる。",
     queueFailed: "Grooving のリストをキューに入れられなかった。プレイヤーは前のキューのままかもしれない。",
     queueRetry: "もう一度キューに入れる",
+    keepGoing: "続けて流す",
+    keepGoingDetail: "残り 5 曲で続きを足します (最大 100 曲)。LLM の料金がかかります",
+    continuationWorking: "続きを作っている",
+    continuationCount: (rounds, maxRounds) => `続き ${rounds} / ${maxRounds}`,
+    continuationFinished: "続きを足し終えた",
+    continuationFailed: "続きを作れなかった",
+    continuationShort: "続きの曲が足りない",
     thisRun: "今回",
     usageTokens: (input, output) => `入力 ${input} + 出力 ${output} トークン`,
     costUnknown: "このモデルの費用は不明",
