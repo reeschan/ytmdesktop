@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { checkGroovingList, checkGroovingPair, groovingArtistLimit, groovingCandidatesEnough, groovingFamiliarCount } from "./answer";
+import {
+  checkGroovingList,
+  checkGroovingPair,
+  groovingArtistLimit,
+  groovingCandidatesEnough,
+  groovingFamiliarCount,
+  groovingListCandidates
+} from "./answer";
 import {
   GROOVING_LIST_LENGTH,
   GroovingAnswer,
@@ -266,8 +273,13 @@ describe("groovingCandidatesEnough", () => {
     expect(groovingCandidatesEnough(pool(4, 30), GroovingDirection.Mix, 5)).toBe(false);
   });
 
-  it("is true for a mix with 5 familiar and 20 new candidates in 5 rounds", () => {
-    expect(groovingCandidatesEnough(pool(5, 20), GroovingDirection.Mix, 5)).toBe(true);
+  // A mix drops the tracks not chosen, up to 2 per round, so 25 + 2 × rounds are needed
+  it("is false for a mix with 5 familiar and 29 new candidates in 5 rounds", () => {
+    expect(groovingCandidatesEnough(pool(5, 29), GroovingDirection.Mix, 5)).toBe(false);
+  });
+
+  it("is true for a mix with 5 familiar and 30 new candidates in 5 rounds", () => {
+    expect(groovingCandidatesEnough(pool(5, 30), GroovingDirection.Mix, 5)).toBe(true);
   });
 
   it("does not look at the kinds for familiar (18 familiar and 7 new)", () => {
@@ -276,6 +288,35 @@ describe("groovingCandidatesEnough", () => {
 
   it("counts a candidate listed twice once", () => {
     expect(groovingCandidatesEnough([...pool(0, 24), candidate("n1", GroovingTrackKind.New)], GroovingDirection.Discover, 5)).toBe(false);
+  });
+});
+
+describe("groovingListCandidates", () => {
+  const history = [
+    record("f1", "n1", GroovingAnswer.Left),
+    record("f2", "n2", GroovingAnswer.Right),
+    record("f3", "n3", GroovingAnswer.Neither)
+  ];
+  const ids = (tracks: GroovingCandidate[]) => tracks.map(track => track.videoId);
+
+  it("drops the other track of a choice and both tracks of neither for a mix", () => {
+    const kept = ids(groovingListCandidates({ candidates, direction: GroovingDirection.Mix, history }));
+    expect(kept).toContain("f1");
+    expect(kept).toContain("n2");
+    expect(kept).not.toContain("n1");
+    expect(kept).not.toContain("f2");
+    expect(kept).not.toContain("f3");
+    expect(kept).not.toContain("n3");
+    expect(kept).toHaveLength(candidates.length - 4);
+  });
+
+  it("keeps every candidate for familiar and discover", () => {
+    expect(groovingListCandidates({ candidates, direction: GroovingDirection.Familiar, history })).toEqual(candidates);
+    expect(groovingListCandidates({ candidates, direction: GroovingDirection.Discover, history })).toEqual(candidates);
+  });
+
+  it("keeps every candidate for a mix with no answers yet", () => {
+    expect(groovingListCandidates({ candidates, direction: GroovingDirection.Mix, history: [] })).toEqual(candidates);
   });
 });
 

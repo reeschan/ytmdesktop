@@ -41,6 +41,15 @@ export const GroovingDirection = {
 } as const;
 export type GroovingDirection = (typeof GroovingDirection)[keyof typeof GroovingDirection];
 
+// What a direction does with the answers to the pairs.
+// dropsUnchosen: the list leaves out the tracks the listener did not choose (the other track of a pair, both tracks of neither)
+export type GroovingDirectionRule = { dropsUnchosen: boolean };
+export const GROOVING_DIRECTION_RULES: Record<GroovingDirection, GroovingDirectionRule> = {
+  [GroovingDirection.Familiar]: { dropsUnchosen: false },
+  [GroovingDirection.Discover]: { dropsUnchosen: false },
+  [GroovingDirection.Mix]: { dropsUnchosen: true }
+};
+
 export const GROOVING_ROUND_OPTIONS = [3, 5, 10] as const;
 export type GroovingRounds = (typeof GROOVING_ROUND_OPTIONS)[number];
 

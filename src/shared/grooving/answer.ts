@@ -1,6 +1,7 @@
 // Checks of the LLM's answers (pairs and lists), the familiar share of a mix, the per-artist track limit of a list
 // (3 tracks per first artist, eased when the candidates lean on a few artists) and whether the candidates are enough. Pure, no dependencies
 import {
+  GROOVING_DIRECTION_RULES,
   GROOVING_LIST_LENGTH,
   GROOVING_MIX_MIN_SHARE,
   GroovingAnswer,
@@ -71,17 +72,35 @@ export function groovingArtistLimit(candidates: GroovingCandidate[], familiarCou
   return GROOVING_LIST_LENGTH;
 }
 
-// Enough candidates for the pairs and the list: 25 tracks, and for a mix at least `rounds` familiar and `rounds` new
-// tracks (every mix pair uses one of each, and a shown track cannot come back). Familiar and discover look at the count only
+// Enough candidates for the pairs and the list: 25 tracks, and 25 + 2 × rounds when the direction drops the tracks not
+// chosen (every answer may be neither, which drops both tracks of the pair). For a mix, also at least `rounds` familiar
+// and `rounds` new tracks (every mix pair uses one of each, and a shown track cannot come back)
 export function groovingCandidatesEnough(candidates: GroovingCandidate[], direction: GroovingDirection, rounds: GroovingRounds): boolean {
   const known = byVideoId(candidates);
-  if (known.size < GROOVING_LIST_LENGTH) return false;
+  const dropped = GROOVING_DIRECTION_RULES[direction].dropsUnchosen ? 2 * rounds : 0;
+  if (known.size < GROOVING_LIST_LENGTH + dropped) return false;
   if (direction !== GroovingDirection.Mix) return true;
   let familiar = 0;
   for (const track of known.values()) {
     if (track.kind === GroovingTrackKind.Familiar) familiar++;
   }
   return familiar >= rounds && known.size - familiar >= rounds;
+}
+
+// The candidates the list may use. When the direction drops the tracks not chosen, the other track of a chosen pair and
+// both tracks of a pair answered neither are left out; otherwise the candidates as they are
+export function groovingListCandidates(input: {
+  candidates: GroovingCandidate[];
+  direction: GroovingDirection;
+  history: GroovingRoundRecord[];
+}): GroovingCandidate[] {
+  if (!GROOVING_DIRECTION_RULES[input.direction].dropsUnchosen) return input.candidates;
+  const unchosen = new Set<string>();
+  for (const { pair, answer } of input.history) {
+    if (answer !== GroovingAnswer.Left) unchosen.add(pair.left);
+    if (answer !== GroovingAnswer.Right) unchosen.add(pair.right);
+  }
+  return input.candidates.filter(track => !unchosen.has(track.videoId));
 }
 
 // Both tracks are candidates, they differ, neither was shown, and a mix has one familiar and one new track
