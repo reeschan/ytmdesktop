@@ -20,6 +20,7 @@ import { resolveRecordSource } from "~shared/song-recognition/source";
 import {
   decideSongRecognition,
   INITIAL_SONG_RECOGNITION_STATE,
+  SongRecognitionDestination,
   SongRecognitionEffect,
   SongRecognitionEffectType,
   SongRecognitionEvent,
@@ -39,6 +40,8 @@ import { detectSong } from "./shazam";
 type AppViewContentsGetter = () => Electron.WebContents | null | undefined;
 
 const RESUME_PENDING_MS = 2000;
+// The remembered title and artist come from Shazam; kept as long as Grooving keeps the text it puts in a prompt
+const MAX_REMEMBERED_TEXT = 300;
 const REMOTE_CONTROL_API = "RemoteControl";
 const RemoteControlCommand = {
   Pause: "pause",
@@ -81,7 +84,11 @@ export default class SongRecognition extends Integration {
   private pauseTimer: NodeJS.Timeout | null = null;
 
   private pressListener = () => {
-    this.handlePress();
+    this.handlePress(SongRecognitionDestination.Search);
+  };
+
+  private groovingPressListener = () => {
+    this.handlePress(SongRecognitionDestination.Grooving);
   };
 
   private playerStateListener = (playerState: PlayerState) => {
@@ -167,6 +174,7 @@ export default class SongRecognition extends Integration {
     this.detachYTMView();
     this.ytmView = view;
     this.ytmView?.ipcOn(SongRecognitionIpc.Press, this.pressListener);
+    this.ytmView?.ipcOn(SongRecognitionIpc.PressForGrooving, this.groovingPressListener);
     this.ytmView?.on("ready", this.ytmReadyListener);
     this.sendState();
   }
@@ -175,6 +183,7 @@ export default class SongRecognition extends Integration {
     if (!this.ytmView) return;
 
     this.ytmView.ipcOff(SongRecognitionIpc.Press, this.pressListener);
+    this.ytmView.ipcOff(SongRecognitionIpc.PressForGrooving, this.groovingPressListener);
     this.ytmView.off("ready", this.ytmReadyListener);
     this.ytmView = null;
   }
@@ -190,7 +199,7 @@ export default class SongRecognition extends Integration {
     return hasApiKey && this.getService(MemoryStore<MemoryStoreSchema>).get("safeStorageAvailable") === true;
   }
 
-  private handlePress() {
+  private handlePress(destination: SongRecognitionDestination) {
     try {
       const configStore = this.getService(ConfigStore);
       const devices =
@@ -201,7 +210,8 @@ export default class SongRecognition extends Integration {
         type: SongRecognitionEventType.Press,
         enabled: this.isUsable(),
         pcAudio: this.recordSource.kind === SongRecognitionSourceKind.PcAudio,
-        playing: this.isPlaying()
+        playing: this.isPlaying(),
+        destination
       });
     } catch (error) {
       log.error("SongRecognition failed to handle the press", error);
@@ -304,6 +314,13 @@ export default class SongRecognition extends Integration {
         this.sendToYTMView(SongRecognitionIpc.Search, effect.query);
         break;
       }
+      case SongRecognitionEffectType.Remember: {
+        this.getService(MemoryStore<MemoryStoreSchema>).set("groovingRecognizedSong", {
+          title: effect.title.slice(0, MAX_REMEMBERED_TEXT),
+          artist: effect.artist.slice(0, MAX_REMEMBERED_TEXT)
+        });
+        break;
+      }
       case SongRecognitionEffectType.StartMessageTimer: {
         this.clearMessageTimer();
         this.messageTimer = setTimeout(() => {
@@ -311,6 +328,11 @@ export default class SongRecognition extends Integration {
           this.dispatch({ type: SongRecognitionEventType.MessageExpired });
         }, SONG_RECOGNITION_MESSAGE_MS);
         break;
+      }
+      default: {
+        // Fails to compile when a new effect is added and not handled above
+        const unhandled: never = effect;
+        log.error("SongRecognition got an effect it does not know", unhandled);
       }
     }
   }

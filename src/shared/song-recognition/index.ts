@@ -79,7 +79,9 @@ export const SongRecognitionIpc = {
   // main -> YTM: the search text
   Search: "songRecognition:search",
   // YTM -> main: the icon was pressed
-  Press: "songRecognition:press"
+  Press: "songRecognition:press",
+  // YTM -> main: the Grooving destination button was pressed (remember the song, do not search)
+  PressForGrooving: "songRecognition:pressForGrooving"
 } as const;
 export type SongRecognitionIpc = (typeof SongRecognitionIpc)[keyof typeof SongRecognitionIpc];
 
@@ -88,6 +90,7 @@ export const SongRecognitionMessageOp = {
   State: "ytmd-song-recognition-state",
   Search: "ytmd-song-recognition-search",
   Press: "ytmd-song-recognition-press",
+  PressForGrooving: "ytmd-song-recognition-press-for-grooving",
   // The page started listening; the preload sends the last state again
   Listening: "ytmd-song-recognition-listening"
 } as const;

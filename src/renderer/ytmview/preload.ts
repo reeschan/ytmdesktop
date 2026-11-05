@@ -235,6 +235,11 @@ window.addEventListener("message", async event => {
     ipcRenderer.send(SongRecognitionIpc.Press);
   }
 
+  // The same check for the Grooving destination; the press carries no value, only that it happened
+  if (event.source === window && event.data.op && event.data.op === SongRecognitionMessageOp.PressForGrooving) {
+    ipcRenderer.send(SongRecognitionIpc.PressForGrooving);
+  }
+
   // The page started listening, so the last state is sent again
   if (event.data.op && event.data.op === SongRecognitionMessageOp.Listening) {
     postSongRecognitionState();

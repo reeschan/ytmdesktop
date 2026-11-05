@@ -144,4 +144,7 @@ export type MemoryStoreSchema = {
   lastFMToken: string;
 
   songRecognitionDevices: SongRecognitionInputDevice[];
+
+  // The song found by song recognition last, read by Grooving; kept in memory only, so it is forgotten when the app closes
+  groovingRecognizedSong: { title: string; artist: string } | null;
 };

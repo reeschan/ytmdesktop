@@ -55,6 +55,8 @@ export type GroovingRounds = (typeof GROOVING_ROUND_OPTIONS)[number];
 
 export const GROOVING_LIST_LENGTH = 25;
 export const GROOVING_CANDIDATE_LIMIT = 80;
+// How many continuation lists one run may add (see docs/specs/grooving-continue.md)
+export const GROOVING_CONTINUATION_MAX_ROUNDS = 3;
 // Below this many familiar candidates, fill up from the mood's playlists
 export const GROOVING_FAMILIAR_MINIMUM = 30;
 // In a mix, each side gets at least this share
@@ -206,10 +208,13 @@ export const GroovingPageCall = {
   GetMoods: "getMoods", // () -> GroovingPageResult<GroovingMoodItem[]>
   CollectSources: "collectSources", // (GroovingSourceRequest) -> GroovingPageResult<GroovingSources>
   Search: "search", // (queries: string[]) -> GroovingPageResult<GroovingTrack[]>
+  Related: "related", // (videoId: string) -> GroovingPageResult<GroovingTrack[]>
   PreviewStart: "previewStart", // (videoId: string) -> GroovingPageResult<null>
   PreviewEnd: "previewEnd", // () -> GroovingPageResult<null>; back to the original track and position, removes the inserted track
   ReplaceQueue: "replaceQueue", // (videoIds: string[]) -> GroovingPageResult<null>
-  SavePlaylist: "savePlaylist" // ({ title, videoIds }) -> GroovingPageResult<{ playlistId: string }>
+  AppendQueue: "appendQueue", // (videoIds: string[]) -> GroovingPageResult<null>
+  SavePlaylist: "savePlaylist", // ({ title, videoIds }) -> GroovingPageResult<{ playlistId: string }>
+  AddToPlaylist: "addToPlaylist" // ({ playlistId, videoIds }) -> GroovingPageResult<null>
 } as const;
 export type GroovingPageCall = (typeof GroovingPageCall)[keyof typeof GroovingPageCall];
 
@@ -239,6 +244,7 @@ export type GroovingSignal =
   | { type: "retry" }
   | { type: "save" }
   | { type: "again" }
+  | { type: "continueToggle"; enabled: boolean } // The continue toggle on the done screen
   | { type: "dismissNotice" }; // The × of the notice of the previous run
 
 export const GroovingScreen = {
@@ -276,6 +282,26 @@ export const GroovingSaveStatus = {
 } as const;
 export type GroovingSaveStatus = (typeof GroovingSaveStatus)[keyof typeof GroovingSaveStatus];
 
+// What the save button does: save the list, add the newly listed tracks to the saved playlist, or nothing
+export const GroovingSaveAction = {
+  Save: "save",
+  Add: "add",
+  Saved: "saved"
+} as const;
+export type GroovingSaveAction = (typeof GroovingSaveAction)[keyof typeof GroovingSaveAction];
+
+// Where the continuation part of a done / saving / saved run is (see docs/specs/grooving-continue.md)
+export const GroovingContinuationPhase = {
+  Idle: "idle",
+  Collecting: "collecting",
+  Requesting: "requesting",
+  RequestingRetry: "requesting-retry",
+  Failed: "failed",
+  Short: "short",
+  Finished: "finished"
+} as const;
+export type GroovingContinuationPhase = (typeof GroovingContinuationPhase)[keyof typeof GroovingContinuationPhase];
+
 // main -> page: what the screen shows. Never holds the key, prompts or raw LLM answers
 export type GroovingScreenView =
   | { screen: typeof GroovingScreen.Closed }
@@ -307,11 +333,14 @@ export type GroovingScreenView =
       screen: typeof GroovingScreen.Done;
       moodLabel: string;
       moodDescription: string;
-      tracks: GroovingCandidate[];
+      // The Grooving list and the continuation lists, in the order they play
+      listed: GroovingCandidate[];
       familiarCount: number;
       newCount: number;
       usage: { inputTokens: number; outputTokens: number; estimatedUsd: number | null; model: string };
       saved: GroovingSaveStatus;
+      saveAction: GroovingSaveAction;
+      continuation: { enabled: boolean; rounds: number; maxRounds: number; phase: GroovingContinuationPhase };
       queueFailed: boolean;
     }
   | { screen: typeof GroovingScreen.Failed; step: GroovingStep; reason: GroovingFailureReason; round: number | null; rounds: number | null };
@@ -400,6 +429,8 @@ export function isGroovingSignal(value: unknown): value is GroovingSignal {
       return isOneOf(GroovingAnswer, value.answer);
     case "previewStart":
       return typeof value.videoId === "string";
+    case "continueToggle":
+      return typeof value.enabled === "boolean";
     default:
       return false;
   }

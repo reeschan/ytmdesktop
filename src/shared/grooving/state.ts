@@ -5,14 +5,18 @@ import { GroovingAnswer, GroovingConsentChoice, GroovingDirection, GroovingFailu
 import { GroovingCandidate, GroovingConsent, GroovingList, GroovingMood, GroovingMoodItem, GroovingPair } from "./index";
 import {
   GROOVING_MARK_TEXT,
+  GROOVING_CONTINUATION_MAX_ROUNDS,
   groovingMoodLabel,
+  GroovingContinuationPhase,
   GroovingRoundRecord,
   GroovingRounds,
+  GroovingSaveAction,
   GroovingSaveStatus,
   GroovingScreen,
   GroovingSourceRequest
 } from "./index";
 import { GroovingDisplayLanguage, GroovingScreenView, GroovingViewState, GroovingVisibility } from "./index";
+import { GroovingReaction } from "./continuation";
 
 export type GroovingSession = {
   mood: GroovingMood;
@@ -46,6 +50,24 @@ export type GroovingPrefetch =
   | { status: typeof GroovingPrefetchStatus.Ready; pair: GroovingPair }
   | { status: typeof GroovingPrefetchStatus.Failed };
 
+// The continuation part of a done / saving / saved run (see docs/specs/grooving-continue.md).
+// listed keeps the candidate shape so that the done screen can still tell familiar from new tracks.
+export type GroovingContinuation = {
+  enabled: boolean;
+  rounds: number;
+  phase: GroovingContinuationPhase;
+  // The Grooving list and the continuation lists, in the order they play
+  listed: GroovingCandidate[];
+  reactions: Record<string, GroovingReaction>;
+  // The request in flight (a collecting, requesting or requesting-retry answer); null when none waits
+  requestId: number | null;
+  // The tracks the saved playlist already has
+  savedVideoIds: string[];
+  playlistId: string | null;
+  // The track that started last; the toggle asks whether 5 tracks or fewer are left after it
+  playing: string | null;
+};
+
 export type GroovingState = {
   flow:
     | { kind: "closed" }
@@ -62,12 +84,25 @@ export type GroovingState = {
     // queueFailed: replacing the queue with this run's list failed (true after queue-failed; false again when retry replaces it once more)
     // replacing: main asked the page to replace the queue and waits for its answer
     | {
-        kind: "done" | "saving" | "saved";
+        kind: "done" | "saved";
         session: GroovingSession;
         list: GroovingList;
+        // The continue part: the toggle, the rounds, the phase, every listed track, the reactions and the saved playlist
+        continuation: GroovingContinuation;
         saveFailed: boolean;
         queueFailed: boolean;
         replacing: boolean;
+      }
+    | {
+        kind: "saving";
+        session: GroovingSession;
+        list: GroovingList;
+        continuation: GroovingContinuation;
+        saveFailed: boolean;
+        queueFailed: boolean;
+        replacing: boolean;
+        // The videoIds this save sent to the playlist; tracks that arrive meanwhile must not count as saved
+        sendingVideoIds: string[];
       };
   // The view part: gone (the screen is closed), shown or hidden
   visibility: GroovingVisibility;
@@ -101,7 +136,8 @@ export type GroovingEvent =
   // The LLM could not be asked
   | { type: "pair-failed"; requestId: string; reason: GroovingFailureReason }
   | { type: "answer"; answer: GroovingAnswer }
-  | { type: "list-arrived"; requestId: string; list: GroovingList }
+  // continueEnabled: the last choice of the continue toggle, read by main when the list arrives
+  | { type: "list-arrived"; requestId: string; list: GroovingList; continueEnabled: boolean }
   | { type: "list-unusable"; requestId: string }
   | { type: "list-failed"; requestId: string; reason: GroovingFailureReason }
   | { type: "retry" }
@@ -109,8 +145,21 @@ export type GroovingEvent =
   // 15 seconds passed or stop was pressed
   | { type: "preview-ended" }
   | { type: "save" }
-  | { type: "saved" }
+  | { type: "saved"; playlistId: string }
   | { type: "save-failed" }
+  // The continue toggle on the done screen
+  | { type: "continue-toggle"; enabled: boolean }
+  // A track started playing (main watches the player while a done / saving / saved run is on)
+  | { type: "track-started"; videoId: string }
+  | { type: "track-reaction"; videoId: string; reaction: GroovingReaction }
+  | { type: "continuation-candidates"; requestId: number; ok: true }
+  | { type: "continuation-candidates"; requestId: number; ok: false; reason: "short" | "failed" }
+  | { type: "continuation-arrived"; requestId: number; tracks: GroovingCandidate[] }
+  | { type: "continuation-unusable"; requestId: number }
+  | { type: "continuation-failed"; requestId: number }
+  // The saved playlist took the tracks asked for
+  | { type: "playlist-added" }
+  | { type: "playlist-add-failed" }
   // The page could not replace the queue (main sends it after the answer to replace-queue)
   | { type: "queue-failed" }
   // The page replaced the queue
@@ -129,7 +178,12 @@ export type GroovingEffect =
   | { type: "preview-start"; videoId: string }
   | { type: "preview-end" }
   | { type: "replace-queue"; videoIds: string[] }
-  | { type: "save-playlist"; title: string; videoIds: string[] };
+  | { type: "save-playlist"; title: string; videoIds: string[] }
+  // relatedOf: the track whose related tracks to ask for; null when the reaction gives none
+  | { type: "collect-continuation"; requestId: number; relatedOf: string | null }
+  | { type: "request-continuation"; requestId: number; retry: boolean }
+  | { type: "append-queue"; videoIds: string[] }
+  | { type: "add-to-playlist"; playlistId: string; videoIds: string[] };
 
 export type GroovingDecision = { state: GroovingState; effects: GroovingEffect[] };
 
@@ -207,6 +261,58 @@ function waitList(state: GroovingState, session: GroovingSession, retry: boolean
     state: { ...state, flow: { kind: "list-wait", session, requestId, retry }, nextRequestId: state.nextRequestId + 1 },
     effects: [...effects, { type: "request-list", requestId, session }]
   };
+}
+
+type DoneFlow = Extract<Flow, { kind: "done" | "saving" | "saved" }>;
+
+function isDoneFlow(flow: Flow): flow is DoneFlow {
+  return flow.kind === "done" || flow.kind === "saving" || flow.kind === "saved";
+}
+
+// The continue toggle works on the last 6 listed tracks: 5 tracks or fewer are left after the track that started
+const CONTINUATION_TAIL = 6;
+
+function continuationNearEnd(continuation: GroovingContinuation): boolean {
+  if (continuation.playing === null) return false;
+  const index = continuation.listed.findIndex(track => track.videoId === continuation.playing);
+  return index >= 0 && index >= continuation.listed.length - CONTINUATION_TAIL;
+}
+
+// The related tracks come from the last liked track, else the last played-through track, else none
+function continuationSource(continuation: GroovingContinuation): string | null {
+  for (const reaction of [GroovingReaction.Liked, GroovingReaction.PlayedThrough]) {
+    for (let index = continuation.listed.length - 1; index >= 0; index--) {
+      const track = continuation.listed[index];
+      if (continuation.reactions[track.videoId] === reaction) return track.videoId;
+    }
+  }
+  return null;
+}
+
+// The toggle went off: wait, and drop the answer still in flight
+function continuationOff(continuation: GroovingContinuation): GroovingContinuation {
+  return { ...continuation, enabled: false, phase: GroovingContinuationPhase.Idle, requestId: null };
+}
+
+// The continuation stopped by itself (not enough tracks, or unusable answers): off, but the phase stays for the screen
+function continuationStopped(continuation: GroovingContinuation, phase: GroovingContinuationPhase): GroovingContinuation {
+  return { ...continuation, enabled: false, phase, requestId: null };
+}
+
+function collectContinuation(state: GroovingState, flow: DoneFlow): GroovingDecision {
+  const requestId = state.nextRequestId;
+  return {
+    state: {
+      ...state,
+      flow: { ...flow, continuation: { ...flow.continuation, phase: GroovingContinuationPhase.Collecting, requestId } },
+      nextRequestId: requestId + 1
+    },
+    effects: [{ type: "collect-continuation", requestId, relatedOf: continuationSource(flow.continuation) }]
+  };
+}
+
+function listVideoIds(continuation: GroovingContinuation): string[] {
+  return continuation.listed.map(track => track.videoId);
 }
 
 // Shows a pair, and prefetches the next pair for both answers unless it is the last round
@@ -326,21 +432,29 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
             },
             effects: []
           };
-        case "saving":
+        case "saving": {
+          // Saving from the saved playlist is an add; a reload keeps the playlist, so go back to saved and say it failed
+          const adding = flow.continuation.playlistId !== null;
+          const saveFailed = true;
+          const queueFailed = flow.queueFailed || flow.replacing;
           return {
             state: {
               ...hidden,
-              flow: {
-                kind: "done",
-                session: flow.session,
-                list: flow.list,
-                saveFailed: true,
-                queueFailed: flow.queueFailed || flow.replacing,
-                replacing: false
-              }
+              flow: adding
+                ? {
+                    kind: "saved",
+                    session: flow.session,
+                    list: flow.list,
+                    continuation: flow.continuation,
+                    saveFailed,
+                    queueFailed,
+                    replacing: false
+                  }
+                : { kind: "done", session: flow.session, list: flow.list, continuation: flow.continuation, saveFailed, queueFailed, replacing: false }
             },
             effects: []
           };
+        }
         case "done":
         case "saved":
           return { state: { ...hidden, flow: flow.replacing ? { ...flow, replacing: false, queueFailed: true } : flow }, effects: [] };
@@ -399,10 +513,23 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
     }
     case "list-arrived": {
       if (flow.kind !== "list-wait" || flow.requestId !== event.requestId) return ignored;
+      // The listed tracks are the candidates of the run, in the list's order (main checked that every one is a candidate)
+      const listed = event.list.videoIds.flatMap(videoId => candidateOf(flow.session, videoId) ?? []);
+      const continuation: GroovingContinuation = {
+        enabled: event.continueEnabled,
+        rounds: 0,
+        phase: GroovingContinuationPhase.Idle,
+        listed,
+        reactions: {},
+        requestId: null,
+        savedVideoIds: [],
+        playlistId: null,
+        playing: null
+      };
       return {
         state: {
           ...state,
-          flow: { kind: "done", session: flow.session, list: event.list, saveFailed: false, queueFailed: false, replacing: true },
+          flow: { kind: "done", session: flow.session, list: event.list, continuation, saveFailed: false, queueFailed: false, replacing: true },
           queue: GroovingQueue.ThisRun
         },
         effects: [{ type: "replace-queue", videoIds: event.list.videoIds }]
@@ -426,9 +553,9 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
     case "retry": {
       if (!shown) return ignored;
       if (flow.kind === "done" || flow.kind === "saving" || flow.kind === "saved") {
-        // Replaces the queue once more; the queue stays this run's list
+        // Replaces the queue once more with everything listed, continuation lists included; the queue stays this run's list
         if (!flow.queueFailed) return ignored;
-        return moved(state, { ...flow, queueFailed: false, replacing: true }, [{ type: "replace-queue", videoIds: flow.list.videoIds }]);
+        return moved(state, { ...flow, queueFailed: false, replacing: true }, [{ type: "replace-queue", videoIds: listVideoIds(flow.continuation) }]);
       }
       if (flow.kind !== "failed") return ignored;
       // Without a session there is nothing to retry; history sharing is not known, so only Discover is offered
@@ -454,19 +581,175 @@ export function decideGrooving(state: GroovingState, event: GroovingEvent): Groo
       return { state: { ...state, previewing: null }, effects: [{ type: "preview-end" }] };
     }
     case "save": {
-      if (!shown || flow.kind !== "done") return ignored;
+      if (!shown || (flow.kind !== "done" && flow.kind !== "saved")) return ignored;
+      const continuation = flow.continuation;
+      const videoIds = listVideoIds(continuation);
+      if (flow.kind === "done") {
+        // The first save writes the whole listed order, continuation lists included
+        return moved(
+          state,
+          {
+            kind: "saving",
+            session: flow.session,
+            list: flow.list,
+            continuation,
+            saveFailed: false,
+            queueFailed: flow.queueFailed,
+            replacing: flow.replacing,
+            sendingVideoIds: videoIds
+          },
+          [{ type: "save-playlist", title: flow.list.moodDescription, videoIds }]
+        );
+      }
+      // Saved: add only the tracks the playlist does not have yet, so a second playlist never appears
+      const missing = videoIds.filter(videoId => !continuation.savedVideoIds.includes(videoId));
+      if (missing.length === 0 || continuation.playlistId === null) return ignored;
       return moved(
         state,
-        { kind: "saving", session: flow.session, list: flow.list, saveFailed: false, queueFailed: flow.queueFailed, replacing: flow.replacing },
-        [{ type: "save-playlist", title: flow.list.moodDescription, videoIds: flow.list.videoIds }]
+        {
+          kind: "saving",
+          session: flow.session,
+          list: flow.list,
+          continuation,
+          saveFailed: false,
+          queueFailed: flow.queueFailed,
+          replacing: flow.replacing,
+          sendingVideoIds: missing
+        },
+        [{ type: "add-to-playlist", playlistId: continuation.playlistId, videoIds: missing }]
       );
     }
-    case "saved":
+    case "saved": {
+      if (flow.kind !== "saving") return ignored;
+      const { session, list, queueFailed, replacing } = flow;
+      const continuation: GroovingContinuation = {
+        ...flow.continuation,
+        savedVideoIds: flow.sendingVideoIds,
+        playlistId: event.playlistId
+      };
+      return moved(state, { kind: "saved", session, list, continuation, saveFailed: false, queueFailed, replacing });
+    }
     case "save-failed": {
       if (flow.kind !== "saving") return ignored;
       const { session, list, queueFailed, replacing } = flow;
-      if (event.type === "saved") return moved(state, { kind: "saved", session, list, saveFailed: false, queueFailed, replacing });
-      return moved(state, { kind: "done", session, list, saveFailed: true, queueFailed, replacing });
+      // An add that fails keeps the saved playlist: go back to saved, never to done
+      if (flow.continuation.playlistId !== null) {
+        return moved(state, { kind: "saved", session, list, continuation: flow.continuation, saveFailed: true, queueFailed, replacing });
+      }
+      return moved(state, { kind: "done", session, list, continuation: flow.continuation, saveFailed: true, queueFailed, replacing });
+    }
+    case "playlist-added": {
+      if (flow.kind !== "saving" || flow.continuation.playlistId === null) return ignored;
+      const { session, list, queueFailed, replacing } = flow;
+      const continuation: GroovingContinuation = {
+        ...flow.continuation,
+        savedVideoIds: [...flow.continuation.savedVideoIds, ...flow.sendingVideoIds]
+      };
+      return moved(state, { kind: "saved", session, list, continuation, saveFailed: false, queueFailed, replacing });
+    }
+    case "playlist-add-failed": {
+      // The add path keeps the playlist: go back to saved (never to done, which would save a second playlist)
+      if (flow.kind !== "saving" || flow.continuation.playlistId === null) return ignored;
+      const { session, list, queueFailed, replacing } = flow;
+      return moved(state, { kind: "saved", session, list, continuation: flow.continuation, saveFailed: true, queueFailed, replacing });
+    }
+    case "continue-toggle": {
+      if (!shown || !isDoneFlow(flow)) return ignored;
+      const continuation = flow.continuation;
+      if (continuation.enabled === event.enabled) return ignored;
+      if (!event.enabled) return moved(state, { ...flow, continuation: continuationOff(continuation) });
+      // On again after a failure: wait again, and collect at once when the list is near its end
+      const phase =
+        continuation.phase === GroovingContinuationPhase.Failed || continuation.phase === GroovingContinuationPhase.Short
+          ? GroovingContinuationPhase.Idle
+          : continuation.phase;
+      const resumed: GroovingContinuation = { ...continuation, enabled: true, phase, requestId: null };
+      if (resumed.phase === GroovingContinuationPhase.Idle && resumed.rounds < GROOVING_CONTINUATION_MAX_ROUNDS && continuationNearEnd(resumed)) {
+        return collectContinuation(state, { ...flow, continuation: resumed });
+      }
+      return moved(state, { ...flow, continuation: resumed });
+    }
+    case "track-started": {
+      if (!isDoneFlow(flow)) return ignored;
+      const continuation = flow.continuation;
+      const listed = continuation.listed.some(track => track.videoId === event.videoId);
+      // A track outside the list stops the continuation; a preview track is part of Grooving and does not
+      if (!listed) {
+        if (event.videoId === state.previewing) return ignored;
+        // Right after the list arrives the queue still plays the earlier tracks; do not stop on those
+        if (flow.replacing) return ignored;
+        // Off already: only forget the playing track, so the phase of a failed / short / finished run stays
+        if (!continuation.enabled) return moved(state, { ...flow, continuation: { ...continuation, playing: null } });
+        // On: turn off, and forget the playing track so turning on again waits for a listed track
+        return moved(state, { ...flow, continuation: continuationOff({ ...continuation, playing: null }) });
+      }
+      const started: GroovingContinuation = { ...continuation, playing: event.videoId };
+      if (
+        started.enabled &&
+        started.rounds < GROOVING_CONTINUATION_MAX_ROUNDS &&
+        started.phase === GroovingContinuationPhase.Idle &&
+        continuationNearEnd(started)
+      ) {
+        return collectContinuation(state, { ...flow, continuation: started });
+      }
+      return moved(state, { ...flow, continuation: started });
+    }
+    case "track-reaction": {
+      if (!isDoneFlow(flow)) return ignored;
+      // Reactions of tracks outside the list would never be used (main sends the player's track as it is)
+      if (!flow.continuation.listed.some(track => track.videoId === event.videoId)) return ignored;
+      const continuation: GroovingContinuation = {
+        ...flow.continuation,
+        reactions: { ...flow.continuation.reactions, [event.videoId]: event.reaction }
+      };
+      return moved(state, { ...flow, continuation });
+    }
+    case "continuation-candidates": {
+      if (!isDoneFlow(flow) || flow.continuation.requestId !== event.requestId || flow.continuation.phase !== GroovingContinuationPhase.Collecting)
+        return ignored;
+      if (!event.ok) {
+        const phase = event.reason === "short" ? GroovingContinuationPhase.Short : GroovingContinuationPhase.Failed;
+        return moved(state, { ...flow, continuation: continuationStopped(flow.continuation, phase) });
+      }
+      return moved(state, { ...flow, continuation: { ...flow.continuation, phase: GroovingContinuationPhase.Requesting } }, [
+        { type: "request-continuation", requestId: event.requestId, retry: false }
+      ]);
+    }
+    case "continuation-arrived": {
+      if (!isDoneFlow(flow) || flow.continuation.requestId !== event.requestId) return ignored;
+      const continuation = flow.continuation;
+      if (continuation.phase !== GroovingContinuationPhase.Requesting && continuation.phase !== GroovingContinuationPhase.RequestingRetry)
+        return ignored;
+      const shown = new Set(continuation.listed.map(track => track.videoId));
+      const added = event.tracks.filter(track => !shown.has(track.videoId));
+      const rounds = continuation.rounds + 1;
+      const next: GroovingContinuation = {
+        ...continuation,
+        listed: [...continuation.listed, ...added],
+        rounds,
+        phase: rounds >= GROOVING_CONTINUATION_MAX_ROUNDS ? GroovingContinuationPhase.Finished : GroovingContinuationPhase.Idle,
+        requestId: null
+      };
+      return moved(state, { ...flow, continuation: next }, [{ type: "append-queue", videoIds: added.map(track => track.videoId) }]);
+    }
+    case "continuation-unusable": {
+      if (!isDoneFlow(flow) || flow.continuation.requestId !== event.requestId) return ignored;
+      if (flow.continuation.phase === GroovingContinuationPhase.Requesting) {
+        return moved(state, { ...flow, continuation: { ...flow.continuation, phase: GroovingContinuationPhase.RequestingRetry } }, [
+          { type: "request-continuation", requestId: event.requestId, retry: true }
+        ]);
+      }
+      // The retry was unusable too: one retry is all it gets
+      if (flow.continuation.phase === GroovingContinuationPhase.RequestingRetry) {
+        return moved(state, { ...flow, continuation: continuationStopped(flow.continuation, GroovingContinuationPhase.Failed) });
+      }
+      return ignored;
+    }
+    case "continuation-failed": {
+      if (!isDoneFlow(flow) || flow.continuation.requestId !== event.requestId) return ignored;
+      const phase = flow.continuation.phase;
+      if (phase !== GroovingContinuationPhase.Requesting && phase !== GroovingContinuationPhase.RequestingRetry) return ignored;
+      return moved(state, { ...flow, continuation: continuationStopped(flow.continuation, GroovingContinuationPhase.Failed) });
     }
     case "again": {
       if (!shown || (flow.kind !== "done" && flow.kind !== "saved")) return ignored;
@@ -489,7 +772,15 @@ export function groovingStopsThrottling(state: GroovingState): boolean {
   if (flow.kind === "choose") {
     return [flow.prefetch.left, flow.prefetch.right].some(prefetch => prefetch?.status === GroovingPrefetchStatus.Pending);
   }
-  if ((flow.kind === "done" || flow.kind === "saved") && flow.replacing) return true;
+  if (flow.kind === "done" || flow.kind === "saved") {
+    if (flow.replacing) return true;
+    const phase = flow.continuation.phase;
+    return (
+      phase === GroovingContinuationPhase.Collecting ||
+      phase === GroovingContinuationPhase.Requesting ||
+      phase === GroovingContinuationPhase.RequestingRetry
+    );
+  }
   return state.previewing !== null;
 }
 
@@ -544,8 +835,18 @@ function groovingMarkOf(state: GroovingState, visibility: GroovingVisibility, la
       return `${flow.session.history.length + 1} / ${flow.session.rounds}`;
     case "done":
     case "saving":
-    case "saved":
+    case "saved": {
+      const phase = flow.continuation.phase;
+      if (
+        phase === GroovingContinuationPhase.Collecting ||
+        phase === GroovingContinuationPhase.Requesting ||
+        phase === GroovingContinuationPhase.RequestingRetry
+      ) {
+        return GROOVING_MARK_TEXT[language].preparing;
+      }
+      if (phase === GroovingContinuationPhase.Failed) return GROOVING_MARK_TEXT[language].error;
       return GROOVING_MARK_TEXT[language].ready;
+    }
     case "failed":
       return GROOVING_MARK_TEXT[language].error;
     case "setup":
@@ -611,24 +912,33 @@ function screenViewOf(state: GroovingState, extra: GroovingViewExtra): GroovingS
     case "done":
     case "saving":
     case "saved": {
-      const tracks = flow.list.videoIds.flatMap(videoId => candidateOf(flow.session, videoId) ?? []);
-      const familiarCount = tracks.filter(track => track.kind === GroovingTrackKind.Familiar).length;
+      const continuation = flow.continuation;
+      const listed = continuation.listed;
+      const familiarCount = listed.filter(track => track.kind === GroovingTrackKind.Familiar).length;
+      const missing = listed.some(track => !continuation.savedVideoIds.includes(track.videoId));
       return {
         screen: GroovingScreen.Done,
         moodLabel: groovingMoodLabel(flow.session.mood),
         moodDescription: flow.list.moodDescription,
-        tracks,
+        listed,
         familiarCount,
-        newCount: tracks.length - familiarCount,
+        newCount: listed.length - familiarCount,
         usage: { ...extra.usage, model: extra.model },
         saved:
           flow.kind === "saving"
             ? GroovingSaveStatus.Saving
-            : flow.kind === "saved"
-              ? GroovingSaveStatus.Saved
-              : flow.saveFailed
-                ? GroovingSaveStatus.Failed
+            : flow.saveFailed
+              ? GroovingSaveStatus.Failed
+              : flow.kind === "saved"
+                ? GroovingSaveStatus.Saved
                 : GroovingSaveStatus.NotSaved,
+        saveAction: continuation.playlistId === null ? GroovingSaveAction.Save : missing ? GroovingSaveAction.Add : GroovingSaveAction.Saved,
+        continuation: {
+          enabled: continuation.enabled,
+          rounds: continuation.rounds,
+          maxRounds: GROOVING_CONTINUATION_MAX_ROUNDS,
+          phase: continuation.phase
+        },
         queueFailed: flow.queueFailed
       };
     }
