@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  BUNDLED_THEMES,
   BundledTheme,
   ColorItem,
   COLOR_ITEMS,
@@ -82,6 +83,27 @@ describe("resolveTheme", () => {
       unreadableItems: [],
       fileMissing: false
     });
+  });
+
+  it("returns the colors and the surface blur of the bundled theme Jacket, the same as Glass", () => {
+    expect(resolveTheme({ kind: ThemeSourceKind.Bundled, theme: BundledTheme.Jacket })).toEqual({
+      colors: {
+        background: "#0A0A12",
+        surface: "rgba(255,255,255,0.08)",
+        text: "#FFFFFF",
+        textMuted: "rgba(255,255,255,0.65)",
+        accent: "#8AB4FF",
+        border: "rgba(255,255,255,0.18)"
+      },
+      surfaceBlur: 20,
+      unreadableItems: [],
+      fileMissing: false
+    });
+  });
+
+  it("keeps the colors of the bundled theme Jacket separate from Glass", () => {
+    expect(BUNDLED_THEMES[BundledTheme.Jacket]).toEqual(BUNDLED_THEMES[BundledTheme.Glass]);
+    expect(BUNDLED_THEMES[BundledTheme.Jacket]).not.toBe(BUNDLED_THEMES[BundledTheme.Glass]);
   });
 
   it("returns every value of a theme file that declares all items", () => {

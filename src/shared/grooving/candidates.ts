@@ -22,13 +22,13 @@ export function knownArtists(history: GroovingTrack[], liked: GroovingTrack[]): 
   return known;
 }
 
-const mark = (track: GroovingTrack, known: Set<string>): GroovingCandidate => ({
+export const mark = (track: GroovingTrack, known: Set<string>): GroovingCandidate => ({
   ...track,
   kind: track.artists.some(artist => known.has(normalizeArtist(artist))) ? GroovingTrackKind.Familiar : GroovingTrackKind.New
 });
 
 // Keeps the first track of each videoId
-const uniqueByVideoId = <T extends { videoId: string }>(list: T[]): T[] => {
+export const uniqueByVideoId = <T extends { videoId: string }>(list: T[]): T[] => {
   const seen = new Set<string>();
   return list.filter(track => {
     if (seen.has(track.videoId)) return false;

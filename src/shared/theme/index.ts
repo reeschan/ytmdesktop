@@ -45,7 +45,8 @@ export const BundledTheme = {
   Default: "default",
   Midnight: "midnight",
   Forest: "forest",
-  Glass: "glass"
+  Glass: "glass",
+  Jacket: "jacket"
 } as const;
 export type BundledTheme = (typeof BundledTheme)[keyof typeof BundledTheme];
 
@@ -81,6 +82,15 @@ export const BUNDLED_THEMES: Record<BundledTheme, ThemeColors> = {
     [ColorItem.TextMuted]: "rgba(255,255,255,0.65)",
     [ColorItem.Accent]: "#8AB4FF",
     [ColorItem.Border]: "rgba(255,255,255,0.18)"
+  },
+  // The colors before any jacket color was made
+  [BundledTheme.Jacket]: {
+    [ColorItem.Background]: "#0A0A12",
+    [ColorItem.Surface]: "rgba(255,255,255,0.08)",
+    [ColorItem.Text]: "#FFFFFF",
+    [ColorItem.TextMuted]: "rgba(255,255,255,0.65)",
+    [ColorItem.Accent]: "#8AB4FF",
+    [ColorItem.Border]: "rgba(255,255,255,0.18)"
   }
 };
 
@@ -91,7 +101,8 @@ export const BUNDLED_THEME_SURFACE_BLUR: Record<BundledTheme, number> = {
   [BundledTheme.Default]: 0,
   [BundledTheme.Midnight]: 0,
   [BundledTheme.Forest]: 0,
-  [BundledTheme.Glass]: 20
+  [BundledTheme.Glass]: 20,
+  [BundledTheme.Jacket]: 20
 };
 
 export const DEFAULT_THEME_COLORS: ThemeColors = BUNDLED_THEMES[BundledTheme.Default];
