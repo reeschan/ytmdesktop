@@ -165,7 +165,14 @@ export function createJacketWatcher(dependencies: JacketWatcherDependencies): Ja
     if (state.adPlaying || state.videoDetails === null) return;
 
     const url = selectThumbnailUrl(state.videoDetails.thumbnails);
-    if (url === null || !isAllowedJacketUrl(url)) return;
+    // Without a readable jacket the colors stay as they are, so the read of the previous song is dropped here
+    if (url === null || !isAllowedJacketUrl(url)) {
+      generation++;
+      abortPendingRead();
+      lastUrl = null;
+      return;
+    }
+
     // The player reports the song again every second, and can replace the thumbnail once the queue is known
     if (url === lastUrl) return;
 

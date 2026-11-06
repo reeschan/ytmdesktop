@@ -4,8 +4,8 @@ import ytmhook from "../ytmhook";
 import type protectedapimanager from "../protectedapimanager";
 import { GROOVING_PREVIEW_START_RATIO, GroovingPageCall, type GroovingPageResult, type GroovingTrack } from "~shared/grooving";
 import { GroovingPacePriority } from "~shared/grooving/pace";
-import { readRelatedBrowseId, readRelatedTracks } from "~shared/grooving/ytm-response";
 import { groovingPacer } from "./grooving-pace";
+import { relatedTracks } from "./grooving-ytm";
 
 type GroovingProtectedAPI = ReturnType<typeof protectedapimanager.createOrGetAPI>;
 
@@ -59,6 +59,21 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
   const run = chain.then(task, task);
   chain = run.catch(() => undefined);
   return run;
+}
+
+// A call that touches neither the player nor the queue: answered outside the chain, so it never holds back a save
+// queued behind it, and a slow save ahead of it does not make it fail. Same answer shape and error handling as handle
+function handleConcurrent<T>(api: GroovingProtectedAPI, name: string, label: string, run: (args: unknown[]) => Promise<GroovingPageResult<T>>) {
+  api.handleMessage(name, async (event: Event) => {
+    try {
+      const args = (event as CustomEvent<{ args: unknown[] }>).detail?.args ?? [];
+      return [await run(args)];
+    } catch (err) {
+      console.error(`[ytmd-err(grooving.${label})]`, err);
+      const failed: GroovingPageResult<T> = { ok: false, error: errorMessage(err) };
+      return [failed];
+    }
+  });
 }
 
 function errorMessage(err: unknown): string {
@@ -738,21 +753,15 @@ async function addToPlaylist(args: unknown[]): Promise<GroovingPageResult<null>>
   return { ok: true, value: null };
 }
 
-// The related tracks of one seed track: the same two reads as relatedTracks in grooving-ytm.ts (next, then browse).
-// That function is not exported and the file is PBI-610's do-not-touch, so the reads go through the shared readers here
-async function relatedRequest(videoId: string): Promise<GroovingPageResult<GroovingTrack[]>> {
-  const browseId = readRelatedBrowseId(await innertube("next", { videoId, isAudioOnly: true }));
-  if (!browseId.ok) return { ok: false, error: "the related tab of the track was not readable" };
-  const tracks = readRelatedTracks(await innertube("browse", { browseId: browseId.value }));
-  if (!tracks.ok) return { ok: false, error: "the related tracks were not readable" };
-  return { ok: true, value: tracks.value };
-}
-
+// The related tracks of one seed track, through the same reader as the rest of the page (grooving-ytm.ts: next, then
+// browse, with its cache). Only the videoId is known here: the seed track's other fields go unread by relatedTracks
 async function related(args: unknown[]): Promise<GroovingPageResult<GroovingTrack[]>> {
   const videoId = args[0];
   if (typeof videoId !== "string" || videoId === "") return { ok: false, error: "videoId must be a non-empty string" };
+  const seed: GroovingTrack = { videoId, title: "", artists: [], thumbnailUrl: null };
   try {
-    return await withTimeout(relatedRequest(videoId), RELATED_TIMEOUT_MS);
+    // The signal stops the reads themselves at the limit; withTimeout answers even if one of them never settles
+    return { ok: true, value: await withTimeout(relatedTracks([seed], AbortSignal.timeout(RELATED_TIMEOUT_MS)), RELATED_TIMEOUT_MS) };
   } catch (err) {
     return { ok: false, error: errorMessage(err) };
   }
@@ -765,5 +774,6 @@ export function setupGroovingPlayback(api: GroovingProtectedAPI) {
   handle(api, GroovingPageCall.AppendQueue, "appendQueue", appendQueue);
   handle(api, GroovingPageCall.SavePlaylist, "savePlaylist", savePlaylist);
   handle(api, GroovingPageCall.AddToPlaylist, "addToPlaylist", addToPlaylist);
-  handle(api, GroovingPageCall.Related, "related", related);
+  // Told outside the chain: main sends it while a save may be queued, and it touches neither the player nor the queue
+  handleConcurrent(api, GroovingPageCall.Related, "related", related);
 }

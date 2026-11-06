@@ -105,7 +105,8 @@ async function optional<T>(task: Promise<T>): Promise<T | null> {
   }
 }
 
-async function relatedTracks(history: GroovingTrack[], signal: AbortSignal): Promise<GroovingTrack[]> {
+// Also used by the continuation's Related call (grooving-playback.ts)
+export async function relatedTracks(history: GroovingTrack[], signal: AbortSignal): Promise<GroovingTrack[]> {
   const results = await Promise.all(
     history
       .slice(0, RELATED_SEED_COUNT)

@@ -306,32 +306,65 @@ describe("buildGroovingCandidates with a seed song", () => {
   });
 
   it("keeps the other tracks of the seed's artist as familiar when the history knows the artist", () => {
+    // The page sends the seed's related tracks as mood, with an empty related list
     const result = buildGroovingCandidates({
       direction: GroovingDirection.Familiar,
       historyShared: true,
       seed,
-      sources: sources({ history: [seedTrack("h-1", "Another", "Alpha")], related: [seedTrack("r-1", "Related", "Alpha")] })
+      sources: sources({ history: [seedTrack("h-1", "Another", "Alpha")], mood: [seedTrack("r-1", "Related", "Alpha")] })
     });
     expect(result.candidates.map(c => [c.videoId, c.kind])).toEqual([
-      ["h-1", GroovingTrackKind.Familiar],
-      ["r-1", GroovingTrackKind.Familiar]
+      ["r-1", GroovingTrackKind.Familiar],
+      ["h-1", GroovingTrackKind.Familiar]
     ]);
+  });
+
+  it("puts the familiar tracks of the seed's related tracks before the history, so the limit does not cut them", () => {
+    const result = buildGroovingCandidates({
+      direction: GroovingDirection.Familiar,
+      historyShared: true,
+      seed,
+      sources: sources({
+        history: tracks("h", 100, "Alpha"),
+        mood: [seedTrack("r-1", "Related", "Alpha"), seedTrack("r-2", "New", "Stranger")]
+      })
+    });
+    expect(result.candidates).toHaveLength(GROOVING_CANDIDATE_LIMIT);
+    expect(ids(result.candidates).slice(0, 3)).toEqual(["r-1", "h-0", "h-1"]);
+    expect(result.candidates.find(c => c.videoId === "r-1")?.kind).toBe(GroovingTrackKind.Familiar);
+    expect(ids(result.candidates)).not.toContain("r-2");
+    expect(result.filledFromMood).toBe(false);
+  });
+
+  it("includes the familiar and the new tracks of the seed's related tracks in mix", () => {
+    const result = buildGroovingCandidates({
+      direction: GroovingDirection.Mix,
+      historyShared: true,
+      seed,
+      sources: sources({
+        history: tracks("h", 40, "Alpha"),
+        mood: [seedTrack("r-1", "Related", "Alpha"), seedTrack("r-2", "New", "Stranger")]
+      })
+    });
+    expect(ids(result.candidates).slice(0, 3)).toEqual(["r-1", "r-2", "h-0"]);
   });
 
   it("keeps the direction's narrowing as it is", () => {
     const input = {
       historyShared: true,
+      seed,
       sources: sources({
         history: tracks("h", 3, "Alpha"),
         mood: [...tracks("m", 3, "Stranger"), track("m-known", "Alpha"), track("seed-1", "Stranger")]
       })
     };
-    for (const direction of [GroovingDirection.Familiar, GroovingDirection.Discover, GroovingDirection.Mix]) {
-      const withSeed = buildGroovingCandidates({ ...input, direction, seed });
-      const without = buildGroovingCandidates({ ...input, direction });
-      expect(ids(withSeed.candidates)).toEqual(ids(without.candidates).filter(id => id !== "seed-1"));
-    }
-    expect(ids(buildGroovingCandidates({ ...input, direction: GroovingDirection.Discover, seed }).candidates)).toEqual(["m-0", "m-1", "m-2"]);
+    const familiar = buildGroovingCandidates({ ...input, direction: GroovingDirection.Familiar }).candidates;
+    const discover = buildGroovingCandidates({ ...input, direction: GroovingDirection.Discover }).candidates;
+    const mix = buildGroovingCandidates({ ...input, direction: GroovingDirection.Mix }).candidates;
+    expect(ids(familiar)).toEqual(["m-known", "h-0", "h-1", "h-2", "m-0", "m-1", "m-2"]);
+    expect(ids(discover)).toEqual(["m-0", "m-1", "m-2"]);
+    expect(ids(mix)).toEqual(["m-known", "m-0", "h-0", "m-1", "h-1", "m-2", "h-2"]);
+    for (const list of [familiar, discover, mix]) expect(ids(list)).not.toContain("seed-1");
   });
 
   it("changes nothing without a seed", () => {

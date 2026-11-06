@@ -76,13 +76,16 @@ export function buildGroovingCandidates(input: {
   // The history and the liked tracks decide the known artists even when the history is not shared (they are only used inside the app)
   // The seed song is left out after the kinds are decided, so its removal never changes which artists are known
   const known = knownArtists(sources.history, sources.liked);
+  const moodTracks = sources.mood.map(track => mark(track, known)).filter(notSeed);
+  // In a song run the page sends the seed's related tracks as mood (related is empty), so their familiar tracks join the
+  // familiar pool before the history: the limit then cuts the history and not the seed's related tracks
+  const familiarMood = seed === null ? [] : moodTracks.filter(track => track.kind === GroovingTrackKind.Familiar);
   const familiar = uniqueByVideoId(
-    [...sources.history, ...sources.liked, ...sources.related]
+    [...familiarMood, ...sources.history, ...sources.liked, ...sources.related]
       .map(track => mark(track, known))
       .filter(track => track.kind === GroovingTrackKind.Familiar)
       .filter(notSeed)
   );
-  const moodTracks = sources.mood.map(track => mark(track, known)).filter(notSeed);
   const discover = uniqueByVideoId(moodTracks.filter(track => track.kind === GroovingTrackKind.New));
 
   if (direction === GroovingDirection.Familiar) {

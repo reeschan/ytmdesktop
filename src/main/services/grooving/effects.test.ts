@@ -111,4 +111,27 @@ describe("continuationRequest", () => {
     expect(ids).not.toContain("f29");
     expect(ids).not.toContain("n29");
   });
+
+  it("leaves the seed song out of the continuation candidates", () => {
+    // The seed can come back through the related tracks, or with the same title and artist under another videoId
+    const familiar = Array.from({ length: 20 }, (_, index) => candidate(`f${index}`, GroovingTrackKind.Familiar));
+    const fresh = Array.from({ length: 5 }, (_, index) => candidate(`n${index}`, GroovingTrackKind.New));
+    const byTitle = { ...candidate("s2", GroovingTrackKind.New), title: "Seed Song", artists: ["Seed Artist"] };
+    const request = continuationRequest({
+      candidates: [...familiar, ...fresh, candidate("seed", GroovingTrackKind.Familiar), byTitle],
+      direction: GroovingDirection.Familiar,
+      history: [],
+      listed: [],
+      reactions: {},
+      knownArtists: new Set(familiar.map(track => track.artists[0])),
+      related: [candidate("seed", GroovingTrackKind.New), candidate("neighbour", GroovingTrackKind.Familiar)],
+      seed: { videoId: "seed", title: "Seed Song", artist: "Seed Artist" }
+    });
+
+    const ids = request.candidates.map(track => track.videoId);
+    expect(ids).not.toContain("seed");
+    expect(ids).not.toContain("s2");
+    // The familiar count is decided after the seed is left out
+    expect(request.familiarCount).toBe(request.candidates.filter(track => track.kind === GroovingTrackKind.Familiar).length);
+  });
 });

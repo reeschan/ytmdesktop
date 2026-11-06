@@ -114,6 +114,20 @@ type ContinuationInput = {
   avoidedArtists: string[];
 };
 
+// What a seed song is cut to before it is offered (the page's song into a mood is not trusted)
+function clipSeedSong(song: GroovingSeedSong): GroovingSeedSong | null {
+  const title = song.title.slice(0, GROOVING_TRACK_TEXT_MAX);
+  const artist = song.artist.slice(0, GROOVING_TRACK_TEXT_MAX);
+  // An offered seed must start a run: toKnownMood drops a mood with an empty title or artist
+  if (title.trim() === "" || artist.trim() === "") return null;
+  return {
+    title,
+    artist,
+    videoId: song.videoId === null ? null : song.videoId.slice(0, SEED_VIDEO_ID_MAX),
+    thumbnail: song.thumbnail === null ? null : song.thumbnail.slice(0, MAX_TEXT)
+  };
+}
+
 export default class Grooving extends Service {
   public static override readonly dependencies: DependencyConstructor<Service>[] = [
     ConfigStore,
@@ -169,6 +183,8 @@ export default class Grooving extends Service {
   private trackWatch: TrackWatch | null = null;
   // The artists the run's candidates were marked with. Null when the run did not build any
   private runKnownArtists: Set<string> | null = null;
+  // The seed song a song run began from (with the videoId the page decided), left out of the continuation lists too
+  private runSeed: GroovingSeedMatch | null = null;
   // The continuation's candidates, waiting for the LLM request (the latest one only)
   private continuationInput: ContinuationInput | null = null;
 
@@ -596,6 +612,7 @@ export default class Grooving extends Service {
     this.clearPreviewTimer();
     this.trackWatch = null;
     this.runKnownArtists = null;
+    this.runSeed = null;
     this.continuationInput = null;
   }
 
@@ -610,16 +627,6 @@ export default class Grooving extends Service {
   }
 
   //#region The seed song ("From a song")
-  // What the page sends into a mood is not trusted: only strings, cut like a track's text
-  private clipSeedSong(song: GroovingSeedSong): GroovingSeedSong {
-    return {
-      title: song.title.slice(0, GROOVING_TRACK_TEXT_MAX),
-      artist: song.artist.slice(0, GROOVING_TRACK_TEXT_MAX),
-      videoId: song.videoId === null ? null : song.videoId.slice(0, SEED_VIDEO_ID_MAX),
-      thumbnail: song.thumbnail === null ? null : song.thumbnail.slice(0, MAX_TEXT)
-    };
-  }
-
   private playingSeed(state: PlayerState | null): GroovingSeedSong | null {
     const details = state?.videoDetails ?? null;
     // An ad is not the track, and without details there is no song to start from
@@ -627,13 +634,13 @@ export default class Grooving extends Service {
 
     const thumbnails = details.thumbnails;
     const thumbnail = thumbnails.length === 0 ? null : thumbnails[thumbnails.length - 1].url;
-    return this.clipSeedSong({ title: details.title, artist: details.author, videoId: details.id, thumbnail });
+    return clipSeedSong({ title: details.title, artist: details.author, videoId: details.id, thumbnail });
   }
 
   private recognizedSeed(): GroovingSeedSong | null {
     const remembered = this.getDependency(MemoryStore<MemoryStoreSchema>).get("groovingRecognizedSong");
     if (!isRecord(remembered) || typeof remembered.title !== "string" || typeof remembered.artist !== "string") return null;
-    return this.clipSeedSong({ title: remembered.title, artist: remembered.artist, videoId: null, thumbnail: null });
+    return clipSeedSong({ title: remembered.title, artist: remembered.artist, videoId: null, thumbnail: null });
   }
 
   // Shazam's conditions, as in song-recognition: enabled, a key is saved and safeStorage can be used (the key itself is not read)
@@ -869,6 +876,8 @@ export default class Grooving extends Service {
 
     // The page's search may have decided the videoId when the mood's song had none
     const seed: GroovingSeedMatch = { videoId: song.videoId ?? sources.seedVideoId ?? null, title: song.title, artist: song.artist };
+    // Kept for the continuation: its related tracks can bring the seed back, and it must not reach a list again
+    this.runSeed = seed;
     // A song run's mood tracks are its related tracks, so the "filled from the mood" note is only used for the artist fill
     const built = buildGroovingCandidates({ direction: request.direction, historyShared: request.historyShared, sources, seed });
     if (!groovingCandidatesEnough(built.candidates, request.direction, rounds)) return fail(GroovingFailureReason.NotEnough);
@@ -1052,7 +1061,12 @@ export default class Grooving extends Service {
       listed: continuation.listed,
       reactions: continuation.reactions,
       knownArtists: this.runKnownArtists ?? knownArtistsOfCandidates(session.candidates),
-      related
+      related,
+      // The run kept the seed with the videoId the page decided; the mood's own videoId is the fallback
+      seed:
+        session.mood.kind === "song"
+          ? (this.runSeed ?? { videoId: session.mood.song.videoId, title: session.mood.song.title, artist: session.mood.song.artist })
+          : null
     });
     if (!request.enough) {
       this.dispatch({ type: "continuation-candidates", requestId, ok: false, reason: "short" });

@@ -18,6 +18,7 @@ import {
   GroovingUsage
 } from "~shared/grooving";
 import { groovingFamiliarCount, groovingListCandidates } from "~shared/grooving/answer";
+import { isSeedTrack, type GroovingSeedMatch } from "~shared/grooving/candidates";
 import {
   buildGroovingContinuationCandidates,
   groovingAvoidedArtists,
@@ -222,7 +223,8 @@ export function knownArtistsOfCandidates(candidates: GroovingCandidate[]): Set<s
 
 // The continuation's candidates and whether they are enough, from the run's candidates, the answers and the reactions.
 // The run's candidates leave out the tracks the pairs dropped. The mix's familiar count comes from those run candidates,
-// not the continuation's: the run's tracks are left out of those
+// not the continuation's: the run's tracks are left out of those. A song run's seed is left out again here: the related
+// tracks of a liked or played-through track can bring it back, and it must not go into a continuation list
 export function continuationRequest(input: {
   candidates: GroovingCandidate[];
   direction: GroovingDirection;
@@ -231,9 +233,12 @@ export function continuationRequest(input: {
   reactions: Record<string, GroovingReaction>;
   knownArtists: Set<string>;
   related: GroovingTrack[];
+  // The seed song of a song run; null or missing for the other moods
+  seed?: GroovingSeedMatch | null;
 }): { candidates: GroovingCandidate[]; familiarCount: number; enough: boolean; avoidedArtists: string[] } {
   const avoidedArtists = groovingAvoidedArtists(input.listed, input.reactions);
-  const runCandidates = groovingListCandidates({ candidates: input.candidates, direction: input.direction, history: input.history });
+  const notSeed = (track: GroovingCandidate): boolean => input.seed == null || !isSeedTrack(track, input.seed);
+  const runCandidates = groovingListCandidates({ candidates: input.candidates, direction: input.direction, history: input.history }).filter(notSeed);
   const candidates = buildGroovingContinuationCandidates({
     candidates: runCandidates,
     related: input.related,
@@ -241,7 +246,7 @@ export function continuationRequest(input: {
     listedVideoIds: input.listed.map(track => track.videoId),
     avoidedArtists,
     direction: input.direction
-  });
+  }).filter(notSeed);
   // The mix's share needs the run's tracks, which the pairs chose; the other directions only have the continuation's
   const familiarCount = groovingFamiliarCount({
     direction: input.direction,
