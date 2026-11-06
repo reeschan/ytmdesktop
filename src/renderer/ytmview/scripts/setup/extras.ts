@@ -638,6 +638,7 @@ export async function addTimedLyrics() {
   let currentTimedLyrics: { timedLyrics: any; source: any } | null = null;
   let autoScrolling = false;
   let autoScrollPaused = false;
+  let autoScrollRafId: number | null = null;
   let viewingLyricsTab = false;
   let ytmLyricTabContents: any[] | null = null;
 
@@ -686,19 +687,13 @@ export async function addTimedLyrics() {
   returnToLiveContainer.appendChild(returnToLive);
 
   const tabRenderer = document.querySelector("#player-page #tab-renderer");
-  tabRenderer?.addEventListener("scroll", () => {
+  function onUserScroll() {
     if (!viewingLyricsTab) return;
-    if (autoScrolling) return;
-
+    autoScrolling = false;
     disableAutoScroll();
-  });
-  tabRenderer?.addEventListener("scrollend", () => {
-    if (!viewingLyricsTab) return;
-    if (autoScrolling) {
-      autoScrolling = false;
-      return;
-    }
-  });
+  }
+  tabRenderer?.addEventListener("wheel", onUserScroll, { passive: true });
+  tabRenderer?.addEventListener("touchstart", onUserScroll, { passive: true });
 
   async function getTimedLyrics() {
     try {
@@ -802,8 +797,52 @@ export async function addTimedLyrics() {
     }
   }
 
+  function easeOutQuad(x: number): number {
+    return 1 - (1 - x) * (1 - x);
+  }
+
+  // Resolves false when the user scrolled or another scroll started before this one ended
+  function smoothScrollToCenter(
+    container: Element,
+    element: Element,
+    duration = 250,
+    easing = easeOutQuad,
+  ) {
+    const containerRect = container.getBoundingClientRect();
+    const elementRect = element.getBoundingClientRect();
+
+    const targetScrollTop =
+      container.scrollTop +
+      (elementRect.top - containerRect.top) -
+      (container.clientHeight / 2 - elementRect.height / 2);
+
+    const start = container.scrollTop;
+    const change = targetScrollTop - start;
+    const startTime = performance.now();
+
+    return new Promise<boolean>((resolve) => {
+      let lastKnownRafId: number | null = null;
+      function animate(now: number) {
+        if (!autoScrolling || lastKnownRafId !== autoScrollRafId) {
+          resolve(false);
+          return;
+        }
+
+        const t = Math.min(1, (now - startTime) / duration);
+        container.scrollTop = start + change * easing(t);
+
+        if (t < 1) {
+          autoScrollRafId = lastKnownRafId = requestAnimationFrame(animate);
+        } else {
+          resolve(true);
+        }
+      }
+      autoScrollRafId = lastKnownRafId = requestAnimationFrame(animate);
+    });
+  }
+
   // This could definitely be optimized far better
-  function updateLyricLines(progress) {
+  async function updateLyricLines(progress: number) {
     const msProgress = progress * 1000;
     for (const lyric of timedLyricsContainer.children) {
       const lyricStart = parseInt(lyric.getAttribute("data-start-ms")!);
@@ -812,13 +851,10 @@ export async function addTimedLyrics() {
       if (msProgress >= lyricStart && msProgress < lyricEnd) {
         if (!lyric.classList.contains("active")) {
           lyric.classList.add("active");
-          if (!autoScrollPaused) {
+          if (!autoScrollPaused && viewingLyricsTab && tabRenderer) {
             autoScrolling = true;
-            lyric.scrollIntoView({
-              behavior: "smooth",
-              block: "center",
-              inline: "center",
-            });
+            await smoothScrollToCenter(tabRenderer, lyric, 500);
+            autoScrolling = false;
           }
         }
       } else {
@@ -884,6 +920,6 @@ export async function addTimedLyrics() {
   });
 
   playerApi.addEventListener("onVideoProgress", (progress) => {
-    updateLyricLines(progress);
+    void updateLyricLines(progress);
   });
 }
