@@ -55,6 +55,8 @@ export type GroovingRounds = (typeof GROOVING_ROUND_OPTIONS)[number];
 
 export const GROOVING_LIST_LENGTH = 25;
 export const GROOVING_CANDIDATE_LIMIT = 80;
+// How many continuation lists one run may add (see docs/specs/grooving-continue.md)
+export const GROOVING_CONTINUATION_MAX_ROUNDS = 3;
 // Below this many familiar candidates, fill up from the mood's playlists
 export const GROOVING_FAMILIAR_MINIMUM = 30;
 // In a mix, each side gets at least this share
@@ -99,18 +101,30 @@ export type GroovingMoodSection = (typeof GroovingMoodSection)[keyof typeof Groo
 
 // One item of "Moods & genres". params is the browse params for FEmusic_moods_and_genres_category
 export type GroovingMoodItem = { name: string; section: GroovingMoodSection; params: string };
+// The seed song of "From a song" (docs/specs/grooving-seed-song.md)
+// videoId: set for the song playing now; null for a recognized song (the page finds it by searching)
+export type GroovingSeedSong = { title: string; artist: string; videoId: string | null; thumbnail: string | null };
 // A blend is 0-1 item of "Moods & activities" and 0-2 items of "Genres", 2-3 items in all. One item alone stays kind "item"
+// One mood is exactly one of an item, a blend, words or a song (a song is never blended)
 export type GroovingMood =
   | { kind: "item"; item: GroovingMoodItem }
   | { kind: "blend"; items: GroovingMoodItem[] } // moods items first, then genres in the order chosen
-  | { kind: "text"; text: string };
+  | { kind: "text"; text: string }
+  | { kind: "song"; song: GroovingSeedSong };
+
+// What the choose-a-mood screen shows for "From a song". Main sends it; the state keeps the latest
+// playing: the song playing now (null when nothing plays or an ad plays)
+// recognized: the song recognized last (null when none)
+// canRecognize: Shazam is enabled and the API key is set, so the screen can recognize on the spot
+export type GroovingSeedOptions = { playing: GroovingSeedSong | null; recognized: GroovingSeedSong | null; canRecognize: boolean };
 
 export const GROOVING_BLEND_GENRE_LIMIT = 2;
 export const GROOVING_BLEND_MOOD_LIMIT = 1;
 export const GROOVING_MOOD_JOINER = " × ";
 
-// The mood's name (for example on the choose screen). A blend joins the item names with GROOVING_MOOD_JOINER
-export function groovingMoodLabel(mood: GroovingMood): string {
+// The mood's name (for example on the choose screen). A blend joins the item names with GROOVING_MOOD_JOINER.
+// A song is "From <title> / <artist>" (en) or "<title> / <artist> から" (ja); only a song depends on the language
+export function groovingMoodLabel(mood: GroovingMood, language: GroovingDisplayLanguage = GroovingLanguage.English): string {
   switch (mood.kind) {
     case "item":
       return mood.item.name;
@@ -118,6 +132,10 @@ export function groovingMoodLabel(mood: GroovingMood): string {
       return mood.items.map(item => item.name).join(GROOVING_MOOD_JOINER);
     case "text":
       return mood.text;
+    case "song": {
+      const name = `${mood.song.title} / ${mood.song.artist}`;
+      return language === GroovingLanguage.Japanese ? `${name} から` : `From ${name}`;
+    }
   }
 }
 
@@ -175,7 +193,8 @@ export const GroovingFailureReason = {
   Network: "network", // An AI provider call failed: connection failure, the 30 s timeout, 5xx, no HTTP answer
   Unusable: "unusable", // Two unusable answers in a row
   YtmUnreadable: "ytm-unreadable", // A YTM response could not be read or fetched, or the page is gone or did not answer in time
-  NotEnough: "not-enough" // Not enough candidates for a pair or a list
+  NotEnough: "not-enough", // Not enough candidates for a pair or a list
+  SeedNotFound: "seed-not-found" // The seed song was not found on YouTube Music
 } as const;
 export type GroovingFailureReason = (typeof GroovingFailureReason)[keyof typeof GroovingFailureReason];
 
@@ -206,10 +225,13 @@ export const GroovingPageCall = {
   GetMoods: "getMoods", // () -> GroovingPageResult<GroovingMoodItem[]>
   CollectSources: "collectSources", // (GroovingSourceRequest) -> GroovingPageResult<GroovingSources>
   Search: "search", // (queries: string[]) -> GroovingPageResult<GroovingTrack[]>
+  Related: "related", // (videoId: string) -> GroovingPageResult<GroovingTrack[]>
   PreviewStart: "previewStart", // (videoId: string) -> GroovingPageResult<null>
   PreviewEnd: "previewEnd", // () -> GroovingPageResult<null>; back to the original track and position, removes the inserted track
   ReplaceQueue: "replaceQueue", // (videoIds: string[]) -> GroovingPageResult<null>
-  SavePlaylist: "savePlaylist" // ({ title, videoIds }) -> GroovingPageResult<{ playlistId: string }>
+  AppendQueue: "appendQueue", // (videoIds: string[]) -> GroovingPageResult<null>
+  SavePlaylist: "savePlaylist", // ({ title, videoIds }) -> GroovingPageResult<{ playlistId: string }>
+  AddToPlaylist: "addToPlaylist" // ({ playlistId, videoIds }) -> GroovingPageResult<null>
 } as const;
 export type GroovingPageCall = (typeof GroovingPageCall)[keyof typeof GroovingPageCall];
 
@@ -223,7 +245,11 @@ export type GroovingSources = {
   history: GroovingTrack[]; // FEmusic_history
   liked: GroovingTrack[]; // Liked songs, read from browse VLLM (playlistId LM); FEmusic_liked_videos is the library's songs
   related: GroovingTrack[]; // Related tracks of the top history tracks (familiar / mix, only when historyShared)
-  mood: GroovingTrack[]; // Tracks of a few playlists of the mood item (when mood.kind is item; also fetched for familiar, to fill up), or of the genres' playlists for a blend
+  mood: GroovingTrack[]; // Tracks of a few playlists of the mood item (when mood.kind is item; also fetched for familiar, to fill up), or of the genres' playlists for a blend; the related tracks of the seed song for a song
+  // Only for a song mood
+  seedMissing?: boolean; // The seed song was not found on YouTube Music (the other lists are empty)
+  seedVideoId?: string | null; // The seed song's videoId; the one the search decided when the mood's song had none
+  seedFilled?: boolean; // The related tracks were short, so the seed artist's songs were added to the mood
 };
 
 // page -> main: what the user did
@@ -239,6 +265,7 @@ export type GroovingSignal =
   | { type: "retry" }
   | { type: "save" }
   | { type: "again" }
+  | { type: "continueToggle"; enabled: boolean } // The continue toggle on the done screen
   | { type: "dismissNotice" }; // The × of the notice of the previous run
 
 export const GroovingScreen = {
@@ -276,6 +303,26 @@ export const GroovingSaveStatus = {
 } as const;
 export type GroovingSaveStatus = (typeof GroovingSaveStatus)[keyof typeof GroovingSaveStatus];
 
+// What the save button does: save the list, add the newly listed tracks to the saved playlist, or nothing
+export const GroovingSaveAction = {
+  Save: "save",
+  Add: "add",
+  Saved: "saved"
+} as const;
+export type GroovingSaveAction = (typeof GroovingSaveAction)[keyof typeof GroovingSaveAction];
+
+// Where the continuation part of a done / saving / saved run is (see docs/specs/grooving-continue.md)
+export const GroovingContinuationPhase = {
+  Idle: "idle",
+  Collecting: "collecting",
+  Requesting: "requesting",
+  RequestingRetry: "requesting-retry",
+  Failed: "failed",
+  Short: "short",
+  Finished: "finished"
+} as const;
+export type GroovingContinuationPhase = (typeof GroovingContinuationPhase)[keyof typeof GroovingContinuationPhase];
+
 // main -> page: what the screen shows. Never holds the key, prompts or raw LLM answers
 export type GroovingScreenView =
   | { screen: typeof GroovingScreen.Closed }
@@ -290,8 +337,18 @@ export type GroovingScreenView =
       model: string;
       // Whether the last run ended when the app closed
       notice: boolean;
+      // What "From a song" offers: the song playing now, the song recognized last, and whether the screen can recognize
+      seed: GroovingSeedOptions;
     }
-  | { screen: typeof GroovingScreen.Working; step: GroovingStep; round: number | null; rounds: number | null; filledFromMood: boolean }
+  | {
+      screen: typeof GroovingScreen.Working;
+      step: GroovingStep;
+      round: number | null;
+      rounds: number | null;
+      filledFromMood: boolean;
+      // The run started from a song (the fill, if any, came from a search for the seed artist)
+      fromSong: boolean;
+    }
   | {
       screen: typeof GroovingScreen.Choose;
       round: number;
@@ -302,16 +359,21 @@ export type GroovingScreenView =
       right: GroovingCandidate;
       previewing: string | null;
       filledFromMood: boolean;
+      // The run started from a song (the fill, if any, came from a search for the seed artist)
+      fromSong: boolean;
     }
   | {
       screen: typeof GroovingScreen.Done;
       moodLabel: string;
       moodDescription: string;
-      tracks: GroovingCandidate[];
+      // The Grooving list and the continuation lists, in the order they play
+      listed: GroovingCandidate[];
       familiarCount: number;
       newCount: number;
       usage: { inputTokens: number; outputTokens: number; estimatedUsd: number | null; model: string };
       saved: GroovingSaveStatus;
+      saveAction: GroovingSaveAction;
+      continuation: { enabled: boolean; rounds: number; maxRounds: number; phase: GroovingContinuationPhase };
       queueFailed: boolean;
     }
   | { screen: typeof GroovingScreen.Failed; step: GroovingStep; reason: GroovingFailureReason; round: number | null; rounds: number | null };
@@ -349,11 +411,25 @@ function isGroovingBlendItems(value: unknown): value is GroovingMoodItem[] {
   );
 }
 
+const isStringOrNull = (value: unknown): value is string | null => value === null || typeof value === "string";
+
+function isGroovingSeedSong(value: unknown): value is GroovingSeedSong {
+  return (
+    isRecord(value) &&
+    typeof value.title === "string" &&
+    typeof value.artist === "string" &&
+    isStringOrNull(value.videoId) &&
+    isStringOrNull(value.thumbnail)
+  );
+}
+
 function isGroovingMood(value: unknown): value is GroovingMood {
   if (!isRecord(value)) return false;
   switch (value.kind) {
     case "text":
       return typeof value.text === "string";
+    case "song":
+      return isGroovingSeedSong(value.song);
     case "item":
       return isGroovingMoodItem(value.item);
     case "blend":
@@ -400,6 +476,8 @@ export function isGroovingSignal(value: unknown): value is GroovingSignal {
       return isOneOf(GroovingAnswer, value.answer);
     case "previewStart":
       return typeof value.videoId === "string";
+    case "continueToggle":
+      return typeof value.enabled === "boolean";
     default:
       return false;
   }

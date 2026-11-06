@@ -70,6 +70,7 @@ export type StoreSchema = {
     groovingConsent: GroovingConsent | null;
     groovingUsage: GroovingUsage | null;
     groovingLanguage: GroovingLanguage;
+    groovingContinue: boolean; // The last choice of the continue toggle
   };
   shortcuts: {
     playPause: string;
@@ -144,4 +145,7 @@ export type MemoryStoreSchema = {
   lastFMToken: string;
 
   songRecognitionDevices: SongRecognitionInputDevice[];
+
+  // The song found by song recognition last, read by Grooving; kept in memory only, so it is forgotten when the app closes
+  groovingRecognizedSong: { title: string; artist: string } | null;
 };

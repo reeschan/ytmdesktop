@@ -3,18 +3,28 @@
 import { SongRecognitionPhase, SongRecognitionResultKind } from "./index";
 import { SongRecognitionMatch, SongRecognitionResult } from "./response";
 
+// Where the press came from: the search box icon searches, the Grooving button only remembers
+export const SongRecognitionDestination = {
+  Search: "search",
+  Grooving: "grooving"
+} as const;
+export type SongRecognitionDestination = (typeof SongRecognitionDestination)[keyof typeof SongRecognitionDestination];
+
 export type SongRecognitionState = {
   phase: SongRecognitionPhase;
   // Set only while the phase is message
   message: SongRecognitionResultKind | null;
   // The playback was paused by us for the recording and not resumed yet
   pausedByUs: boolean;
+  // The destination of the press that started the recording, kept until the query ends
+  destination: SongRecognitionDestination;
 };
 
 export const INITIAL_SONG_RECOGNITION_STATE: SongRecognitionState = {
   phase: SongRecognitionPhase.Idle,
   message: null,
-  pausedByUs: false
+  pausedByUs: false,
+  destination: SongRecognitionDestination.Search
 };
 export const SongRecognitionEventType = {
   Press: "press",
@@ -29,7 +39,8 @@ export type SongRecognitionEventType = (typeof SongRecognitionEventType)[keyof t
 
 export type SongRecognitionEvent =
   // enabled: the integration can be used, pcAudio: the source actually recorded is the PC audio, playing: YTM is playing
-  | { type: typeof SongRecognitionEventType.Press; enabled: boolean; pcAudio: boolean; playing: boolean }
+  // destination: where the press came from; omitted means Search
+  | { type: typeof SongRecognitionEventType.Press; enabled: boolean; pcAudio: boolean; playing: boolean; destination?: SongRecognitionDestination }
   | { type: typeof SongRecognitionEventType.Recorded; pcm: string }
   | { type: typeof SongRecognitionEventType.RecordFailed }
   | { type: typeof SongRecognitionEventType.Result; result: SongRecognitionResult }
@@ -45,6 +56,7 @@ export const SongRecognitionEffectType = {
   Pause: "pause",
   Resume: "resume",
   Search: "search",
+  Remember: "remember",
   StartMessageTimer: "start-message-timer"
 } as const;
 export type SongRecognitionEffectType = (typeof SongRecognitionEffectType)[keyof typeof SongRecognitionEffectType];
@@ -57,6 +69,7 @@ export type SongRecognitionEffect =
   | { type: typeof SongRecognitionEffectType.Pause }
   | { type: typeof SongRecognitionEffectType.Resume }
   | { type: typeof SongRecognitionEffectType.Search; query: string }
+  | { type: typeof SongRecognitionEffectType.Remember; title: string; artist: string }
   | { type: typeof SongRecognitionEffectType.StartMessageTimer };
 
 export type SongRecognitionDecision = { state: SongRecognitionState; effects: SongRecognitionEffect[] };
@@ -78,7 +91,12 @@ export function decideSongRecognition(state: SongRecognitionState, event: SongRe
           if (!event.enabled) return ignored;
           const pause = event.pcAudio && event.playing;
           return {
-            state: { phase: SongRecognitionPhase.Recording, message: null, pausedByUs: pause },
+            state: {
+              phase: SongRecognitionPhase.Recording,
+              message: null,
+              pausedByUs: pause,
+              destination: event.destination ?? SongRecognitionDestination.Search
+            },
             effects: [...(pause ? [{ type: SongRecognitionEffectType.Pause } as const] : []), { type: SongRecognitionEffectType.StartRecording }]
           };
         }
@@ -91,14 +109,19 @@ export function decideSongRecognition(state: SongRecognitionState, event: SongRe
     case SongRecognitionEventType.Recorded: {
       if (state.phase !== SongRecognitionPhase.Recording) return ignored;
       return {
-        state: { phase: SongRecognitionPhase.Searching, message: null, pausedByUs: false },
+        state: { phase: SongRecognitionPhase.Searching, message: null, pausedByUs: false, destination: state.destination },
         effects: [...resumeIfPaused(state), { type: SongRecognitionEffectType.Query, pcm: event.pcm }]
       };
     }
     case SongRecognitionEventType.RecordFailed: {
       if (state.phase !== SongRecognitionPhase.Recording) return ignored;
       return {
-        state: { phase: SongRecognitionPhase.Message, message: SongRecognitionResultKind.SourceUnavailable, pausedByUs: false },
+        state: {
+          phase: SongRecognitionPhase.Message,
+          message: SongRecognitionResultKind.SourceUnavailable,
+          pausedByUs: false,
+          destination: SongRecognitionDestination.Search
+        },
         effects: [...resumeIfPaused(state), { type: SongRecognitionEffectType.StartMessageTimer }]
       };
     }
@@ -110,10 +133,17 @@ export function decideSongRecognition(state: SongRecognitionState, event: SongRe
       if (state.phase !== SongRecognitionPhase.Searching) return ignored;
       const { result } = event;
       if (result.kind === SongRecognitionMatch) {
-        return { state: IDLE_STATE, effects: [{ type: SongRecognitionEffectType.Search, query: result.query }] };
+        const remember: SongRecognitionEffect = { type: SongRecognitionEffectType.Remember, title: result.title, artist: result.artist };
+        return {
+          state: IDLE_STATE,
+          effects:
+            state.destination === SongRecognitionDestination.Grooving
+              ? [remember]
+              : [{ type: SongRecognitionEffectType.Search, query: result.query }, remember]
+        };
       }
       return {
-        state: { phase: SongRecognitionPhase.Message, message: result.kind, pausedByUs: false },
+        state: { phase: SongRecognitionPhase.Message, message: result.kind, pausedByUs: false, destination: SongRecognitionDestination.Search },
         effects: [{ type: SongRecognitionEffectType.StartMessageTimer }]
       };
     }

@@ -98,7 +98,7 @@ const STYLE = `
 
 const phases = new Set<string>(Object.values(SongRecognitionPhase));
 
-function isViewState(value: unknown): value is SongRecognitionViewState {
+export function isViewState(value: unknown): value is SongRecognitionViewState {
   if (typeof value !== "object" || value === null) return false;
   const state = value as Record<string, unknown>;
   return (

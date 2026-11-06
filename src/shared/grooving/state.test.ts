@@ -4,6 +4,7 @@ import {
   GroovingAnswer,
   GroovingCandidate,
   GroovingConsentChoice,
+  GroovingContinuationPhase,
   GroovingDirection,
   GroovingFailureReason,
   GroovingLanguage,
@@ -12,15 +13,20 @@ import {
   GroovingMoodItem,
   GroovingMoodSection,
   GroovingPair,
+  GroovingSaveAction,
   GroovingScreenView,
+  GroovingSeedOptions,
+  GroovingSeedSong,
   GroovingStep,
   GroovingTrackKind,
   GroovingVisibility
 } from "~shared/grooving";
+import { GroovingReaction } from "~shared/grooving/continuation";
 import {
   decideGrooving,
   groovingRunInProgress,
   groovingStopsThrottling,
+  GroovingContinuation,
   GroovingEffect,
   GroovingEvent,
   GroovingPrefetch,
@@ -52,10 +58,33 @@ const CANDIDATES: GroovingCandidate[] = [
 const MOOD_ITEM: GroovingMoodItem = { name: "Chill", section: GroovingMoodSection.Moods, params: "chill-params" };
 const MOOD: GroovingMood = { kind: "item", item: MOOD_ITEM };
 const TEXT_MOOD: GroovingMood = { kind: "text", text: "rainy night" };
+const PLAYING_SONG: GroovingSeedSong = { title: "Blue Hour", artist: "Alpha", videoId: "v-playing", thumbnail: "https://example.com/blue.jpg" };
+const RECOGNIZED_SONG: GroovingSeedSong = { title: "Night Drive", artist: "Beta", videoId: null, thumbnail: null };
+const SONG_MOOD: GroovingMood = { kind: "song", song: PLAYING_SONG };
+const NO_SEED: GroovingSeedOptions = { playing: null, recognized: null, canRecognize: false };
 const PAIR_1: GroovingPair = { left: "a", right: "b", reason: "tempo" };
 const PAIR_2: GroovingPair = { left: "c", right: "d", reason: "genre" };
 const PAIR_3: GroovingPair = { left: "e", right: "f", reason: "mood" };
 const LIST: GroovingList = { videoIds: ["a", "b", "c"], moodDescription: "Lo-fi for a rainy night" };
+// The listed tracks of LIST, in its order
+const LISTED: GroovingCandidate[] = LIST.videoIds.flatMap(videoId => CANDIDATES.find(candidate => candidate.videoId === videoId) ?? []);
+// count tracks, alternating familiar and new
+const listedOf = (count: number): GroovingCandidate[] =>
+  Array.from({ length: count }, (_, index) => track(`t${index + 1}`, index % 2 === 0 ? GroovingTrackKind.Familiar : GroovingTrackKind.New));
+const continuationOf = (overrides: Partial<GroovingContinuation> = {}): GroovingContinuation => ({
+  enabled: false,
+  rounds: 0,
+  phase: GroovingContinuationPhase.Idle,
+  listed: LISTED,
+  reactions: {},
+  requestId: null,
+  savedVideoIds: [],
+  playlistId: null,
+  playing: null,
+  ...overrides
+});
+// A continuation part after the playlist was saved with every listed track
+const savedContinuation = (): GroovingContinuation => continuationOf({ savedVideoIds: LIST.videoIds, playlistId: "p1" });
 const EXTRA = {
   moods: [MOOD_ITEM],
   moodsFailed: false,
@@ -87,11 +116,18 @@ const stateOf = (flow: Flow, overrides: Partial<Omit<GroovingState, "flow">> = {
   notice: false,
   previewing: null,
   queue: "original",
+  seed: NO_SEED,
   nextRequestId: 10,
   ...overrides
 });
 
 const hiddenOf = (state: GroovingState): GroovingState => ({ ...state, visibility: GroovingVisibility.Hidden });
+
+const continuationAt = (state: GroovingState): GroovingContinuation => {
+  const flow = state.flow;
+  if (flow.kind !== "done" && flow.kind !== "saving" && flow.kind !== "saved") throw new Error("the flow has no continuation part");
+  return flow.continuation;
+};
 
 // A session that is showing PAIR_1 as its first round
 const SHOWING = sessionOf({ shown: ["a", "b"] });
@@ -130,20 +166,50 @@ const FAILED_PAIR = stateOf({ kind: "failed", session: SHOWING, step: GroovingSt
 const FAILED_LIST = stateOf({ kind: "failed", session: ANSWERED_ALL, step: GroovingStep.List, reason: GroovingFailureReason.Network });
 const FAILED_NO_SESSION = stateOf({ kind: "failed", session: null, step: GroovingStep.Pair, reason: GroovingFailureReason.Network });
 const DONE = stateOf(
-  { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  { kind: "done", session: ANSWERED_ALL, list: LIST, continuation: continuationOf(), saveFailed: false, queueFailed: false, replacing: false },
   { queue: "this-run" }
 );
 const DONE_SAVE_FAILED = stateOf(
-  { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false },
+  { kind: "done", session: ANSWERED_ALL, list: LIST, continuation: continuationOf(), saveFailed: true, queueFailed: false, replacing: false },
   { queue: "this-run" }
 );
 const SAVING = stateOf(
-  { kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  {
+    kind: "saving",
+    session: ANSWERED_ALL,
+    list: LIST,
+    continuation: continuationOf(),
+    saveFailed: false,
+    queueFailed: false,
+    replacing: false,
+    sendingVideoIds: LIST.videoIds
+  },
   { queue: "this-run" }
 );
 const SAVED = stateOf(
-  { kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+  { kind: "saved", session: ANSWERED_ALL, list: LIST, continuation: savedContinuation(), saveFailed: false, queueFailed: false, replacing: false },
   { queue: "this-run" }
+);
+// The continue part in each phase (the last 10 tracks, so the last ones are near the end)
+const doneWith = (continuation: GroovingContinuation): GroovingState =>
+  stateOf(
+    { kind: "done", session: ANSWERED_ALL, list: LIST, continuation, saveFailed: false, queueFailed: false, replacing: false },
+    { queue: "this-run" }
+  );
+const DONE_CONTINUING = doneWith(continuationOf({ enabled: true, listed: listedOf(10), playing: "t10" }));
+const DONE_COLLECTING = doneWith(
+  continuationOf({ enabled: true, listed: listedOf(10), playing: "t9", phase: GroovingContinuationPhase.Collecting, requestId: 5 })
+);
+const DONE_REQUESTING = doneWith(
+  continuationOf({ enabled: true, listed: listedOf(10), playing: "t9", phase: GroovingContinuationPhase.Requesting, requestId: 5 })
+);
+const DONE_REQUESTING_RETRY = doneWith(
+  continuationOf({ enabled: true, listed: listedOf(10), playing: "t9", phase: GroovingContinuationPhase.RequestingRetry, requestId: 5 })
+);
+const DONE_CONTINUATION_FAILED = doneWith(continuationOf({ listed: listedOf(10), phase: GroovingContinuationPhase.Failed }));
+const DONE_CONTINUATION_SHORT = doneWith(continuationOf({ listed: listedOf(10), phase: GroovingContinuationPhase.Short }));
+const DONE_CONTINUATION_FINISHED = doneWith(
+  continuationOf({ enabled: true, rounds: 3, listed: listedOf(10), playing: "t10", phase: GroovingContinuationPhase.Finished })
 );
 // The same states after the page could not replace the queue
 const queueFailedOf = (state: GroovingState): GroovingState =>
@@ -207,6 +273,13 @@ const SAMPLE_STATES: GroovingState[] = [
   DONE,
   DONE_SAVE_FAILED,
   DONE_REPLACING,
+  DONE_CONTINUING,
+  DONE_COLLECTING,
+  DONE_REQUESTING,
+  DONE_REQUESTING_RETRY,
+  DONE_CONTINUATION_FAILED,
+  DONE_CONTINUATION_SHORT,
+  DONE_CONTINUATION_FINISHED,
   SAVING,
   SAVING_REPLACING,
   SAVED,
@@ -247,13 +320,31 @@ const pairFailed = (requestId: string, reason: GroovingFailureReason = GroovingF
   requestId,
   reason
 });
-const listArrived = (requestId: string, list: GroovingList = LIST): GroovingEvent => ({ type: "list-arrived", requestId, list });
+const listArrived = (requestId: string, list: GroovingList = LIST, continueEnabled = false): GroovingEvent => ({
+  type: "list-arrived",
+  requestId,
+  list,
+  continueEnabled
+});
 const listUnusable = (requestId: string): GroovingEvent => ({ type: "list-unusable", requestId });
 const listFailed = (requestId: string): GroovingEvent => ({ type: "list-failed", requestId, reason: GroovingFailureReason.Network });
 const candidatesReady: GroovingEvent = { type: "candidates-ready", candidates: CANDIDATES, filledFromMood: true };
 const RETRY: GroovingEvent = { type: "retry" };
 const previewStart = (videoId: string): GroovingEvent => ({ type: "preview-start", videoId });
 const PREVIEW_ENDED: GroovingEvent = { type: "preview-ended" };
+const continueToggle = (enabled: boolean): GroovingEvent => ({ type: "continue-toggle", enabled });
+const trackStarted = (videoId: string): GroovingEvent => ({ type: "track-started", videoId });
+const trackReaction = (videoId: string, reaction: GroovingReaction): GroovingEvent => ({ type: "track-reaction", videoId, reaction });
+const continuationCandidates = (requestId: number, ok: boolean, reason: "short" | "failed" = "failed"): GroovingEvent =>
+  ok ? { type: "continuation-candidates", requestId, ok: true } : { type: "continuation-candidates", requestId, ok: false, reason };
+const continuationArrived = (requestId: number, tracks: GroovingCandidate[] = [track("n1", GroovingTrackKind.New)]): GroovingEvent => ({
+  type: "continuation-arrived",
+  requestId,
+  tracks
+});
+const continuationUnusable = (requestId: number): GroovingEvent => ({ type: "continuation-unusable", requestId });
+const continuationFailed = (requestId: number): GroovingEvent => ({ type: "continuation-failed", requestId });
+const SAVED_EVENT: GroovingEvent = { type: "saved", playlistId: "p1" };
 const requestPair = (requestId: string, session: GroovingSession, assumed: GroovingAnswer | null = null): GroovingEffect => ({
   type: "request-pair",
   requestId,
@@ -271,6 +362,13 @@ function eventsFor(state: GroovingState): GroovingEvent[] {
     for (const prefetch of [flow.prefetch.left, flow.prefetch.right]) if (prefetch?.status === "pending") ids.push(prefetch.requestId);
   }
   const videoIds = flow.kind === "choose" ? [flow.pair.left, flow.pair.right, "zz"] : ["a", "zz"];
+  const continuationIds: number[] = [];
+  const startedIds = [...videoIds];
+  if (flow.kind === "done" || flow.kind === "saving" || flow.kind === "saved") {
+    if (flow.continuation.requestId !== null) continuationIds.push(flow.continuation.requestId);
+    continuationIds.push(999);
+    startedIds.push(...flow.continuation.listed.map(track => track.videoId));
+  }
   return [
     SHARE,
     NO_HISTORY,
@@ -292,8 +390,22 @@ function eventsFor(state: GroovingState): GroovingEvent[] {
     ...videoIds.map(previewStart),
     PREVIEW_ENDED,
     { type: "save" },
-    { type: "saved" },
+    SAVED_EVENT,
     { type: "save-failed" },
+    continueToggle(true),
+    continueToggle(false),
+    ...startedIds.map(trackStarted),
+    ...startedIds.map(videoId => trackReaction(videoId, GroovingReaction.PlayedThrough)),
+    ...continuationIds.flatMap(id => [
+      continuationCandidates(id, true),
+      continuationCandidates(id, false, "short"),
+      continuationCandidates(id, false, "failed"),
+      continuationArrived(id),
+      continuationUnusable(id),
+      continuationFailed(id)
+    ]),
+    { type: "playlist-added" },
+    { type: "playlist-add-failed" },
     { type: "queue-failed" },
     QUEUE_REPLACED,
     { type: "again" },
@@ -583,7 +695,7 @@ const CASES: Case[] = [
   ["choose while previewing, preview ended", CHOOSE_PREVIEWING, PREVIEW_ENDED, CHOOSE, [PREVIEW_END]],
   // save
   ["done, save", DONE, { type: "save" }, SAVING, [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]],
-  ["saving, saved", SAVING, { type: "saved" }, SAVED, []],
+  ["saving, saved", SAVING, SAVED_EVENT, SAVED, []],
   ["saving, save failed", SAVING, { type: "save-failed" }, DONE_SAVE_FAILED, []],
   [
     "done (save failed), save",
@@ -623,7 +735,7 @@ const CASES: Case[] = [
     SAVING_QUEUE_FAILED,
     [{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]
   ],
-  ["saving (queue failed), saved", SAVING_QUEUE_FAILED, { type: "saved" }, SAVED_QUEUE_FAILED, []],
+  ["saving (queue failed), saved", SAVING_QUEUE_FAILED, SAVED_EVENT, SAVED_QUEUE_FAILED, []],
   ["saving (queue failed), save failed", SAVING_QUEUE_FAILED, { type: "save-failed" }, DONE_BOTH_FAILED, []],
   // again
   ["done, again", DONE, { type: "again" }, stateOf({ kind: "setup", historyShared: true }, { queue: "earlier-run" }), [LOAD_MOODS]],
@@ -637,7 +749,15 @@ const CASES: Case[] = [
   [
     "saved (no history), again",
     stateOf(
-      { kind: "saved", session: { ...ANSWERED_ALL, historyShared: false }, list: LIST, saveFailed: false, queueFailed: false, replacing: false },
+      {
+        kind: "saved",
+        session: { ...ANSWERED_ALL, historyShared: false },
+        list: LIST,
+        continuation: savedContinuation(),
+        saveFailed: false,
+        queueFailed: false,
+        replacing: false
+      },
       { queue: "this-run" }
     ),
     { type: "again" },
@@ -660,7 +780,7 @@ const CASES: Case[] = [
     SAVING,
     PAGE_RELOADED,
     stateOf(
-      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false },
+      { kind: "done", session: ANSWERED_ALL, list: LIST, continuation: continuationOf(), saveFailed: true, queueFailed: false, replacing: false },
       { queue: "this-run", visibility: GroovingVisibility.Hidden }
     ),
     []
@@ -670,7 +790,7 @@ const CASES: Case[] = [
     SAVING_REPLACING,
     PAGE_RELOADED,
     stateOf(
-      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: true, replacing: false },
+      { kind: "done", session: ANSWERED_ALL, list: LIST, continuation: continuationOf(), saveFailed: true, queueFailed: true, replacing: false },
       { queue: "this-run", visibility: GroovingVisibility.Hidden }
     ),
     []
@@ -680,7 +800,7 @@ const CASES: Case[] = [
     DONE_REPLACING,
     PAGE_RELOADED,
     stateOf(
-      { kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: true, replacing: false },
+      { kind: "done", session: ANSWERED_ALL, list: LIST, continuation: continuationOf(), saveFailed: false, queueFailed: true, replacing: false },
       { queue: "this-run", visibility: GroovingVisibility.Hidden }
     ),
     []
@@ -690,7 +810,7 @@ const CASES: Case[] = [
     SAVED_REPLACING,
     PAGE_RELOADED,
     stateOf(
-      { kind: "saved", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: true, replacing: false },
+      { kind: "saved", session: ANSWERED_ALL, list: LIST, continuation: savedContinuation(), saveFailed: false, queueFailed: true, replacing: false },
       { queue: "this-run", visibility: GroovingVisibility.Hidden }
     ),
     []
@@ -802,7 +922,7 @@ const IGNORED_CASES: [string, GroovingState, GroovingEvent][] = [
   ["closed, preview ended", CLOSED, PREVIEW_ENDED],
   ["saving, save", SAVING, { type: "save" }],
   ["saved, save", SAVED, { type: "save" }],
-  ["done, saved", DONE, { type: "saved" }],
+  ["done, saved", DONE, SAVED_EVENT],
   ["done, save failed", DONE, { type: "save-failed" }],
   ["setup, again", SETUP, { type: "again" }],
   ["saving, again", SAVING, { type: "again" }],
@@ -817,6 +937,12 @@ const IGNORED_CASES: [string, GroovingState, GroovingEvent][] = [
   ["hidden failed, retry", HIDDEN_FAILED_COLLECT, RETRY],
   ["hidden choose, preview", HIDDEN_CHOOSE, previewStart("a")],
   ["hidden done, save", HIDDEN_DONE, { type: "save" }],
+  ["hidden done, continue toggle", HIDDEN_DONE, continueToggle(true)],
+  ["done, the same continue toggle", DONE, continueToggle(false)],
+  ["choose, track started", CHOOSE, trackStarted("a")],
+  ["done, an answer for no request", DONE, continuationArrived(5)],
+  ["done, playlist added", DONE, { type: "playlist-added" }],
+  ["done, playlist add failed", DONE, { type: "playlist-add-failed" }],
   ["hidden done (queue failed), retry", hiddenOf(DONE_QUEUE_FAILED), RETRY],
   ["hidden done, again", HIDDEN_DONE, { type: "again" }],
   ["closed, page reloaded", CLOSED, PAGE_RELOADED],
@@ -900,7 +1026,8 @@ function expectRules(state: GroovingState, event: GroovingEvent, next: GroovingS
   expect(next.nextRequestId).toBeGreaterThanOrEqual(state.nextRequestId);
   // Only the done screen tells that saving failed, and only right after save-failed
   const nextFlow = next.flow;
-  if (nextFlow.kind === "saving" || nextFlow.kind === "saved") expect(nextFlow.saveFailed).toBe(false);
+  if (nextFlow.kind === "saving") expect(nextFlow.saveFailed).toBe(false);
+  if (nextFlow.kind === "saved" && nextFlow.saveFailed) expect(["playlist-add-failed", "save-failed", "page-reloaded"]).toContain(event.type);
   // (queue-failed and retry keep a done whose save failed, in a new flow with only queueFailed changed)
   if (nextFlow.kind === "done" && nextFlow.saveFailed && !(state.flow.kind === "done" && state.flow.saveFailed)) {
     expect(["save-failed", "page-reloaded"]).toContain(event.type);
@@ -927,6 +1054,20 @@ function expectRules(state: GroovingState, event: GroovingEvent, next: GroovingS
   else expect(next.visibility).not.toBe(GroovingVisibility.Gone);
   // (f) The notice goes away only when it is dismissed, started or closed
   if (state.notice && !next.notice) expect(["dismiss-notice", "start", "close"]).toContain(event.type);
+  // (g) The continuation part never goes over 3 rounds and never lists a track twice
+  if ("continuation" in nextFlow) {
+    expect(nextFlow.continuation.rounds).toBeGreaterThanOrEqual(0);
+    expect(nextFlow.continuation.rounds).toBeLessThanOrEqual(3);
+    const listed = nextFlow.continuation.listed.map(track => track.videoId);
+    expect(new Set(listed).size).toBe(listed.length);
+  }
+  // (h) Nothing goes to the queue of a run whose continuation is off, and an add never repeats a saved track
+  for (const effect of effects) {
+    if (effect.type === "append-queue" && "continuation" in nextFlow) expect(nextFlow.continuation.enabled).toBe(true);
+    if (effect.type === "add-to-playlist" && "continuation" in flow) {
+      for (const videoId of effect.videoIds) expect(flow.continuation.savedVideoIds).not.toContain(videoId);
+    }
+  }
 }
 
 describe("decideGrooving", () => {
@@ -937,6 +1078,7 @@ describe("decideGrooving", () => {
       notice: false,
       previewing: null,
       queue: "original",
+      seed: { playing: null, recognized: null, canRecognize: false },
       nextRequestId: 1
     });
   });
@@ -1154,7 +1296,7 @@ describe("decideGrooving", () => {
       answer(GroovingAnswer.Neither),
       listArrived("r6"),
       { type: "save" },
-      { type: "saved" }
+      SAVED_EVENT
     ]);
     expect(state.flow.kind).toBe("saved");
     expect(state.queue).toBe("this-run");
@@ -1175,6 +1317,316 @@ describe("decideGrooving", () => {
     const flow = state.flow as Extract<Flow, { list: GroovingList }>;
     expect(flow.session.history.map(record => record.answer)).toEqual([GroovingAnswer.Left, GroovingAnswer.Right, GroovingAnswer.Neither]);
     expect(flow.session.shown).toEqual(["a", "b", "c", "d", "e", "f"]);
+  });
+});
+
+describe("続けて流す", () => {
+  const nearEnd = (overrides: Partial<GroovingContinuation> = {}): GroovingState =>
+    doneWith(continuationOf({ enabled: true, listed: listedOf(10), playing: "t10", ...overrides }));
+
+  it("starts from the last choice of the toggle when the list arrives", () => {
+    const { state, effects } = decideGrooving(LIST_WAIT, listArrived("r9", LIST, true));
+    expect(continuationAt(state)).toEqual({
+      enabled: true,
+      rounds: 0,
+      phase: GroovingContinuationPhase.Idle,
+      listed: LISTED,
+      reactions: {},
+      requestId: null,
+      savedVideoIds: [],
+      playlistId: null,
+      playing: null
+    });
+    expect(effects).toEqual([{ type: "replace-queue", videoIds: LIST.videoIds }]);
+  });
+
+  it("collects the candidates when 5 tracks or fewer are left", () => {
+    const state = doneWith(continuationOf({ enabled: true, listed: listedOf(10) }));
+    // t5 is the fifth of ten: five tracks are left after it
+    const { state: next, effects } = decideGrooving(state, trackStarted("t5"));
+    expect(continuationAt(next)).toMatchObject({ enabled: true, playing: "t5", phase: GroovingContinuationPhase.Collecting, requestId: 10 });
+    expect(next.nextRequestId).toBe(11);
+    expect(effects).toEqual([{ type: "collect-continuation", requestId: 10, relatedOf: null }]);
+  });
+
+  it("does not collect while 6 tracks are left", () => {
+    const state = doneWith(continuationOf({ enabled: true, listed: listedOf(10) }));
+    const { state: next, effects } = decideGrooving(state, trackStarted("t4"));
+    expect(continuationAt(next)).toMatchObject({ enabled: true, playing: "t4", phase: GroovingContinuationPhase.Idle, requestId: null });
+    expect(effects).toEqual([]);
+  });
+
+  it("does not collect while the toggle is off", () => {
+    const state = doneWith(continuationOf({ enabled: false, listed: listedOf(10) }));
+    const { state: next, effects } = decideGrooving(state, trackStarted("t10"));
+    expect(continuationAt(next).phase).toBe(GroovingContinuationPhase.Idle);
+    expect(effects).toEqual([]);
+  });
+
+  it("stops after 3 rounds", () => {
+    let state = doneWith(continuationOf({ enabled: true, listed: listedOf(10), playing: "t10" }));
+    for (let round = 1; round <= 3; round++) {
+      const collecting = decideGrooving(state, trackStarted("t10"));
+      const requestId = continuationAt(collecting.state).requestId;
+      expect(requestId).not.toBeNull();
+      const requesting = decideGrooving(collecting.state, continuationCandidates(requestId as number, true)).state;
+      state = decideGrooving(requesting, continuationArrived(requestId as number, [track(`c${round}`, GroovingTrackKind.New)])).state;
+      expect(continuationAt(state).rounds).toBe(round);
+      expect(continuationAt(state).phase).toBe(round === 3 ? GroovingContinuationPhase.Finished : GroovingContinuationPhase.Idle);
+    }
+    expect(
+      continuationAt(state)
+        .listed.map(track => track.videoId)
+        .slice(-3)
+    ).toEqual(["c1", "c2", "c3"]);
+    expect(decideGrooving(state, trackStarted("t10")).effects).toEqual([]);
+  });
+
+  it("appends the continuation list and counts the round", () => {
+    const state = nearEnd({ phase: GroovingContinuationPhase.Requesting, requestId: 5 });
+    const tracks = [track("n1", GroovingTrackKind.New), track("n2", GroovingTrackKind.Familiar)];
+    const { state: next, effects } = decideGrooving(state, continuationArrived(5, tracks));
+    expect(continuationAt(next)).toMatchObject({ rounds: 1, phase: GroovingContinuationPhase.Idle, requestId: null, enabled: true });
+    expect(continuationAt(next).listed.map(listed => listed.videoId)).toEqual([...listedOf(10).map(listed => listed.videoId), "n1", "n2"]);
+    expect(effects).toEqual([{ type: "append-queue", videoIds: ["n1", "n2"] }]);
+  });
+
+  it("turns off when another track starts", () => {
+    const state = nearEnd({ phase: GroovingContinuationPhase.Requesting, requestId: 5 });
+    const { state: next, effects } = decideGrooving(state, trackStarted("other"));
+    expect(continuationAt(next)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Idle, requestId: null });
+    expect(effects).toEqual([]);
+  });
+
+  it("does not turn off for a preview track", () => {
+    const flow = nearEnd({ phase: GroovingContinuationPhase.Requesting, requestId: 5 }).flow;
+    const state = stateOf(flow, { previewing: "preview" });
+    expect(decideGrooving(state, trackStarted("preview"))).toEqual({ state, effects: [] });
+  });
+
+  it("does not turn off for the earlier queue while it is being replaced", () => {
+    const flow = doneWith(continuationOf({ enabled: true, listed: listedOf(10), playing: "t10" })).flow;
+    const state = stateOf({ ...(flow as Extract<Flow, { continuation: GroovingContinuation }>), replacing: true }, { queue: "this-run" });
+    expect(decideGrooving(state, trackStarted("earlier"))).toEqual({ state, effects: [] });
+  });
+
+  it("takes the related tracks from the last liked track, else the last played-through track", () => {
+    const state = doneWith(
+      continuationOf({
+        enabled: true,
+        listed: listedOf(10),
+        reactions: {
+          t2: GroovingReaction.Liked,
+          t7: GroovingReaction.PlayedThrough,
+          t9: GroovingReaction.PlayedThrough
+        }
+      })
+    );
+    const collecting = decideGrooving(state, trackStarted("t10"));
+    expect(collecting.effects).toEqual([{ type: "collect-continuation", requestId: 10, relatedOf: "t2" }]);
+
+    const played = doneWith(
+      continuationOf({ enabled: true, listed: listedOf(10), reactions: { t7: GroovingReaction.PlayedThrough, t9: GroovingReaction.PlayedThrough } })
+    );
+    expect(decideGrooving(played, trackStarted("t10")).effects).toEqual([{ type: "collect-continuation", requestId: 10, relatedOf: "t9" }]);
+
+    const none = doneWith(continuationOf({ enabled: true, listed: listedOf(10), reactions: { t7: GroovingReaction.Skipped } }));
+    expect(decideGrooving(none, trackStarted("t10")).effects).toEqual([{ type: "collect-continuation", requestId: 10, relatedOf: null }]);
+  });
+
+  it("keeps the reactions of listed tracks and ignores the others", () => {
+    const state = nearEnd();
+    const withReaction = decideGrooving(state, trackReaction("t2", GroovingReaction.Disliked)).state;
+    expect(continuationAt(withReaction).reactions).toEqual({ t2: GroovingReaction.Disliked });
+    expect(decideGrooving(withReaction, trackReaction("other", GroovingReaction.Liked))).toEqual({ state: withReaction, effects: [] });
+  });
+
+  it("asks again once when the answer is unusable, then fails and turns off", () => {
+    const state = nearEnd({ phase: GroovingContinuationPhase.Collecting, requestId: 5 });
+    const asked = decideGrooving(state, continuationCandidates(5, true));
+    expect(continuationAt(asked.state).phase).toBe(GroovingContinuationPhase.Requesting);
+    expect(asked.effects).toEqual([{ type: "request-continuation", requestId: 5, retry: false }]);
+
+    const retried = decideGrooving(asked.state, continuationUnusable(5));
+    expect(continuationAt(retried.state).phase).toBe(GroovingContinuationPhase.RequestingRetry);
+    expect(retried.effects).toEqual([{ type: "request-continuation", requestId: 5, retry: true }]);
+
+    const failed = decideGrooving(retried.state, continuationUnusable(5));
+    expect(continuationAt(failed.state)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Failed, requestId: null });
+    expect(failed.effects).toEqual([]);
+  });
+
+  it("turns off when the LLM cannot be asked", () => {
+    const state = nearEnd({ phase: GroovingContinuationPhase.RequestingRetry, requestId: 5 });
+    const { state: next, effects } = decideGrooving(state, continuationFailed(5));
+    expect(continuationAt(next)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Failed, requestId: null });
+    expect(effects).toEqual([]);
+  });
+
+  it("turns off when the candidates are short, and when they cannot be collected", () => {
+    const collecting = (): GroovingState => nearEnd({ phase: GroovingContinuationPhase.Collecting, requestId: 5 });
+    const short = decideGrooving(collecting(), continuationCandidates(5, false, "short"));
+    expect(continuationAt(short.state)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Short, requestId: null });
+    const failed = decideGrooving(collecting(), continuationCandidates(5, false, "failed"));
+    expect(continuationAt(failed.state)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Failed, requestId: null });
+  });
+
+  it("collects at once when turned on again near the end", () => {
+    const state = nearEnd({ enabled: false, phase: GroovingContinuationPhase.Failed, playing: "t9" });
+    const { state: next, effects } = decideGrooving(state, continueToggle(true));
+    expect(continuationAt(next)).toMatchObject({ enabled: true, phase: GroovingContinuationPhase.Collecting, requestId: 10 });
+    expect(effects).toEqual([{ type: "collect-continuation", requestId: 10, relatedOf: null }]);
+  });
+
+  it("only waits when turned on again with 6 tracks or more left", () => {
+    const state = nearEnd({ enabled: false, phase: GroovingContinuationPhase.Short, playing: "t1" });
+    const { state: next, effects } = decideGrooving(state, continueToggle(true));
+    expect(continuationAt(next)).toMatchObject({ enabled: true, phase: GroovingContinuationPhase.Idle, requestId: null });
+    expect(effects).toEqual([]);
+  });
+
+  it("drops an answer that arrives after the toggle went off", () => {
+    const state = nearEnd({ phase: GroovingContinuationPhase.Requesting, requestId: 5 });
+    const off = decideGrooving(state, continueToggle(false));
+    expect(continuationAt(off.state)).toMatchObject({ enabled: false, phase: GroovingContinuationPhase.Idle, requestId: null });
+    expect(decideGrooving(off.state, continuationArrived(5, [track("n1", GroovingTrackKind.New)]))).toEqual({ state: off.state, effects: [] });
+    expect(decideGrooving(off.state, continuationCandidates(5, true))).toEqual({ state: off.state, effects: [] });
+  });
+
+  it("does not collect when turned on while a track outside the list plays", () => {
+    let state = doneWith(continuationOf({ listed: listedOf(25) }));
+    state = decideGrooving(state, trackStarted("t22")).state;
+    state = decideGrooving(state, trackStarted("other")).state;
+    const decision = decideGrooving(state, continueToggle(true));
+    expect(decision.effects).toEqual([]);
+    expect(continuationAt(decision.state)).toMatchObject({ enabled: true, phase: GroovingContinuationPhase.Idle, playing: null });
+  });
+
+  it("keeps the phase of a stopped continuation when a track outside the list starts", () => {
+    for (const phase of [GroovingContinuationPhase.Failed, GroovingContinuationPhase.Short, GroovingContinuationPhase.Finished]) {
+      const state = doneWith(continuationOf({ listed: listedOf(25), phase, rounds: phase === GroovingContinuationPhase.Finished ? 3 : 0 }));
+      const next = decideGrooving(state, trackStarted("other")).state;
+      expect(continuationAt(next).phase).toBe(phase);
+      expect(continuationAt(next).playing).toBeNull();
+    }
+    const hidden = hiddenOf(doneWith(continuationOf({ listed: listedOf(25), phase: GroovingContinuationPhase.Failed })));
+    const failed = decideGrooving(hidden, trackStarted("other")).state;
+    expect(continuationAt(failed).phase).toBe(GroovingContinuationPhase.Failed);
+    expect(toGroovingViewState(failed, EXTRA).mark).toBe(GROOVING_MARK_TEXT.en.error);
+  });
+
+  it("keeps going while the screen is hidden", () => {
+    const state = hiddenOf(nearEnd({ phase: GroovingContinuationPhase.Collecting, requestId: 5 }));
+    const asked = decideGrooving(state, continuationCandidates(5, true));
+    expect(continuationAt(asked.state).phase).toBe(GroovingContinuationPhase.Requesting);
+    expect(asked.effects).toEqual([{ type: "request-continuation", requestId: 5, retry: false }]);
+    const asked2 = decideGrooving(
+      { ...asked.state, visibility: GroovingVisibility.Hidden },
+      continuationArrived(5, [track("n1", GroovingTrackKind.New)])
+    );
+    expect(continuationAt(asked2.state).rounds).toBe(1);
+  });
+});
+
+describe("saving with 続けて流す", () => {
+  const listed = listedOf(4);
+  const savedWith = (overrides: Partial<GroovingContinuation> = {}): GroovingState =>
+    stateOf(
+      {
+        kind: "saved",
+        session: ANSWERED_ALL,
+        list: LIST,
+        continuation: continuationOf({ listed, savedVideoIds: ["t1", "t2"], playlistId: "p1", ...overrides }),
+        saveFailed: false,
+        queueFailed: false,
+        replacing: false
+      },
+      { queue: "this-run" }
+    );
+
+  it("saves every listed track, continuation lists included", () => {
+    const state = doneWith(continuationOf({ listed }));
+    const { state: saving, effects } = decideGrooving(state, { type: "save" });
+    expect(saving.flow.kind).toBe("saving");
+    expect(effects).toEqual([{ type: "save-playlist", title: LIST.moodDescription, videoIds: ["t1", "t2", "t3", "t4"] }]);
+  });
+
+  it("remembers the playlist and the tracks it saved", () => {
+    const saving = decideGrooving(doneWith(continuationOf({ listed })), { type: "save" }).state;
+    const { state: saved, effects } = decideGrooving(saving, { type: "saved", playlistId: "p1" });
+    expect(effects).toEqual([]);
+    expect(saved.flow.kind).toBe("saved");
+    expect(continuationAt(saved)).toMatchObject({ savedVideoIds: ["t1", "t2", "t3", "t4"], playlistId: "p1" });
+  });
+
+  it("adds only the tracks the playlist does not have, and never makes a second playlist", () => {
+    const state = savedWith();
+    const saving = decideGrooving(state, { type: "save" });
+    expect(saving.state.flow.kind).toBe("saving");
+    expect(saving.effects).toEqual([{ type: "add-to-playlist", playlistId: "p1", videoIds: ["t3", "t4"] }]);
+    const saved = decideGrooving(saving.state, { type: "playlist-added" }).state;
+    expect(saved.flow.kind).toBe("saved");
+    expect(continuationAt(saved)).toMatchObject({ savedVideoIds: ["t1", "t2", "t3", "t4"], playlistId: "p1" });
+    // Nothing is left to add: the button is done and save does nothing
+    expect(decideGrooving(saved, { type: "save" })).toEqual({ state: saved, effects: [] });
+  });
+
+  it("goes back to saved when the add fails, not to done", () => {
+    const adding = decideGrooving(savedWith(), { type: "save" }).state;
+    const failed = decideGrooving(adding, { type: "playlist-add-failed" });
+    expect(failed.state.flow.kind).toBe("saved");
+    expect(failed.state.flow).toMatchObject({ saveFailed: true });
+    expect(continuationAt(failed.state).playlistId).toBe("p1");
+    expect(toGroovingViewState(failed.state, EXTRA)).toMatchObject({
+      screen: "done",
+      saved: "failed",
+      saveAction: GroovingSaveAction.Add
+    });
+  });
+
+  it("goes back to saved when the page reloads while adding, not to done", () => {
+    const adding = decideGrooving(savedWith(), { type: "save" }).state;
+    const reloaded = decideGrooving(adding, PAGE_RELOADED).state;
+    expect(reloaded.flow.kind).toBe("saved");
+    expect(reloaded.flow).toMatchObject({ saveFailed: true });
+    expect(continuationAt(reloaded).playlistId).toBe("p1");
+  });
+
+  it("does not count tracks that arrive while saving as saved", () => {
+    const arrived = (from: number): GroovingCandidate[] => Array.from({ length: 25 }, (_, index) => track(`n${from + index}`, GroovingTrackKind.New));
+    // The first save: the continuation arrives while saving, after the playlist was sent the 25 listed tracks
+    const state = doneWith(
+      continuationOf({ enabled: true, listed: listedOf(25), playing: "t25", phase: GroovingContinuationPhase.Requesting, requestId: 5 })
+    );
+    const saving = decideGrooving(state, { type: "save" }).state;
+    const expanded = decideGrooving(saving, continuationArrived(5, arrived(1))).state;
+    expect(continuationAt(expanded).listed).toHaveLength(50);
+    const saved = decideGrooving(expanded, { type: "saved", playlistId: "p1" }).state;
+    expect(continuationAt(saved).savedVideoIds).toEqual(listedOf(25).map(listed => listed.videoId));
+    expect(toGroovingViewState(saved, EXTRA)).toMatchObject({ screen: "done", saveAction: GroovingSaveAction.Add });
+
+    // The add: more tracks arrive while the missing ones are being added
+    const adding = savedWith({
+      listed: [...listedOf(25), ...arrived(1)],
+      savedVideoIds: listedOf(25).map(listed => listed.videoId),
+      enabled: true,
+      rounds: 1,
+      phase: GroovingContinuationPhase.Requesting,
+      requestId: 5
+    });
+    const addingState = decideGrooving(adding, { type: "save" });
+    expect(addingState.effects).toEqual([{ type: "add-to-playlist", playlistId: "p1", videoIds: arrived(1).map(listed => listed.videoId) }]);
+    const grown = decideGrooving(addingState.state, continuationArrived(5, arrived(26))).state;
+    const added = decideGrooving(grown, { type: "playlist-added" }).state;
+    expect(continuationAt(added).savedVideoIds).toEqual([...listedOf(25), ...arrived(1)].map(listed => listed.videoId));
+    expect(toGroovingViewState(added, EXTRA)).toMatchObject({ screen: "done", saveAction: GroovingSaveAction.Add });
+  });
+
+  it("shows add while new tracks wait, and saved once they are in the playlist", () => {
+    const state = savedWith();
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ saveAction: GroovingSaveAction.Add });
+    const saved = decideGrooving(decideGrooving(state, { type: "save" }).state, { type: "playlist-added" }).state;
+    expect(toGroovingViewState(saved, EXTRA)).toMatchObject({ saveAction: GroovingSaveAction.Saved, saved: "saved" });
   });
 });
 
@@ -1253,6 +1705,11 @@ describe("groovingStopsThrottling", () => {
     ["hidden failed", HIDDEN_FAILED_COLLECT, false],
     ["hidden done while replacing the queue", hiddenOf(DONE_REPLACING), true],
     ["hidden done", HIDDEN_DONE, false],
+    ["hidden done collecting the continuation", hiddenOf(DONE_COLLECTING), true],
+    ["hidden done requesting the continuation", hiddenOf(DONE_REQUESTING), true],
+    ["hidden done retrying the continuation", hiddenOf(DONE_REQUESTING_RETRY), true],
+    ["hidden done with the continuation failed", hiddenOf(DONE_CONTINUATION_FAILED), false],
+    ["hidden done with the continuation finished", hiddenOf(DONE_CONTINUATION_FINISHED), false],
     ["hidden saving", HIDDEN_SAVING, true],
     ["hidden saved while replacing the queue", hiddenOf(SAVED_REPLACING), true],
     ["hidden saved", HIDDEN_SAVED, false],
@@ -1311,10 +1768,11 @@ describe("toGroovingViewState", () => {
         historyShared: false,
         providerLabel: "Gemini",
         model: "gemini-3.5-flash-lite",
-        notice: false
+        notice: false,
+        seed: NO_SEED
       }
     ],
-    ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false }],
+    ["collect", COLLECT, { screen: "working", step: GroovingStep.Collect, round: null, rounds: null, filledFromMood: false, fromSong: false }],
     [
       "pair wait (second round)",
       stateOf({
@@ -1323,7 +1781,7 @@ describe("toGroovingViewState", () => {
         requestId: "r9",
         retry: true
       }),
-      { screen: "working", step: GroovingStep.Pair, round: 2, rounds: 3, filledFromMood: true }
+      { screen: "working", step: GroovingStep.Pair, round: 2, rounds: 3, filledFromMood: true, fromSong: false }
     ],
     [
       "choose",
@@ -1337,7 +1795,8 @@ describe("toGroovingViewState", () => {
         left: CANDIDATES[0],
         right: CANDIDATES[1],
         previewing: "a",
-        filledFromMood: false
+        filledFromMood: false,
+        fromSong: false
       }
     ],
     [
@@ -1352,15 +1811,16 @@ describe("toGroovingViewState", () => {
         left: CANDIDATES[4],
         right: CANDIDATES[5],
         previewing: null,
-        filledFromMood: false
+        filledFromMood: false,
+        fromSong: false
       }
     ],
     [
       "choose (a track not in the candidates)",
       stateOf({ kind: "choose", session: SHOWING, pair: { left: "a", right: "zz", reason: "" }, prefetch: { left: null, right: null } }),
-      { screen: "working", step: GroovingStep.Pair, round: 1, rounds: 3, filledFromMood: false }
+      { screen: "working", step: GroovingStep.Pair, round: 1, rounds: 3, filledFromMood: false, fromSong: false }
     ],
-    ["list wait", LIST_RETRY, { screen: "working", step: GroovingStep.List, round: null, rounds: null, filledFromMood: false }],
+    ["list wait", LIST_RETRY, { screen: "working", step: GroovingStep.List, round: null, rounds: null, filledFromMood: false, fromSong: false }],
     [
       "failed (collect)",
       FAILED_COLLECT,
@@ -1381,33 +1841,71 @@ describe("toGroovingViewState", () => {
     });
   });
 
-  it.each<[string, GroovingState, "no" | "saving" | "saved" | "failed"]>([
-    ["done", DONE, "no"],
-    ["done (save failed)", DONE_SAVE_FAILED, "failed"],
-    ["saving", SAVING, "saving"],
-    ["saved", SAVED, "saved"]
-  ])("%s", (_name, state, saved) => {
+  it.each<[string, GroovingState, "no" | "saving" | "saved" | "failed", GroovingSaveAction]>([
+    ["done", DONE, "no", GroovingSaveAction.Save],
+    ["done (save failed)", DONE_SAVE_FAILED, "failed", GroovingSaveAction.Save],
+    ["saving", SAVING, "saving", GroovingSaveAction.Save],
+    ["saved", SAVED, "saved", GroovingSaveAction.Saved]
+  ])("%s", (_name, state, saved, saveAction) => {
     expect(toGroovingViewState(state, EXTRA)).toEqual({
       screen: "done",
       moodLabel: "Chill",
       moodDescription: LIST.moodDescription,
-      tracks: [CANDIDATES[0], CANDIDATES[1], CANDIDATES[2]],
+      listed: LISTED,
       familiarCount: 2,
       newCount: 1,
       usage: { inputTokens: 1200, outputTokens: 300, estimatedUsd: 0.001, model: "gemini-3.5-flash-lite" },
       saved,
+      saveAction,
+      continuation: { enabled: false, rounds: 0, maxRounds: 3, phase: GroovingContinuationPhase.Idle },
       queueFailed: false,
       visibility: GroovingVisibility.Shown,
       mark: null
     });
   });
 
+  it("lists the continuation tracks after the Grooving list", () => {
+    const continued = [...LISTED, track("x1", GroovingTrackKind.New)];
+    const state = doneWith(continuationOf({ listed: continued, enabled: true, rounds: 2, playing: "x1" }));
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({
+      screen: "done",
+      listed: continued,
+      familiarCount: 2,
+      newCount: 2,
+      continuation: { enabled: true, rounds: 2, maxRounds: 3, phase: GroovingContinuationPhase.Idle }
+    });
+  });
+
+  it("passes the phase of the continuation to the screen", () => {
+    for (const phase of Object.values(GroovingContinuationPhase)) {
+      const state = doneWith(continuationOf({ enabled: phase !== GroovingContinuationPhase.Failed, phase }));
+      expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "done", continuation: { phase } });
+    }
+  });
+
   it("tells on the done screen that saving failed, until it saves again", () => {
     const failedSave = run(DONE, [{ type: "save" }, { type: "save-failed" }]).state;
-    expect(failedSave.flow).toEqual({ kind: "done", session: ANSWERED_ALL, list: LIST, saveFailed: true, queueFailed: false, replacing: false });
+    expect(failedSave.flow).toEqual({
+      kind: "done",
+      session: ANSWERED_ALL,
+      list: LIST,
+      continuation: continuationOf(),
+      saveFailed: true,
+      queueFailed: false,
+      replacing: false
+    });
     expect(toGroovingViewState(failedSave, EXTRA)).toMatchObject({ screen: "done", saved: "failed" });
     const { state: saving, effects } = decideGrooving(failedSave, { type: "save" });
-    expect(saving.flow).toEqual({ kind: "saving", session: ANSWERED_ALL, list: LIST, saveFailed: false, queueFailed: false, replacing: false });
+    expect(saving.flow).toEqual({
+      kind: "saving",
+      session: ANSWERED_ALL,
+      list: LIST,
+      continuation: continuationOf(),
+      saveFailed: false,
+      queueFailed: false,
+      replacing: false,
+      sendingVideoIds: LIST.videoIds
+    });
     expect(effects).toEqual([{ type: "save-playlist", title: LIST.moodDescription, videoIds: LIST.videoIds }]);
     expect(toGroovingViewState(saving, EXTRA)).toMatchObject({ screen: "done", saved: "saving" });
   });
@@ -1437,6 +1935,7 @@ describe("toGroovingViewState", () => {
       kind: "done",
       session: { ...ANSWERED_ALL, mood: TEXT_MOOD },
       list: LIST,
+      continuation: continuationOf(),
       saveFailed: false,
       queueFailed: false,
       replacing: false
@@ -1474,6 +1973,12 @@ describe("toGroovingViewState", () => {
       "2 / 3"
     ],
     ["done", HIDDEN_DONE, GROOVING_MARK_TEXT.en.ready],
+    ["done collecting the continuation", hiddenOf(DONE_COLLECTING), GROOVING_MARK_TEXT.en.preparing],
+    ["done requesting the continuation", hiddenOf(DONE_REQUESTING), GROOVING_MARK_TEXT.en.preparing],
+    ["done retrying the continuation", hiddenOf(DONE_REQUESTING_RETRY), GROOVING_MARK_TEXT.en.preparing],
+    ["done with the continuation failed", hiddenOf(DONE_CONTINUATION_FAILED), GROOVING_MARK_TEXT.en.error],
+    ["done with the continuation short", hiddenOf(DONE_CONTINUATION_SHORT), GROOVING_MARK_TEXT.en.ready],
+    ["done with the continuation finished", hiddenOf(DONE_CONTINUATION_FINISHED), GROOVING_MARK_TEXT.en.ready],
     ["saving", HIDDEN_SAVING, GROOVING_MARK_TEXT.en.ready],
     ["saved", HIDDEN_SAVED, GROOVING_MARK_TEXT.en.ready],
     ["failed", HIDDEN_FAILED_COLLECT, GROOVING_MARK_TEXT.en.error],
@@ -1495,5 +2000,131 @@ describe("toGroovingViewState", () => {
     expect(toGroovingViewState(SETUP, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
     expect(toGroovingViewState(CHOOSE, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Shown, mark: null });
     expect(toGroovingViewState(CLOSED, EXTRA)).toMatchObject({ visibility: GroovingVisibility.Gone, mark: null });
+  });
+});
+
+describe("a song as the mood (From a song)", () => {
+  const SEED_REQUEST = { direction: GroovingDirection.Mix, historyShared: true, mood: SONG_MOOD };
+
+  it("starts collecting from the setup screen, with the song in the request", () => {
+    const { state, effects } = decideGrooving(SETUP, start(GroovingDirection.Mix, SONG_MOOD));
+    expect(state.flow).toEqual({ kind: "collect", session: { ...EMPTY_SESSION, mood: SONG_MOOD } });
+    expect(effects).toEqual([{ type: "collect", request: SEED_REQUEST }]);
+  });
+
+  it("starts with a recognized song that has no videoId", () => {
+    const mood: GroovingMood = { kind: "song", song: RECOGNIZED_SONG };
+    const { effects } = decideGrooving(SETUP, start(GroovingDirection.Familiar, mood, 5));
+    expect(effects).toEqual([{ type: "collect", request: { direction: GroovingDirection.Familiar, historyShared: true, mood } }]);
+  });
+
+  it("starts without history only in the discover direction, like any mood", () => {
+    expect(decideGrooving(SETUP_NO_HISTORY, start(GroovingDirection.Mix, SONG_MOOD))).toEqual({ state: SETUP_NO_HISTORY, effects: [] });
+    expect(decideGrooving(SETUP_NO_HISTORY, start(GroovingDirection.Discover, SONG_MOOD)).effects).toHaveLength(1);
+  });
+
+  it("fails with seed-not-found while collecting, and shows the reason", () => {
+    const { state } = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), { type: "collect-failed", reason: GroovingFailureReason.SeedNotFound }]);
+    expect(state.flow).toEqual({
+      kind: "failed",
+      session: { ...EMPTY_SESSION, mood: SONG_MOOD },
+      step: GroovingStep.Collect,
+      reason: GroovingFailureReason.SeedNotFound
+    });
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({
+      screen: "failed",
+      step: GroovingStep.Collect,
+      reason: "seed-not-found",
+      round: null,
+      rounds: null
+    });
+  });
+
+  it("collects again with the same song on retry", () => {
+    const failedState = run(SETUP, [
+      start(GroovingDirection.Mix, SONG_MOOD),
+      { type: "collect-failed", reason: GroovingFailureReason.SeedNotFound }
+    ]).state;
+    const { state, effects } = decideGrooving(failedState, RETRY);
+    expect(state.flow).toEqual({ kind: "collect", session: { ...EMPTY_SESSION, mood: SONG_MOOD } });
+    expect(effects).toEqual([{ type: "collect", request: SEED_REQUEST }]);
+  });
+
+  it("goes on to the pairs once the candidates are ready", () => {
+    const { state, effects } = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady]);
+    expect(state.flow.kind).toBe("pair-wait");
+    expect(effects.at(-1)).toMatchObject({ type: "request-pair", session: { mood: SONG_MOOD } });
+  });
+
+  it("shows fromSong with the artist fill while working and choosing", () => {
+    const state = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady]).state;
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "working", fromSong: true, filledFromMood: true });
+    const choose = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady, pairArrived("r10", PAIR_1)]).state;
+    expect(toGroovingViewState(choose, EXTRA)).toMatchObject({ screen: "choose", fromSong: true, filledFromMood: true });
+  });
+
+  it("names the mood after the song on the choose screen and the done screen, in the display language", () => {
+    const choose = run(SETUP, [start(GroovingDirection.Mix, SONG_MOOD), candidatesReady, pairArrived("r10", PAIR_1)]).state;
+    expect(toGroovingViewState(choose, EXTRA)).toMatchObject({ screen: "choose", moodLabel: "From Blue Hour / Alpha" });
+    expect(toGroovingViewState(choose, { ...EXTRA, language: GroovingLanguage.Japanese })).toMatchObject({ moodLabel: "Blue Hour / Alpha から" });
+    const done = doneWith(continuationOf());
+    const song = stateOf({ ...(done.flow as Extract<Flow, { list: GroovingList }>), session: { ...ANSWERED_ALL, mood: SONG_MOOD } });
+    expect(toGroovingViewState(song, EXTRA)).toMatchObject({ screen: "done", moodLabel: "From Blue Hour / Alpha" });
+    expect(toGroovingViewState(song, { ...EXTRA, language: GroovingLanguage.Japanese })).toMatchObject({ moodLabel: "Blue Hour / Alpha から" });
+  });
+});
+
+describe("seed-options", () => {
+  const options = (overrides: Partial<GroovingSeedOptions> = {}): GroovingEvent => ({
+    type: "seed-options",
+    playing: PLAYING_SONG,
+    recognized: RECOGNIZED_SONG,
+    canRecognize: true,
+    ...overrides
+  });
+
+  it("shows on the setup screen", () => {
+    const { state, effects } = decideGrooving(SETUP, options());
+    expect(effects).toEqual([]);
+    expect(state.flow).toEqual(SETUP.flow);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({
+      screen: "setup",
+      seed: { playing: PLAYING_SONG, recognized: RECOGNIZED_SONG, canRecognize: true }
+    });
+  });
+
+  it("starts with nothing to offer", () => {
+    expect(toGroovingViewState(SETUP, EXTRA)).toMatchObject({ seed: { playing: null, recognized: null, canRecognize: false } });
+  });
+
+  it("is replaced by the next one", () => {
+    const { state } = run(SETUP, [options(), options({ playing: null, canRecognize: false })]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ seed: { playing: null, recognized: RECOGNIZED_SONG, canRecognize: false } });
+  });
+
+  it.each<[string, GroovingState]>([
+    ["closed", CLOSED],
+    ["need key", NEED_KEY],
+    ["consent", CONSENT],
+    ["hidden setup", HIDDEN_SETUP],
+    ["collect", COLLECT],
+    ["choose", CHOOSE],
+    ["done", DONE],
+    ["failed", FAILED_COLLECT]
+  ])("is kept in %s without changing anything else", (_name, state) => {
+    const { state: next, effects } = decideGrooving(state, options());
+    expect(effects).toEqual([]);
+    expect(next).toEqual({ ...state, seed: { playing: PLAYING_SONG, recognized: RECOGNIZED_SONG, canRecognize: true } });
+  });
+
+  it("is on the setup screen that opens afterwards", () => {
+    const { state } = run(CLOSED, [options(), SHARE]);
+    expect(state.flow).toEqual({ kind: "setup", historyShared: true });
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "setup", seed: { playing: PLAYING_SONG, canRecognize: true } });
+  });
+
+  it("is kept when the run ends and starts again", () => {
+    const { state } = run(DONE, [options(), { type: "again" }]);
+    expect(toGroovingViewState(state, EXTRA)).toMatchObject({ screen: "setup", seed: { recognized: RECOGNIZED_SONG } });
   });
 });

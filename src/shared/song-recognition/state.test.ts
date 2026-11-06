@@ -3,6 +3,7 @@ import { SongRecognitionPhase, SongRecognitionResultKind } from "~shared/song-re
 import {
   decideSongRecognition,
   INITIAL_SONG_RECOGNITION_STATE,
+  SongRecognitionDestination,
   SongRecognitionEffect,
   SongRecognitionEffectType,
   SongRecognitionEvent,
@@ -10,29 +11,60 @@ import {
   SongRecognitionState
 } from "~shared/song-recognition/state";
 
-const IDLE: SongRecognitionState = { phase: SongRecognitionPhase.Idle, message: null, pausedByUs: false };
-const RECORDING: SongRecognitionState = { phase: SongRecognitionPhase.Recording, message: null, pausedByUs: false };
+const IDLE: SongRecognitionState = {
+  phase: SongRecognitionPhase.Idle,
+  message: null,
+  pausedByUs: false,
+  destination: SongRecognitionDestination.Search
+};
+const RECORDING: SongRecognitionState = {
+  phase: SongRecognitionPhase.Recording,
+  message: null,
+  pausedByUs: false,
+  destination: SongRecognitionDestination.Search
+};
 const RECORDING_PAUSED: SongRecognitionState = { ...RECORDING, pausedByUs: true };
-const SEARCHING: SongRecognitionState = { phase: SongRecognitionPhase.Searching, message: null, pausedByUs: false };
-const MESSAGE: SongRecognitionState = { phase: SongRecognitionPhase.Message, message: SongRecognitionResultKind.NoMatch, pausedByUs: false };
+const RECORDING_GROOVING: SongRecognitionState = { ...RECORDING, destination: SongRecognitionDestination.Grooving };
+const RECORDING_GROOVING_PAUSED: SongRecognitionState = { ...RECORDING_GROOVING, pausedByUs: true };
+const SEARCHING: SongRecognitionState = {
+  phase: SongRecognitionPhase.Searching,
+  message: null,
+  pausedByUs: false,
+  destination: SongRecognitionDestination.Search
+};
+const SEARCHING_GROOVING: SongRecognitionState = { ...SEARCHING, destination: SongRecognitionDestination.Grooving };
+const MESSAGE: SongRecognitionState = {
+  phase: SongRecognitionPhase.Message,
+  message: SongRecognitionResultKind.NoMatch,
+  pausedByUs: false,
+  destination: SongRecognitionDestination.Search
+};
 
 const START = { type: SongRecognitionEffectType.StartRecording } as const;
 const CANCEL = { type: SongRecognitionEffectType.CancelRecording } as const;
 const PAUSE = { type: SongRecognitionEffectType.Pause } as const;
 const RESUME = { type: SongRecognitionEffectType.Resume } as const;
 const TIMER = { type: SongRecognitionEffectType.StartMessageTimer } as const;
+const SEARCH = { type: SongRecognitionEffectType.Search, query: "Artist Title" } as const;
+const REMEMBER = { type: SongRecognitionEffectType.Remember, title: "Title", artist: "Artist" } as const;
 
-const press = (enabled: boolean, pcAudio: boolean, playing: boolean): SongRecognitionEvent => ({
+const press = (
+  enabled: boolean,
+  pcAudio: boolean,
+  playing: boolean,
+  destination: SongRecognitionDestination = SongRecognitionDestination.Search
+): SongRecognitionEvent => ({
   type: SongRecognitionEventType.Press,
   enabled,
   pcAudio,
-  playing
+  playing,
+  destination
 });
 const recorded: SongRecognitionEvent = { type: SongRecognitionEventType.Recorded, pcm: "AAAA" };
 const recordFailed: SongRecognitionEvent = { type: SongRecognitionEventType.RecordFailed };
 const matched: SongRecognitionEvent = {
   type: SongRecognitionEventType.Result,
-  result: { kind: "match", query: "Artist Title" }
+  result: { kind: "match", query: "Artist Title", title: "Title", artist: "Artist" }
 };
 const resultOf = (kind: SongRecognitionResultKind): SongRecognitionEvent => ({ type: SongRecognitionEventType.Result, result: { kind } });
 const expired: SongRecognitionEvent = { type: SongRecognitionEventType.MessageExpired };
@@ -46,41 +78,68 @@ const CASES: Case[] = [
   ["idle, press (enabled, pc audio, not playing)", IDLE, press(true, true, false), RECORDING, [START]],
   ["idle, press (enabled, mic, playing)", IDLE, press(true, false, true), RECORDING, [START]],
   ["idle, press (enabled, pc audio, playing)", IDLE, press(true, true, true), RECORDING_PAUSED, [PAUSE, START]],
+  ["idle, press (enabled, grooving)", IDLE, press(true, false, false, SongRecognitionDestination.Grooving), RECORDING_GROOVING, [START]],
   ["message, press (enabled)", MESSAGE, press(true, false, false), RECORDING, [START]],
   ["message, press (enabled, pc audio, playing)", MESSAGE, press(true, true, true), RECORDING_PAUSED, [PAUSE, START]],
+  ["message, press (enabled, grooving)", MESSAGE, press(true, false, false, SongRecognitionDestination.Grooving), RECORDING_GROOVING, [START]],
   ["idle, press (not enabled)", IDLE, press(false, true, true), IDLE, []],
   ["message, press (not enabled)", MESSAGE, press(false, true, true), MESSAGE, []],
   ["recording, press", RECORDING, press(true, true, true), IDLE, [CANCEL]],
   ["recording (paused by us), press", RECORDING_PAUSED, press(true, true, true), IDLE, [CANCEL, RESUME]],
+  ["recording (grooving), press", RECORDING_GROOVING, press(true, true, true, SongRecognitionDestination.Grooving), IDLE, [CANCEL]],
+  [
+    "recording (paused by us, grooving), press",
+    RECORDING_GROOVING_PAUSED,
+    press(true, true, true, SongRecognitionDestination.Grooving),
+    IDLE,
+    [CANCEL, RESUME]
+  ],
   ["searching, press", SEARCHING, press(true, true, true), SEARCHING, []],
   ["recording, recorded", RECORDING, recorded, SEARCHING, [{ type: SongRecognitionEffectType.Query, pcm: "AAAA" }]],
   ["recording (paused by us), recorded", RECORDING_PAUSED, recorded, SEARCHING, [RESUME, { type: SongRecognitionEffectType.Query, pcm: "AAAA" }]],
+  ["recording (grooving), recorded", RECORDING_GROOVING, recorded, SEARCHING_GROOVING, [{ type: SongRecognitionEffectType.Query, pcm: "AAAA" }]],
   [
     "recording, record failed",
     RECORDING,
     recordFailed,
-    { phase: SongRecognitionPhase.Message, message: SongRecognitionResultKind.SourceUnavailable, pausedByUs: false },
+    {
+      phase: SongRecognitionPhase.Message,
+      message: SongRecognitionResultKind.SourceUnavailable,
+      pausedByUs: false,
+      destination: SongRecognitionDestination.Search
+    },
     [TIMER]
   ],
   [
     "recording (paused by us), record failed",
     RECORDING_PAUSED,
     recordFailed,
-    { phase: SongRecognitionPhase.Message, message: SongRecognitionResultKind.SourceUnavailable, pausedByUs: false },
+    {
+      phase: SongRecognitionPhase.Message,
+      message: SongRecognitionResultKind.SourceUnavailable,
+      pausedByUs: false,
+      destination: SongRecognitionDestination.Search
+    },
     [RESUME, TIMER]
   ],
   ["recording (paused by us), user played", RECORDING_PAUSED, userPlayed, RECORDING, []],
   ["recording, user played", RECORDING, userPlayed, RECORDING, []],
-  ["searching, result (match)", SEARCHING, matched, IDLE, [{ type: SongRecognitionEffectType.Search, query: "Artist Title" }]],
-  ...Object.values(SongRecognitionResultKind).map(
-    (kind): Case => [
-      `searching, result (${kind})`,
-      SEARCHING,
-      resultOf(kind),
-      { phase: SongRecognitionPhase.Message, message: kind, pausedByUs: false },
-      [TIMER]
-    ]
-  ),
+  ["searching, result (match)", SEARCHING, matched, IDLE, [SEARCH, REMEMBER]],
+  ["searching (grooving), result (match)", SEARCHING_GROOVING, matched, IDLE, [REMEMBER]],
+  ...Object.values(SongRecognitionResultKind).map((kind): Case => [
+    `searching, result (${kind})`,
+    SEARCHING,
+    resultOf(kind),
+    { phase: SongRecognitionPhase.Message, message: kind, pausedByUs: false, destination: SongRecognitionDestination.Search },
+    [TIMER]
+  ]),
+  ...Object.values(SongRecognitionResultKind).map((kind): Case => [
+    `searching (grooving), result (${kind})`,
+    SEARCHING_GROOVING,
+    resultOf(kind),
+    { phase: SongRecognitionPhase.Message, message: kind, pausedByUs: false, destination: SongRecognitionDestination.Search },
+    [TIMER]
+  ]),
   ["message, message expired", MESSAGE, expired, IDLE, []],
   ["recording, disabled", RECORDING, disabled, IDLE, [CANCEL]],
   ["recording (paused by us), disabled", RECORDING_PAUSED, disabled, IDLE, [CANCEL, RESUME]],
@@ -105,14 +164,16 @@ const IGNORED_CASES: [string, SongRecognitionState, SongRecognitionEvent][] = [
   ["searching, message expired", SEARCHING, expired],
   ["idle, user played", IDLE, userPlayed],
   ["searching, user played", SEARCHING, userPlayed],
-  ["message, user played", MESSAGE, userPlayed]
+  ["message, user played", MESSAGE, userPlayed],
+  ["searching (grooving), press", SEARCHING_GROOVING, press(true, true, true, SongRecognitionDestination.Grooving)]
 ];
 
-const STATES = [IDLE, RECORDING, RECORDING_PAUSED, SEARCHING, MESSAGE];
+const STATES = [IDLE, RECORDING, RECORDING_PAUSED, RECORDING_GROOVING, RECORDING_GROOVING_PAUSED, SEARCHING, SEARCHING_GROOVING, MESSAGE];
 const EVENTS: SongRecognitionEvent[] = [
   press(true, true, true),
   press(true, false, true),
   press(true, true, false),
+  press(true, true, true, SongRecognitionDestination.Grooving),
   press(false, true, true),
   recorded,
   recordFailed,
@@ -178,6 +239,12 @@ describe("decideSongRecognition", () => {
   it("does not query on a press while searching", () => {
     const { effects } = decideSongRecognition(SEARCHING, press(true, true, true));
     expect(effects.some(effect => effect.type === SongRecognitionEffectType.Query)).toBe(false);
+  });
+
+  it("keeps the destination of the press until the query ends", () => {
+    const recording = decideSongRecognition(IDLE, press(true, false, false, SongRecognitionDestination.Grooving)).state;
+    const searching = decideSongRecognition(recording, recorded).state;
+    expect(searching.destination).toBe(SongRecognitionDestination.Grooving);
   });
 
   it("is idle after disabled", () => {

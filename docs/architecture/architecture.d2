@@ -76,7 +76,7 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F204-settings.svg
     }
-    theme: "ThemeManager\ntheme colors + frosted glass" {
+    theme: "ThemeManager\ntheme colors · frosted glass · Jacket" {
       class: svc
       icon: https://cdn.simpleicons.org/tailwindcss
     }
@@ -96,7 +96,7 @@ app: "YTMDesktop (Electron)" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F313-search.svg
     }
-    grooving: "Grooving\nLLM picks · call cap · usage" {
+    grooving: "Grooving\nLLM picks · continuation · call cap" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F078-magic%20wand.svg
     }
@@ -132,6 +132,10 @@ external: External {
     class: ext
     icon: https://cdn.simpleicons.org/shazam
   }
+  ytimg: "YouTube image hosts\nytimg · googleusercontent" {
+    class: ext
+    icon: https://cdn.simpleicons.org/youtube
+  }
   llm: "LLM APIs\nGemini · Claude · OpenAI" {
     class: ext
     icon: https://icons.terrastruct.com/essentials%2F111-idea.svg
@@ -140,7 +144,7 @@ external: External {
 
 user -> app.window.ytm: listens
 user -> app.screens: settings
-app.window.ytm <-> external.ytmusic: page + Innertube (Grooving candidates · queue · playlist)
+app.window.ytm <-> external.ytmusic: page + Innertube (Grooving candidates · related · queue · playlist)
 app.screens <-> app.main.config: settings (IPC)
 app.main.config -> app.main.theme: theme
 app.main.config -> app.main.video: video settings
@@ -152,6 +156,8 @@ app.window.bg -> app.main.protocol: video stream
 app.main.protocol -> file: reads
 app.window.ytm -> app.main.player: player state
 app.main.player -> app.main.integrations
+app.main.player -> app.main.theme: playing song's jacket
+app.main.theme -> external.ytimg: jacket image (HTTPS)
 app.main.integrations -> external.discord: activity from templates
 app.main.integrations -> external.lastfm: scrobble {style.stroke-dash: 4}
 app.window.ytm <-> app.main.songrec: icon press / search the title
@@ -161,3 +167,5 @@ app.main.songrec -> external.shazam: PCM (HTTPS)
 app.window.ytm <-> app.main.grooving: signals / pairs · list (IPC)
 app.main.config <-> app.main.grooving: API key (encrypted) / usage
 app.main.grooving -> external.llm: tracks + answers (HTTPS)
+app.main.player -> app.main.grooving: reactions · seed song
+app.main.songrec -> app.main.grooving: recognized song (seed) {style.stroke-dash: 4}

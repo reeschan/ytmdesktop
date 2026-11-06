@@ -15,7 +15,9 @@ export type ShazamOutcome =
 
 export const SongRecognitionMatch = "match";
 
-export type SongRecognitionResult = { kind: typeof SongRecognitionMatch; query: string } | { kind: SongRecognitionResultKind };
+export type SongRecognitionResult =
+  | { kind: typeof SongRecognitionMatch; query: string; title: string; artist: string }
+  | { kind: SongRecognitionResultKind };
 
 const STATUS_OK = 200;
 const STATUS_UNAUTHORIZED = 401;
@@ -26,13 +28,18 @@ function readText(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-// The title and the subtitle joined with a space, or "" when there is neither
-function readQuery(body: unknown): string {
-  if (typeof body !== "object" || body === null) return "";
+// The title and the artist as they are in the track, each trimmed, or "" when there is neither
+function readTrack(body: unknown): { title: string; artist: string } {
+  if (typeof body !== "object" || body === null) return { title: "", artist: "" };
   const track = (body as { track?: unknown }).track;
-  if (typeof track !== "object" || track === null) return "";
+  if (typeof track !== "object" || track === null) return { title: "", artist: "" };
   const { title, subtitle } = track as { title?: unknown; subtitle?: unknown };
-  return [readText(title), readText(subtitle)].filter(text => text !== "").join(" ");
+  return { title: readText(title), artist: readText(subtitle) };
+}
+
+// The title and the artist joined with a space, or "" when there is neither
+function readQuery(title: string, artist: string): string {
+  return [title, artist].filter(text => text !== "").join(" ");
 }
 
 export function interpretShazamResponse(input: ShazamOutcome): SongRecognitionResult {
@@ -40,8 +47,9 @@ export function interpretShazamResponse(input: ShazamOutcome): SongRecognitionRe
 
   switch (input.status) {
     case STATUS_OK: {
-      const query = readQuery(input.body);
-      return query === "" ? { kind: SongRecognitionResultKind.NoMatch } : { kind: SongRecognitionMatch, query };
+      const { title, artist } = readTrack(input.body);
+      const query = readQuery(title, artist);
+      return query === "" ? { kind: SongRecognitionResultKind.NoMatch } : { kind: SongRecognitionMatch, query, title, artist };
     }
     case STATUS_UNAUTHORIZED:
     case STATUS_FORBIDDEN:

@@ -3,29 +3,40 @@ import { SongRecognitionResultKind } from "./index";
 import { interpretShazamResponse, ShazamOutcome, ShazamOutcomeKind, SongRecognitionMatch, SongRecognitionResult } from "./response";
 
 const http = (status: number, body: unknown): ShazamOutcome => ({ kind: ShazamOutcomeKind.Http, status, body });
-const match = (query: string): SongRecognitionResult => ({ kind: SongRecognitionMatch, query });
+const match = (query: string, title: string, artist: string): SongRecognitionResult => ({ kind: SongRecognitionMatch, query, title, artist });
 const failure = (kind: SongRecognitionResultKind): SongRecognitionResult => ({ kind });
 
 describe("interpretShazamResponse", () => {
   describe("a match", () => {
+    it("gives the title and the artist apart, and the query as before", () => {
+      expect(interpretShazamResponse(http(200, { track: { title: "Song", subtitle: "Artist" } }))).toEqual({
+        kind: SongRecognitionMatch,
+        query: "Song Artist",
+        title: "Song",
+        artist: "Artist"
+      });
+    });
+
     it("joins the title and the subtitle with a space", () => {
-      expect(interpretShazamResponse(http(200, { track: { title: "Song", subtitle: "Artist" } }))).toEqual(match("Song Artist"));
+      expect(interpretShazamResponse(http(200, { track: { title: "Song", subtitle: "Artist" } }))).toEqual(match("Song Artist", "Song", "Artist"));
     });
 
     it("uses only the title when there is no subtitle", () => {
-      expect(interpretShazamResponse(http(200, { track: { title: "Song" } }))).toEqual(match("Song"));
+      expect(interpretShazamResponse(http(200, { track: { title: "Song" } }))).toEqual(match("Song", "Song", ""));
     });
 
     it("uses only the subtitle when there is no title", () => {
-      expect(interpretShazamResponse(http(200, { track: { subtitle: "Artist" } }))).toEqual(match("Artist"));
+      expect(interpretShazamResponse(http(200, { track: { subtitle: "Artist" } }))).toEqual(match("Artist", "", "Artist"));
     });
 
     it("trims the spaces around the text", () => {
-      expect(interpretShazamResponse(http(200, { track: { title: "  Song ", subtitle: " Artist  " } }))).toEqual(match("Song Artist"));
+      expect(interpretShazamResponse(http(200, { track: { title: "  Song ", subtitle: " Artist  " } }))).toEqual(
+        match("Song Artist", "Song", "Artist")
+      );
     });
 
     it("skips a blank part", () => {
-      expect(interpretShazamResponse(http(200, { track: { title: "Song", subtitle: "   " } }))).toEqual(match("Song"));
+      expect(interpretShazamResponse(http(200, { track: { title: "Song", subtitle: "   " } }))).toEqual(match("Song", "Song", ""));
     });
   });
 
@@ -48,7 +59,7 @@ describe("interpretShazamResponse", () => {
     );
 
     it("ignores a title that is not a string but keeps a subtitle that is", () => {
-      expect(interpretShazamResponse(http(200, { track: { title: 1, subtitle: "Artist" } }))).toEqual(match("Artist"));
+      expect(interpretShazamResponse(http(200, { track: { title: 1, subtitle: "Artist" } }))).toEqual(match("Artist", "", "Artist"));
     });
   });
 

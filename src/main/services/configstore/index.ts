@@ -79,7 +79,8 @@ export default class ConfigStore extends Service {
           groovingModels: { gemini: null, anthropic: null, openai: null },
           groovingConsent: null,
           groovingUsage: null,
-          groovingLanguage: GroovingLanguage.Auto
+          groovingLanguage: GroovingLanguage.Auto,
+          groovingContinue: false
         },
         shortcuts: {
           playPause: "",
@@ -261,6 +262,10 @@ export default class ConfigStore extends Service {
 
           if (!store.has("integrations.groovingLanguage")) {
             store.set("integrations.groovingLanguage", GroovingLanguage.Auto);
+          }
+
+          if (!store.has("integrations.groovingContinue")) {
+            store.set("integrations.groovingContinue", false);
           }
         }
       }

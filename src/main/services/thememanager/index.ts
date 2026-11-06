@@ -24,6 +24,8 @@ import ConfigStore from "../configstore";
 import MemoryStore from "../memorystore";
 import AppWindowManager from "../windowmanager";
 import YTMViewManager from "../ytmviewmanager";
+import PlayerStateStore from "../playerstatestore";
+import { createJacketWatcher, JacketWatcher } from "./jacket";
 import { AppView } from "../windowmanager/appview";
 
 declare const ALL_WINDOWS_VITE_DEV_SERVER_URL: string;
@@ -109,15 +111,22 @@ const YTM_BLURRED_SURFACE_RULE: CssSurfaceRule = {
 const YTM_SEARCH_SUGGESTIONS_SELECTOR = "ytmusic-search-box #suggestion-list";
 
 /**
+ * References the CSS variable of a color item, so the rule follows the value declared on :root and moves with its transition
+ */
+function colorVariable(item: ColorItem): string {
+  return `var(${COLOR_ITEM_CSS_VARIABLES[item]})`;
+}
+
+/**
  * Builds CSS rules whose declarations take their values from the color items
  */
-function toCssColorRules(rules: CssColorRule[], colors: ThemeColors, options: CssColorRuleOptions): string {
+function toCssColorRules(rules: CssColorRule[], options: CssColorRuleOptions): string {
   const priority = options.important ? " !important" : "";
 
   return rules
     .map(
       rule =>
-        `${rule.selector} { ${rule.declarations.map(declaration => `${declaration.property}: ${colors[declaration.item]}${priority};`).join(" ")} }`
+        `${rule.selector} { ${rule.declarations.map(declaration => `${declaration.property}: ${colorVariable(declaration.item)}${priority};`).join(" ")} }`
     )
     .join("\n");
 }
@@ -126,12 +135,12 @@ function toCssColorRules(rules: CssColorRule[], colors: ThemeColors, options: Cs
  * Builds a CSS rule that fills the surfaces with a color, blurs what is drawn behind them by the given px and draws a 1px line inside their edges.
  * The line is an inset box-shadow so the layout does not change
  */
-function toCssBlurredSurfaceRule(rule: CssSurfaceRule, colors: ThemeColors, blur: number, options: CssColorRuleOptions): string {
+function toCssBlurredSurfaceRule(rule: CssSurfaceRule, blur: number, options: CssColorRuleOptions): string {
   const priority = options.important ? " !important" : "";
   const declarations = [
-    `background: ${colors[rule.fill]}${priority};`,
+    `background: ${colorVariable(rule.fill)}${priority};`,
     `backdrop-filter: blur(${blur}px)${priority};`,
-    `box-shadow: inset 0 0 0 1px ${colors[rule.edge]}${priority};`
+    `box-shadow: inset 0 0 0 1px ${colorVariable(rule.edge)}${priority};`
   ];
 
   return `${rule.selectors.join(", ")} { ${declarations.join(" ")} }`;
@@ -140,11 +149,24 @@ function toCssBlurredSurfaceRule(rule: CssSurfaceRule, colors: ThemeColors, blur
 /**
  * Builds a CSS rule that fills the elements with the surface color laid over the background color
  */
-function toCssBackedSurfaceRule(selector: string, colors: ThemeColors, options: CssColorRuleOptions): string {
+function toCssBackedSurfaceRule(selector: string, options: CssColorRuleOptions): string {
   const priority = options.important ? " !important" : "";
-  const surface = colors[ColorItem.Surface];
+  const surface = colorVariable(ColorItem.Surface);
 
-  return `${selector} { background: linear-gradient(${surface}, ${surface}), ${colors[ColorItem.Background]}${priority}; }`;
+  return `${selector} { background: linear-gradient(${surface}, ${surface}), ${colorVariable(ColorItem.Background)}${priority}; }`;
+}
+
+/**
+ * Builds the CSS that lets the six color variables move smoothly: each is registered as a color, and the root moves them over 0.6s.
+ * The transition is left out when the OS asks to reduce motion
+ */
+function buildJacketTransitionCss(): string {
+  const registrations = COLOR_ITEMS.map(
+    item => `@property ${COLOR_ITEM_CSS_VARIABLES[item]} { syntax: "<color>"; inherits: true; initial-value: ${DEFAULT_THEME_COLORS[item]}; }`
+  );
+  const transitions = COLOR_ITEMS.map(item => `${COLOR_ITEM_CSS_VARIABLES[item]} 0.6s ease`).join(", ");
+
+  return [...registrations, `@media (prefers-reduced-motion: no-preference) { :root { transition: ${transitions}; } }`].join("\n");
 }
 
 function isBundledTheme(value: string): value is BundledTheme {
@@ -166,11 +188,15 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     ConfigStore,
     MemoryStore<MemoryStoreSchema>,
     AppWindowManager,
-    YTMViewManager
+    YTMViewManager,
+    PlayerStateStore
   ];
 
   private colors: ThemeColors = { ...DEFAULT_THEME_COLORS };
   private surfaceBlur: number = BUNDLED_THEME_SURFACE_BLUR[BundledTheme.Default];
+  // Whether the inserted CSS moves the colors over 0.6s, which is the case while the Jacket theme is selected
+  private colorTransition: boolean = false;
+  private jacketWatcher: JacketWatcher | null = null;
   private appInjections = new Map<WebContents, CssInjection>();
   private ytmInjection: CssInjection = { key: null, queue: Promise.resolve() };
 
@@ -206,13 +232,25 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     const theme = this.loadTheme();
     this.colors = theme.colors;
     this.surfaceBlur = theme.surfaceBlur;
+    this.colorTransition = this.isJacketSelected();
     this.updateThemeFileWatch();
+
+    this.jacketWatcher = createJacketWatcher({
+      playerStateStore: this.getDependency(PlayerStateStore),
+      apply: colors => this.applyColors(colors, BUNDLED_THEME_SURFACE_BLUR[BundledTheme.Jacket])
+    });
 
     this.configListener = configStore.onDidChange("appearance", (newState, oldState) => {
       if (newState?.theme === oldState?.theme && newState?.themeFilePath === oldState?.themeFilePath) return;
 
       this.updateThemeFileWatch();
+      // Changing the theme file while Jacket is selected must not replace the jacket colors with the bundled ones
+      if (newState?.theme === BundledTheme.Jacket && oldState?.theme === BundledTheme.Jacket) return;
+
+      // Stopped first so a jacket still being read cannot be applied over the next theme
+      this.jacketWatcher?.stop();
       this.reloadTheme();
+      if (this.isJacketSelected()) this.jacketWatcher?.start();
     });
 
     app.on("web-contents-created", this.webContentsCreatedListener);
@@ -226,6 +264,9 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     this.attachYTMView();
     // Covers the first document, whose ready may be emitted before the view is attached
     this.injectYTMTheme();
+
+    // Jacket may already be selected at start up, where reloadTheme is not run
+    if (this.colorTransition) this.jacketWatcher.start();
 
     log.info("ThemeManager initialized");
   }
@@ -249,6 +290,8 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
       fs.unwatchFile(this.watchedFilePath, this.themeFileListener);
       this.watchedFilePath = null;
     }
+    this.jacketWatcher?.stop();
+    this.jacketWatcher = null;
     this.appInjections.clear();
   }
 
@@ -308,12 +351,27 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     return { colors: resolvedTheme.colors, surfaceBlur: resolvedTheme.surfaceBlur };
   }
 
+  private isJacketSelected(): boolean {
+    return this.getDependency(ConfigStore).get("appearance.theme") === BundledTheme.Jacket;
+  }
+
   private reloadTheme() {
     const { colors, surfaceBlur } = this.loadTheme();
-    if (sameColors(colors, this.colors) && surfaceBlur === this.surfaceBlur) return;
+    this.applyColors(colors, surfaceBlur);
+  }
+
+  /**
+   * Applies the colors and the surface blur to every screen, to the title bars, and to the listeners of "colors-changed".
+   * Used by the theme loading and by the jacket colors, so both take the same path
+   */
+  private applyColors(colors: ThemeColors, surfaceBlur: number) {
+    const colorTransition = this.isJacketSelected();
+    // The transition is compared too: Glass and Jacket have the same colors, so only it tells the two apart
+    if (sameColors(colors, this.colors) && surfaceBlur === this.surfaceBlur && colorTransition === this.colorTransition) return;
 
     this.colors = colors;
     this.surfaceBlur = surfaceBlur;
+    this.colorTransition = colorTransition;
     for (const contents of this.appInjections.keys()) {
       this.injectAppTheme(contents, false);
     }
@@ -384,7 +442,8 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
 
       // The new CSS is inserted before the old one is removed so the screen never shows the defaults in between
       const previousKey = injection.key;
-      injection.key = await contents.insertCSS(toCssVariables(this.colors, APP_THEME_SELECTOR));
+      const variables = toCssVariables(this.colors, APP_THEME_SELECTOR);
+      injection.key = await contents.insertCSS(this.colorTransition ? `${variables}\n${buildJacketTransitionCss()}` : variables);
       if (previousKey !== null && !contents.isDestroyed()) await contents.removeInsertedCSS(previousKey);
     });
   }
@@ -428,14 +487,16 @@ export default class ThemeManager extends EventEmitterService<ThemeManagerEventM
     // Lets the Grooving screen inside the YTM view follow the theme; the names do not clash with YTM's own, so no !important
     const colorDeclarations = COLOR_ITEMS.map(item => `${COLOR_ITEM_CSS_VARIABLES[item]}: ${this.colors[item]};`).join(" ");
     const variables = `:root { ${colorDeclarations} ${SURFACE_BLUR_CSS_VARIABLE}: ${this.surfaceBlur}px; }`;
-    const css = [variables, toCssColorRules(YTM_THEME_RULES, this.colors, YTM_THEME_RULE_OPTIONS)].join("\n");
-    if (this.surfaceBlur <= 0) return css;
+    // The rules reference the variables so the bars and the guide move with them instead of jumping to the new colors
+    const css = [variables, toCssColorRules(YTM_THEME_RULES, YTM_THEME_RULE_OPTIONS)];
+    if (this.colorTransition) css.push(buildJacketTransitionCss());
+    if (this.surfaceBlur <= 0) return css.join("\n");
 
     // Comes after the color rules so it wins over the backgrounds they give the same surfaces
     return [
-      css,
-      toCssBlurredSurfaceRule(YTM_BLURRED_SURFACE_RULE, this.colors, this.surfaceBlur, YTM_THEME_RULE_OPTIONS),
-      toCssBackedSurfaceRule(YTM_SEARCH_SUGGESTIONS_SELECTOR, this.colors, YTM_THEME_RULE_OPTIONS)
+      ...css,
+      toCssBlurredSurfaceRule(YTM_BLURRED_SURFACE_RULE, this.surfaceBlur, YTM_THEME_RULE_OPTIONS),
+      toCssBackedSurfaceRule(YTM_SEARCH_SUGGESTIONS_SELECTOR, YTM_THEME_RULE_OPTIONS)
     ].join("\n");
   }
 

@@ -1,6 +1,6 @@
 # Grooving
 
-用語は [GLOSSARY.md](../../GLOSSARY.md) に従う (Grooving・気分・方向・聴き慣れた曲・新しい曲・組・試聴・Grooving のリスト)。画面と LLM の置き場所は [ADR 0004](../adr/0004-grooving-screen-inside-ytm-view.md) に従う。
+用語は [GLOSSARY.md](../../GLOSSARY.md) に従う (Grooving・気分・方向・聴き慣れた曲・新しい曲・組・試聴・Grooving のリスト)。画面と LLM の置き場所は [ADR 0004](../adr/0004-grooving-screen-inside-ytm-view.md) に従う。続けて流すは [grooving-continue.md](grooving-continue.md)、曲から始める (種の曲) は [grooving-seed-song.md](grooving-seed-song.md) に書く (2026-11-06 追加)。
 
 ## Problem Statement
 

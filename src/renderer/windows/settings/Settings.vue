@@ -88,6 +88,7 @@ const themeOptions: Record<ThemeSelection, string> = {
   [ThemeSelection.Midnight]: "Midnight",
   [ThemeSelection.Forest]: "Forest",
   [ThemeSelection.Glass]: "Glass",
+  [ThemeSelection.Jacket]: "Jacket",
   [ThemeSelection.File]: "Theme file"
 };
 

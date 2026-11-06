@@ -2,9 +2,10 @@
 // The steps follow what was checked on the dev build (2026-11-03).
 import ytmhook from "../ytmhook";
 import type protectedapimanager from "../protectedapimanager";
-import { GROOVING_PREVIEW_START_RATIO, GroovingPageCall, type GroovingPageResult } from "~shared/grooving";
+import { GROOVING_PREVIEW_START_RATIO, GroovingPageCall, type GroovingPageResult, type GroovingTrack } from "~shared/grooving";
 import { GroovingPacePriority } from "~shared/grooving/pace";
 import { groovingPacer } from "./grooving-pace";
+import { relatedTracks } from "./grooving-ytm";
 
 type GroovingProtectedAPI = ReturnType<typeof protectedapimanager.createOrGetAPI>;
 
@@ -26,6 +27,8 @@ const PAUSE_RECHECK_MS = 800;
 const POLL_INTERVAL_MS = 100;
 // The save request itself, counted from when the pacer starts it
 const INNERTUBE_TIMEOUT_MS = 15_000;
+// One related-tracks call (next, then browse), kept under invokeMessage's 30 s
+const RELATED_TIMEOUT_MS = 25_000;
 // One queueAdd request, counted inside the pacer's task so a request that never answers still frees the slot
 const QUEUE_ADD_TIMEOUT_MS = 10_000;
 // How long a request the user waits for may wait for its turn in the pacer: the preview's is shorter,
@@ -56,6 +59,21 @@ function serialize<T>(task: () => Promise<T>): Promise<T> {
   const run = chain.then(task, task);
   chain = run.catch(() => undefined);
   return run;
+}
+
+// A call that touches neither the player nor the queue: answered outside the chain, so it never holds back a save
+// queued behind it, and a slow save ahead of it does not make it fail. Same answer shape and error handling as handle
+function handleConcurrent<T>(api: GroovingProtectedAPI, name: string, label: string, run: (args: unknown[]) => Promise<GroovingPageResult<T>>) {
+  api.handleMessage(name, async (event: Event) => {
+    try {
+      const args = (event as CustomEvent<{ args: unknown[] }>).detail?.args ?? [];
+      return [await run(args)];
+    } catch (err) {
+      console.error(`[ytmd-err(grooving.${label})]`, err);
+      const failed: GroovingPageResult<T> = { ok: false, error: errorMessage(err) };
+      return [failed];
+    }
+  });
 }
 
 function errorMessage(err: unknown): string {
@@ -611,6 +629,49 @@ async function replaceQueue(args: unknown[]): Promise<GroovingPageResult<null>> 
   return { ok: true, value: null };
 }
 
+// Add a continuation list at the end of the queue, one track at a time, outside serialize and through the pacer as
+// background requests (the same steps as fillQueue). No check of the queue's head: the continuation goes after the list.
+// Stops when a newer replaceQueue started (generation). Never rejects
+async function appendQueueFill(generation: number, videoIds: string[]): Promise<void> {
+  let skipped = 0;
+  try {
+    for (const videoId of videoIds) {
+      if (generation !== fillGeneration) return;
+      let fetched: any[];
+      try {
+        // No wait limit either: only a replaceQueue stops this, by moving the generation on
+        fetched = await fetchQueueItems(videoId, { insertAtEnd: true, priority: GroovingPacePriority.Background }, new AbortController().signal);
+      } catch {
+        if (generation !== fillGeneration) return;
+        skipped++;
+        continue;
+      }
+      // From the check to the dispatch nothing awaits, so a newer replaceQueue cannot come in between
+      if (generation !== fillGeneration) return;
+      if (fetched.length === 0) {
+        skipped++;
+        continue;
+      }
+      addItems(fetched, getItems().length);
+    }
+  } catch (err) {
+    console.warn("[ytmd-grooving] appendQueue stopped adding", errorMessage(err));
+  } finally {
+    if (skipped > 0 && generation === fillGeneration) console.warn(`[ytmd-grooving] appendQueue skipped ${skipped} of ${videoIds.length} tracks`);
+  }
+}
+
+// Main does not wait for the additions: the answer comes before the first track is added
+async function appendQueue(args: unknown[]): Promise<GroovingPageResult<null>> {
+  const videoIds = args[0];
+  if (!Array.isArray(videoIds) || !videoIds.every(id => typeof id === "string" && id !== "")) {
+    return { ok: false, error: "videoIds must be an array of strings" };
+  }
+  if (videoIds.length === 0) return { ok: true, value: null };
+  void appendQueueFill(fillGeneration, videoIds as string[]);
+  return { ok: true, value: null };
+}
+
 function readCookie(name: string): string | null {
   for (const part of document.cookie.split(";")) {
     const separator = part.indexOf("=");
@@ -673,9 +734,46 @@ async function savePlaylist(args: unknown[]): Promise<GroovingPageResult<{ playl
   return { ok: true, value: { playlistId } };
 }
 
+// Add the tracks to the playlist saved before, one request for all of them (the same call as the save, so the pacer's
+// limits hold). Not checked on the dev build yet: the body and the answer follow the planned call
+async function addToPlaylist(args: unknown[]): Promise<GroovingPageResult<null>> {
+  const request = args[0] as { playlistId?: unknown; videoIds?: unknown } | undefined;
+  const playlistId = request?.playlistId;
+  const videoIds = request?.videoIds;
+  if (typeof playlistId !== "string" || playlistId === "") return { ok: false, error: "playlistId must be a non-empty string" };
+  if (!Array.isArray(videoIds) || videoIds.length === 0 || !videoIds.every(id => typeof id === "string" && id !== "")) {
+    return { ok: false, error: "videoIds must be a non-empty array of strings" };
+  }
+
+  const response = await innertube("browse/edit_playlist", {
+    playlistId,
+    actions: videoIds.map(videoId => ({ action: "ACTION_ADD_VIDEO", addedVideoId: videoId }))
+  });
+  if (response?.status !== "STATUS_SUCCEEDED") return { ok: false, error: "YTM did not add the tracks to the playlist" };
+  return { ok: true, value: null };
+}
+
+// The related tracks of one seed track, through the same reader as the rest of the page (grooving-ytm.ts: next, then
+// browse, with its cache). Only the videoId is known here: the seed track's other fields go unread by relatedTracks
+async function related(args: unknown[]): Promise<GroovingPageResult<GroovingTrack[]>> {
+  const videoId = args[0];
+  if (typeof videoId !== "string" || videoId === "") return { ok: false, error: "videoId must be a non-empty string" };
+  const seed: GroovingTrack = { videoId, title: "", artists: [], thumbnailUrl: null };
+  try {
+    // The signal stops the reads themselves at the limit; withTimeout answers even if one of them never settles
+    return { ok: true, value: await withTimeout(relatedTracks([seed], AbortSignal.timeout(RELATED_TIMEOUT_MS)), RELATED_TIMEOUT_MS) };
+  } catch (err) {
+    return { ok: false, error: errorMessage(err) };
+  }
+}
+
 export function setupGroovingPlayback(api: GroovingProtectedAPI) {
   handle(api, GroovingPageCall.PreviewStart, "previewStart", previewStart);
   handle(api, GroovingPageCall.PreviewEnd, "previewEnd", () => previewEnd());
   handle(api, GroovingPageCall.ReplaceQueue, "replaceQueue", replaceQueue);
+  handle(api, GroovingPageCall.AppendQueue, "appendQueue", appendQueue);
   handle(api, GroovingPageCall.SavePlaylist, "savePlaylist", savePlaylist);
+  handle(api, GroovingPageCall.AddToPlaylist, "addToPlaylist", addToPlaylist);
+  // Told outside the chain: main sends it while a save may be queued, and it touches neither the player nor the queue
+  handleConcurrent(api, GroovingPageCall.Related, "related", related);
 }
