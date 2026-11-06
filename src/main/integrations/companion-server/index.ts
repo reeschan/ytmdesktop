@@ -18,6 +18,7 @@ import Service from "../../services/service";
 import net from "node:net";
 import mDNS from "multicast-dns";
 import os from "node:os";
+import fs from "node:fs";
 import CompanionServerIpcClient from "./ipc-client";
 import { PlayerState } from "~shared/playerstatestore/types";
 import PlayerStateStore from "../../services/playerstatestore";
@@ -187,6 +188,14 @@ export default class CompanionServer extends Integration {
     });
 
     const pipePath = this.getIpcPath();
+    // On Linux and macOS the socket file is left behind when the app does not close cleanly, and listening on it fails
+    if (process.platform !== "win32") {
+      try {
+        fs.unlinkSync(pipePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
     this.ipcServer.listen(pipePath, () => {
       log.info(`ipc: listening on ${pipePath}`);
     });

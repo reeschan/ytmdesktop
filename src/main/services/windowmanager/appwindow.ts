@@ -424,7 +424,8 @@ export class AppWindow<
     if (process.platform !== "win32") return;
 
     this.thumbarButtons = buttons;
-    this.electronWindow?.setThumbarButtons(buttons);
+    // A call before the window is shown can leave the buttons broken for good; the show handler sets them instead
+    if (this.electronWindow?.isVisible()) this.electronWindow.setThumbarButtons(buttons);
   }
 
   public setProgressBar(
@@ -539,8 +540,6 @@ export class AppWindow<
       this.windowReady = true;
     }
 
-    if (this.thumbarButtons)
-      this.electronWindow.setThumbarButtons(this.thumbarButtons);
     if (this.progressBar)
       this.electronWindow.setProgressBar(
         this.progressBar,

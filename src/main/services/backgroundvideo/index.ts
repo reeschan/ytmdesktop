@@ -325,7 +325,7 @@ export default class BackgroundVideoManager extends Service {
           transparent: true,
           sandbox: true,
           contextIsolation: true,
-          preload: path.join(__dirname, `../renderer/windows/background-video/preload.cjs`),
+          preload: path.join(__dirname, `../preload/windows/background-video/preload.cjs`),
           devTools: !app.isPackaged ? true : configStore.get("developer.enableDevTools")
         }
       }

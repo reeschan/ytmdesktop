@@ -45,10 +45,9 @@ export function createNavigationMenuArrows() {
   const pivotBar = document.querySelector("ytmusic-pivot-bar-renderer");
   if (!pivotBar) {
     // New YTM UI
+    const logo = document.querySelector("ytmusic-nav-bar ytmusic-logo");
+    logo?.after(historyBackElement, historyForwardElement);
     const searchBar = document.querySelector("ytmusic-search-box");
-    const navBar = searchBar?.parentNode;
-    navBar?.insertBefore(historyForwardElement, searchBar);
-    navBar?.insertBefore(historyBackElement, historyForwardElement);
     if (searchBar instanceof HTMLElement) keepOpenedSearchBoxInPlace(searchBar);
   } else {
     historyForwardElement.classList.add("pivotbar");
@@ -58,7 +57,7 @@ export function createNavigationMenuArrows() {
   }
 }
 
-// YTM takes the opened search box out of the flow, which moves it over the history buttons.
+// YTM takes the opened search box out of the flow, which moves it away from where it sat while closed.
 // It is shifted back to where it was while closed.
 function keepOpenedSearchBoxInPlace(searchBox: HTMLElement) {
   let closedX = searchBox.getBoundingClientRect().x;
