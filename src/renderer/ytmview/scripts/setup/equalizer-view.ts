@@ -14,6 +14,8 @@ import { EqualizerAiPhase, EqualizerSignalType, type EqualizerSignal, type Equal
 import { GROOVING_LLM_TIMEOUT_MS, GROOVING_PROVIDER_LABELS } from "~shared/grooving";
 import { GROOVING_TEXT } from "./grooving-text";
 import { EQUALIZER_TEXT, equalizerLanguage } from "./equalizer-text";
+import { getEqualizerAudio } from "./equalizer-audio";
+import { drawEqualizerCurve, startEqualizerSpectrum } from "./equalizer-spectrum";
 
 export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   const element = document.createElement("section");
@@ -23,6 +25,31 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   let pendingSave = false;
   let dragging = false;
   let current: EqualizerViewState | null = null;
+  let stopSpectrum: (() => void) | null = null;
+  function updateSpectrum() {
+    stopSpectrum?.();
+    stopSpectrum = null;
+    const graph = element.querySelector<HTMLCanvasElement>("[data-equalizer-graph]");
+    if (element.hidden || !graph || !current) return;
+    getEqualizerAudio().connect();
+    const state = current;
+    const curve = document.createElement("canvas");
+    let curveColor = "";
+    stopSpectrum = startEqualizerSpectrum(graph, {
+      reducedMotionIntervalMs: 250,
+      drawCurve(context, color) {
+        if (curve.width !== graph.width || curve.height !== graph.height || curveColor !== color) {
+          curve.width = graph.width;
+          curve.height = graph.height;
+          curveColor = color;
+          const curveContext = curve.getContext("2d");
+          if (curveContext) drawEqualizerCurve(curveContext, state.enabled, state.values, color);
+        }
+        context.drawImage(curve, 0, 0);
+      }
+    });
+  }
+  new MutationObserver(updateSpectrum).observe(element, { attributes: true, attributeFilter: ["hidden"] });
   const el = <K extends keyof HTMLElementTagNameMap>(tag: K, text?: string): HTMLElementTagNameMap[K] => {
     const node = document.createElement(tag);
     if (text !== undefined) node.textContent = text;
@@ -36,7 +63,10 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   };
   function render(state: EqualizerViewState) {
     current = state;
-    if (dragging) return;
+    if (dragging) {
+      updateSpectrum();
+      return;
+    }
     const active = document.activeElement instanceof HTMLElement && element.contains(document.activeElement) ? document.activeElement : null;
     const focusKey = active?.dataset.equalizerFocus;
     const selection =
@@ -238,6 +268,7 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
         break;
     }
     element.replaceChildren(heading, presets, graph, bands, preampRow, ai);
+    updateSpectrum();
     if (focusKey) {
       const next = element.querySelector<HTMLElement>(`[data-equalizer-focus="${focusKey}"]`);
       next?.focus();
