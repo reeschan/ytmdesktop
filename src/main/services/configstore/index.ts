@@ -3,6 +3,7 @@ import { app, ipcMain } from "electron";
 import log from "electron-log";
 import { BackgroundVideoSource } from "~shared/background-video";
 import { DEFAULT_PRESENCE_DISPLAY_SETTINGS } from "~shared/discord-presence/activity";
+import { BundledEqualizerPresetId, EQUALIZER_BAND_FREQUENCIES, EqualizerPresetKind } from "~shared/equalizer";
 import { GroovingLanguage, GroovingProvider } from "~shared/grooving";
 import { DEFAULT_SONG_RECOGNITION_SOURCE } from "~shared/song-recognition";
 import { StoreSchema, ThemeSelection, TrayIconStyle } from "~shared/store/schema";
@@ -27,6 +28,13 @@ export default class ConfigStore extends Service {
       projectVersion: app.getVersion(),
       watch: true,
       defaults: {
+        equalizer: {
+          enabled: false,
+          values: { bands: EQUALIZER_BAND_FREQUENCIES.map(() => 0), preamp: 0, preampManual: false },
+          selectedPreset: { kind: EqualizerPresetKind.Bundled, id: BundledEqualizerPresetId.Flat },
+          presets: [],
+          aiConsentAt: null
+        },
         metadata: {
           version: 1,
           appVersion: app.getVersion()

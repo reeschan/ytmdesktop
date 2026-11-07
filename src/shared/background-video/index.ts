@@ -24,7 +24,8 @@ export const BackgroundVideoSource = {
   // The video the YouTube Music player is playing
   Playing: "playing",
   // The video file at appearance.backgroundVideoPath
-  File: "file"
+  File: "file",
+  Spectrum: "spectrum"
 } as const;
 export type BackgroundVideoSource = (typeof BackgroundVideoSource)[keyof typeof BackgroundVideoSource];
 
@@ -103,12 +104,17 @@ const WINDOW_PLAYBACK: Record<WindowVisibility, BackgroundVideoPlayback> = {
 
 /**
  * Decides how the background video is shown, whether the YTM view background is transparent and whether the video moves.
- * The video is shown only when it is enabled and its source has a picture (the playing video is available, or the file is found);
- * otherwise the YTM view keeps the theme background. The video is still while motion is reduced.
+ * A video source needs a picture; the spectrum needs normal motion. Otherwise the theme background is kept.
+ * Motion is still while motion is reduced.
  */
 export function decideBackgroundVideo(input: BackgroundVideoInput): BackgroundVideoDecision {
   const motion = input.reducedMotion ? BackgroundVideoMotion.Still : BackgroundVideoMotion.Continuous;
-  const pictureFound = input.source === BackgroundVideoSource.Playing ? input.videoAvailable : input.fileFound;
+  const pictureFound =
+    input.source === BackgroundVideoSource.Spectrum
+      ? !input.reducedMotion
+      : input.source === BackgroundVideoSource.Playing
+        ? input.videoAvailable
+        : input.fileFound;
   if (!input.enabled || !pictureFound) {
     return { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme, motion };
   }
