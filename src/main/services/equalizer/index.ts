@@ -1,5 +1,5 @@
 import log from "electron-log";
-import { DependencyConstructor } from "~shared/types";
+import { DependencyConstructor, YTMViewStatus } from "~shared/types";
 import type { MemoryStoreSchema } from "~shared/store/schema";
 import {
   BundledEqualizerPresetId,
@@ -147,10 +147,12 @@ export default class Equalizer extends Service {
     this.sendState();
   };
 
-  // The status also changes when a frame inside the page fails to load, which says nothing about the state, so this only keeps the view attached
+  // The view is attached on its first status, after its first "ready" has already gone by, so the state is sent once the
+  // page's scripts report ready. Sending it again on a later status only repeats the same state
   private statusListener = () => {
     try {
       this.attachYTMView();
+      if (this.getDependency(YTMViewManager).status === YTMViewStatus.Ready) this.sendState();
     } catch (error) {
       log.error("Equalizer failed to attach the view", error);
     }
