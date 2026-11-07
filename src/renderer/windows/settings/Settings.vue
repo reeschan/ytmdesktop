@@ -155,7 +155,7 @@ const GROOVING_LANGUAGE_LABELS: Record<GroovingLanguage, string> = {
 };
 const groovingLanguage = ref<GroovingLanguage>(integrations.groovingLanguage ?? GroovingLanguage.Auto);
 const groovingConsent = ref<GroovingConsent | null>(integrations.groovingConsent ?? null);
-const equalizerConsent = ref<string | null>(equalizer.aiConsentAt ?? null);
+const equalizerConsent = ref<string | null>(equalizer?.aiConsentAt ?? null);
 const groovingUsage = ref<GroovingUsage | null>(integrations.groovingUsage ?? null);
 
 const shortcutPlayPause = ref<string>(shortcuts.playPause);
@@ -218,7 +218,7 @@ store.onDidAnyChange(async newState => {
   // The Grooving API key and model inputs are not synced back here, for the same reason as the Shazam API key
   groovingLanguage.value = newState.integrations.groovingLanguage ?? GroovingLanguage.Auto;
   groovingConsent.value = newState.integrations.groovingConsent ?? null;
-  equalizerConsent.value = newState.equalizer.aiConsentAt ?? null;
+  equalizerConsent.value = newState.equalizer?.aiConsentAt ?? null;
   groovingUsage.value = newState.integrations.groovingUsage ?? null;
 
   shortcutPlayPause.value = newState.shortcuts.playPause;
@@ -613,6 +613,13 @@ function resetEqualizerConsent() {
   equalizerConsent.value = null;
   store.set("equalizer.aiConsentAt", null);
 }
+
+const equalizerConsentText = computed(() => {
+  const consent = equalizerConsent.value;
+  if (!consent) return "Not answered yet";
+  const date = new Date(consent);
+  return `Consented: ${Number.isNaN(date.getTime()) ? consent : date.toLocaleString()}`;
+});
 
 const groovingConsentText = computed(() => {
   switch (groovingConsent.value?.choice) {
@@ -1508,7 +1515,7 @@ window.ytmd.handleUpdateDownloaded(() => {
             type="custom"
             name="EQ AI adjustment consent"
           >
-            <span class="grooving-value tw:text-ytmd-text-muted">{{ equalizerConsent ? `Consented: ${equalizerConsent}` : "Not answered yet" }}</span>
+            <span class="grooving-value tw:text-ytmd-text-muted">{{ equalizerConsentText }}</span>
             <button
               v-if="equalizerConsent !== null"
               class="tw:bg-ytmd-surface tw:text-ytmd-text"
