@@ -71,9 +71,16 @@ export type BackgroundVideoDecision = {
   motion: BackgroundVideoMotion;
 };
 
+export const YtmBackgroundContent = {
+  Video: "video",
+  Spectrum: "spectrum"
+} as const;
+export type YtmBackgroundContent = (typeof YtmBackgroundContent)[keyof typeof YtmBackgroundContent];
+
 // State of the background drawn inside the YTM view
 export type YtmBackgroundState = {
   show: boolean;
+  content: YtmBackgroundContent;
   playback: BackgroundVideoPlayback;
   motion: BackgroundVideoMotion;
   maskOpacity: number;
