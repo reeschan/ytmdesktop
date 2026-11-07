@@ -20,6 +20,14 @@ import { BackgroundVideoIpc, BackgroundVideoMessage, YtmBackgroundReport, YtmBac
 import { MiniplayerVideoIpc, MiniplayerVideoMessage } from "~shared/miniplayer-video";
 import { SongRecognitionIpc, SongRecognitionMessageOp, SongRecognitionViewState } from "~shared/song-recognition";
 import { GroovingIpc, GroovingMessageOp, GroovingViewState, isGroovingSignal, isGroovingViewState } from "~shared/grooving";
+import {
+  EqualizerIpc,
+  EqualizerMessageOp,
+  EqualizerSignalType,
+  EqualizerViewState,
+  isEqualizerSignal,
+  isEqualizerViewState
+} from "~shared/equalizer/messages";
 import { YtmStartupIpc, YtmStartupMessage } from "~shared/ytm-startup";
 import { SettingsTab, YTMViewSetupCompletionFlags } from "~shared/types";
 
@@ -78,6 +86,18 @@ ipcRenderer.on(GroovingIpc.State, (_event, state: unknown) => {
   if (!isGroovingViewState(state)) return;
   groovingState = state;
   postGroovingState();
+});
+
+// The same for the equalizer: registered here, outside of the startup message, so a state sent when the document is ready is not missed
+let equalizerState: EqualizerViewState | null = null;
+function postEqualizerState() {
+  if (equalizerState) window.postMessage({ op: EqualizerMessageOp.State, state: equalizerState }, "*");
+}
+
+ipcRenderer.on(EqualizerIpc.State, (_event, state: unknown) => {
+  if (!isEqualizerViewState(state)) return;
+  equalizerState = state;
+  postEqualizerState();
 });
 
 /**
@@ -257,6 +277,21 @@ window.addEventListener("message", async event => {
 
   if (event.source === window && event.data?.op === GroovingMessageOp.OpenSettings) {
     ipcRenderer.send("window:openSettings", SettingsTab.Integrations);
+  }
+
+  // Equalizer: only the page's own main world may signal or ask for the last state
+  if (event.source === window && event.data?.op === EqualizerMessageOp.Signal) {
+    const signal: unknown = event.data.signal;
+    if (isEqualizerSignal(signal)) {
+      ipcRenderer.send(EqualizerIpc.Signal, signal);
+      // Main cannot open the settings window itself, so it is opened from here, as for Grooving
+      if (signal.type === EqualizerSignalType.OpenSettings) ipcRenderer.send("window:openSettings", SettingsTab.Integrations);
+    }
+  }
+
+  // The page started listening, so the last state is sent again
+  if (event.source === window && event.data?.op === EqualizerMessageOp.Ready) {
+    postEqualizerState();
   }
 });
 
