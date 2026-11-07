@@ -1,5 +1,12 @@
 import { YTMViewSetupCompletionFlags } from "~shared/types";
-import { DEFAULT_FONT_TIMEOUT_MS, DEFAULT_POLL_INTERVALS, DEFAULT_STARTUP_TIMEOUT_MS, pollUntil, withTimeout, YtmStartupMessage } from "~shared/ytm-startup";
+import {
+  DEFAULT_FONT_TIMEOUT_MS,
+  DEFAULT_POLL_INTERVALS,
+  DEFAULT_STARTUP_TIMEOUT_MS,
+  pollUntil,
+  withTimeout,
+  YtmStartupMessage
+} from "~shared/ytm-startup";
 import initPlayerStateStore, { waitForYTMPlayerApiReady } from "./playerstatestore";
 import ytmhook from "./ytmhook";
 import protectedapimanager from "./protectedapimanager";
@@ -10,6 +17,7 @@ import { initBackgroundVideo } from "./setup/background-video";
 import { initMiniplayerVideo } from "./setup/miniplayer-video";
 import { createSongRecognitionButton } from "./setup/song-recognition";
 import { setupGrooving } from "./setup/grooving";
+import { setupEqualizer } from "./setup/equalizer";
 import { addTimedLyrics, createAdditionalPlayerBarControls, hideChromecastButton, overrideHistoryButtonDisplay } from "./setup/extras";
 
 protectedapimanager.init();
@@ -20,8 +28,12 @@ function createStartupReport() {
   let sentCompletions = 0;
   let ready = false;
   return {
-    add(flag: YTMViewSetupCompletionFlags) { completions |= flag; },
-    error(error: unknown) { window.postMessage({ op: YtmStartupMessage.Errored, error }, "/"); },
+    add(flag: YTMViewSetupCompletionFlags) {
+      completions |= flag;
+    },
+    error(error: unknown) {
+      window.postMessage({ op: YtmStartupMessage.Errored, error }, "/");
+    },
     ready() {
       if (ready) return;
       ready = true;
@@ -66,6 +78,11 @@ window.addEventListener("load", async () => {
     } catch (error) {
       console.error("Failed to set up Grooving", error);
     }
+    try {
+      setupEqualizer();
+    } catch (error) {
+      console.error("Failed to set up Equalizer", error);
+    }
     initRemote();
     report.add(YTMViewSetupCompletionFlags.Remote);
     overrideHistoryButtonDisplay();
@@ -96,7 +113,7 @@ window.addEventListener("load", async () => {
     else console.warn("Material Symbols did not load before the deadline");
 
     const hooked = (async () => {
-      if (!await ytmhook.ready()) return false;
+      if (!(await ytmhook.ready())) return false;
       window.__YTMD_HOOK__ = Object.freeze({
         ytmPlayerController: ytmhook.ytmPlayerController,
         ytmStateStore: ytmhook.ytmStateStore
@@ -104,9 +121,11 @@ window.addEventListener("load", async () => {
       report.add(YTMViewSetupCompletionFlags.Early);
       return waitForYTMPlayerApiReady(controller.signal);
     })();
-    const hookedSetup = hooked.then(ready => {
-      if (ready) runHookedSetup();
-    }).finally(() => report.flush());
+    const hookedSetup = hooked
+      .then(ready => {
+        if (ready) runHookedSetup();
+      })
+      .finally(() => report.flush());
     const domController = new AbortController();
     const onPageHide = () => domController.abort();
     window.addEventListener("pagehide", onPageHide, { once: true });
