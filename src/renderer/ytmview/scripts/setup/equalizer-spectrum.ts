@@ -6,6 +6,7 @@ import { getEqualizerAudio } from "./equalizer-audio";
 const IDLE_INTERVAL_MS = 1000;
 const CURVE_POINTS = 128;
 const CURVE_SAMPLE_RATE = 44100;
+const DEFAULT_ACCENT_COLOR = "rgba(255, 255, 255, 0.5)";
 
 export function drawEqualizerSpectrum(
   context: CanvasRenderingContext2D,
@@ -84,23 +85,27 @@ export function startEqualizerSpectrum(
   function draw() {
     frame = null;
     timer = null;
-    const ratio = window.devicePixelRatio || 1;
-    const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
-    const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
-    if (canvas.width !== width) canvas.width = width;
-    if (canvas.height !== height) canvas.height = height;
-    context!.clearRect(0, 0, width, height);
-    const color = getComputedStyle(document.documentElement).getPropertyValue("--ytmd-color-accent").trim();
-    const audio = getEqualizerAudio().getAnalyser();
     let active = false;
-    if (audio) {
-      const data = new Uint8Array(audio.analyser.frequencyBinCount);
-      audio.analyser.getByteFrequencyData(data);
-      const bars = equalizerSpectrumBars(data, audio.sampleRate);
-      active = bars.some(value => value > 0);
-      drawEqualizerSpectrum(context!, bars, { color, width, height, gap: (options.gap ?? 1) * ratio });
+    try {
+      const ratio = window.devicePixelRatio || 1;
+      const width = Math.max(1, Math.round(canvas.clientWidth * ratio));
+      const height = Math.max(1, Math.round(canvas.clientHeight * ratio));
+      if (canvas.width !== width) canvas.width = width;
+      if (canvas.height !== height) canvas.height = height;
+      context!.clearRect(0, 0, width, height);
+      const color = getComputedStyle(document.documentElement).getPropertyValue("--ytmd-color-accent").trim() || DEFAULT_ACCENT_COLOR;
+      const audio = getEqualizerAudio().getAnalyser();
+      if (audio) {
+        const data = new Uint8Array(audio.analyser.frequencyBinCount);
+        audio.analyser.getByteFrequencyData(data);
+        const bars = equalizerSpectrumBars(data, audio.sampleRate);
+        active = bars.some(value => value > 0);
+        drawEqualizerSpectrum(context!, bars, { color, width, height, gap: (options.gap ?? 1) * ratio });
+      }
+      options.drawCurve?.(context!, color);
+    } catch (error) {
+      console.error("Failed to draw equalizer spectrum", error);
     }
-    options.drawCurve?.(context!, color);
     schedule(active ? (motion.matches ? options.reducedMotionIntervalMs : null) : IDLE_INTERVAL_MS);
   }
   function wake() {
