@@ -10,8 +10,15 @@ import {
   type EqualizerSettings,
   type EqualizerValues
 } from "~shared/equalizer";
-import { EqualizerIpc, isEqualizerPresetRef, isEqualizerSavedPreset, isEqualizerSignal, isEqualizerValues } from "~shared/equalizer/messages";
-import { GROOVING_TRACK_TEXT_MAX, GroovingFailureReason, resolveGroovingLanguage } from "~shared/grooving";
+import {
+  EqualizerIpc,
+  EqualizerSignalType,
+  isEqualizerPresetRef,
+  isEqualizerSavedPreset,
+  isEqualizerSignal,
+  isEqualizerValues
+} from "~shared/equalizer/messages";
+import { GROOVING_TRACK_TEXT_MAX, GroovingFailureReason, type GroovingProvider, resolveGroovingLanguage } from "~shared/grooving";
 import { createGroovingCallWindow } from "~shared/grooving/pace";
 import { addGroovingUsage, estimateGroovingUsd, groovingMonth, GroovingUsageFeature } from "~shared/grooving/usage";
 import Service from "../service";
@@ -43,6 +50,8 @@ const AI_CALL_LIMIT = 10;
 const AI_CALL_WINDOW_MS = 10 * 60_000;
 // Cuts the stored consent time, which is only ever an ISO string
 const CONSENT_TEXT_MAX = 64;
+// Cuts the page language the signal carries (same cap as Grooving)
+const PAGE_LANGUAGE_MAX = 32;
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 
@@ -111,6 +120,12 @@ export default class Equalizer extends Service {
   private providerListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
   private keysListener: ReturnType<ConfigStore["onDidChange"]> | null = null;
   private saveTimer: NodeJS.Timeout | null = null;
+  // Whether a key is stored. Read only when a signal needs it, and the last read is kept for the others
+  private keyKnown = false;
+  // The provider, read at startup and when it changes, so sending the state does not read the settings file
+  private provider: GroovingProvider | null = null;
+  // The page language the last ai-request carried. Kept so a consent step in between does not lose it
+  private pageLanguage: string | null = null;
   // True while this service writes `equalizer`: the change listener runs inside set, and the write is not a change from outside
   private writing = false;
   // The request in flight. Null when none is
@@ -156,6 +171,7 @@ export default class Equalizer extends Service {
     try {
       const configStore = this.getDependency(ConfigStore);
       this.model = initialEqualizerModel(sanitizeEqualizerSettings(configStore.get("equalizer")));
+      this.provider = readLlmProvider(configStore);
 
       // The YTM view is created after the services are initialized, so it is attached once the manager reports a status for it
       const viewManager = this.getDependency(YTMViewManager);
@@ -165,8 +181,8 @@ export default class Equalizer extends Service {
 
       this.equalizerListener = configStore.onDidChange("equalizer", value => this.handleEqualizerChanged(value));
       // The AI service and its key decide what the panel offers, so a change of either sends the state again
-      this.providerListener = configStore.onDidChange("integrations.groovingProvider", () => this.handleAiSettingsChanged());
-      this.keysListener = configStore.onDidChange("integrations.groovingApiKeys", () => this.handleAiSettingsChanged());
+      this.providerListener = configStore.onDidChange("integrations.groovingProvider", () => this.handleAiSettingsChanged(true));
+      this.keysListener = configStore.onDidChange("integrations.groovingApiKeys", () => this.handleAiSettingsChanged(false));
     } catch (error) {
       log.error("Equalizer failed to initialize", error);
     }
@@ -227,7 +243,8 @@ export default class Equalizer extends Service {
       if (!contents) return;
 
       // Only the state made for the screen is sent, never the settings (they hold the encrypted keys)
-      contents.send(EqualizerIpc.State, toEqualizerViewState(this.model, readLlmProvider(this.getDependency(ConfigStore))));
+      const provider = this.provider ?? readLlmProvider(this.getDependency(ConfigStore));
+      contents.send(EqualizerIpc.State, toEqualizerViewState(this.model, provider));
     } catch (error) {
       log.error("Equalizer failed to send the state", error);
     }
@@ -261,8 +278,9 @@ export default class Equalizer extends Service {
     }
   }
 
-  private handleAiSettingsChanged() {
+  private handleAiSettingsChanged(providerChanged: boolean) {
     try {
+      if (providerChanged) this.provider = readLlmProvider(this.getDependency(ConfigStore));
       this.dispatch({ type: EqualizerEventType.SettingsChanged, settings: this.model.settings });
     } catch (error) {
       log.error("Equalizer failed to handle an AI settings change", error);
@@ -296,7 +314,15 @@ export default class Equalizer extends Service {
    * Runs the event through the decision, keeps the new model and runs the effects
    */
   private dispatch(event: EqualizerEvent) {
-    const decision = reduceEqualizer(this.model, event, { hasKey: this.hasKey(), now: new Date().toISOString() });
+    // The decision uses the key only for an AI request and its consent, so the settings are read for those two alone
+    if (event.type === EqualizerEventType.Signal) {
+      const signal = event.signal;
+      if (signal.type === EqualizerSignalType.AiRequest) {
+        this.pageLanguage = typeof signal.pageLanguage === "string" ? signal.pageLanguage.slice(0, PAGE_LANGUAGE_MAX) : null;
+        this.keyKnown = this.hasKey();
+      } else if (signal.type === EqualizerSignalType.AiConsent) this.keyKnown = this.hasKey();
+    }
+    const decision = reduceEqualizer(this.model, event, { hasKey: this.keyKnown, now: new Date().toISOString() });
     this.model = decision.model;
 
     for (const effect of decision.effects) {
@@ -361,12 +387,20 @@ export default class Equalizer extends Service {
 
       // Loaded on the first call so the AI SDK does not slow the start
       const llm = await import("./llm");
+      // Cancelled (or the consent taken back) while waiting above: nothing is sent, and the decision drops the result
+      if (controller.signal.aborted) return { ok: false, reason: GroovingFailureReason.Network };
+
       const result = await llm.requestEqualizerTuning(
         config,
-        { prompt, values, song: this.currentSong(), language: resolveGroovingLanguage(configStore.get("integrations.groovingLanguage"), null) },
+        {
+          prompt,
+          values,
+          song: this.currentSong(),
+          language: resolveGroovingLanguage(configStore.get("integrations.groovingLanguage"), this.pageLanguage)
+        },
         { signal: controller.signal }
       );
-      // A request that was cancelled still used its tokens
+      // A request cancelled in flight reports no usage, and addUsage skips an empty one
       this.addUsage(config.model, result.usage);
       return result.ok ? { ok: true, values: result.value.values, explanation: result.value.explanation } : { ok: false, reason: result.reason };
     } catch (error) {
