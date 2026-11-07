@@ -85,12 +85,12 @@ export function reduceEqualizer(
   };
   const request = (prompt: string) => {
     if (next.ai.phase === EqualizerAiPhase.Running) return;
-    next = { ...next, undo: null, pendingPrompt: null };
+    next = { ...next, pendingPrompt: null };
     if (!context.hasKey) next = { ...next, ai: { phase: EqualizerAiPhase.NoKey } };
     else if (!next.settings.aiConsentAt) next = { ...next, ai: { phase: EqualizerAiPhase.Consent }, pendingPrompt: prompt };
     else {
       const requestId = next.nextRequestId;
-      next = { ...next, ai: { phase: EqualizerAiPhase.Running }, currentRequestId: requestId, nextRequestId: requestId + 1 };
+      next = { ...next, undo: null, ai: { phase: EqualizerAiPhase.Running }, currentRequestId: requestId, nextRequestId: requestId + 1 };
       effects.push({
         type: EqualizerEffectType.RequestAi,
         requestId,
