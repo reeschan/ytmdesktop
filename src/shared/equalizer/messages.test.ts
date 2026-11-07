@@ -42,6 +42,10 @@ describe("equalizer signals", () => {
     { type: S.OpenSettings }
   ])("accepts $type", signal => expect(isEqualizerSignal(signal)).toBe(true));
 
+  it.each(["ja", null, "x".repeat(64)])("accepts pageLanguage %s", pageLanguage => {
+    expect(isEqualizerSignal({ type: S.AiRequest, prompt: "hello", pageLanguage })).toBe(true);
+  });
+
   it.each([
     null,
     1,
@@ -50,6 +54,8 @@ describe("equalizer signals", () => {
     ...[10, -1, 1.5, NaN, "3"].map(index => ({ type: S.SetBand, index, db: 0 })),
     ...[13, NaN, Infinity].map(db => ({ type: S.SetBand, index: 0, db })),
     { type: S.AiRequest, prompt: "x".repeat(2001) },
+    { type: S.AiRequest, prompt: "hello", pageLanguage: 1 },
+    { type: S.AiRequest, prompt: "hello", pageLanguage: "x".repeat(65) },
     { type: S.SelectPreset, preset: { kind: "unknown" } },
     { type: S.SelectPreset, preset: { ...preset, id: "nope" } },
     { type: S.AiConsent, send: "true" }

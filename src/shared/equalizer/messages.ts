@@ -74,7 +74,7 @@ export type EqualizerSignal =
   | { type: typeof EqualizerSignalType.SavePreset; name: string; overwrite: boolean }
   | { type: typeof EqualizerSignalType.RenamePreset; from: string; to: string }
   | { type: typeof EqualizerSignalType.DeletePreset; name: string }
-  | { type: typeof EqualizerSignalType.AiRequest; prompt: string }
+  | { type: typeof EqualizerSignalType.AiRequest; prompt: string; pageLanguage?: string | null }
   | { type: typeof EqualizerSignalType.AiConsent; send: boolean }
   | {
       type:
@@ -89,6 +89,7 @@ export type EqualizerViewMessage = { op: typeof EqualizerMessageOp.State; state:
 
 const NAME_MAX = 200;
 const TEXT_MAX = 2000;
+const LANGUAGE_MAX = 64;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null && !Array.isArray(value);
 const isOneOf = <T extends string>(options: Record<string, T>, value: unknown): value is T => (Object.values(options) as unknown[]).includes(value);
 const isStringWithin = (value: unknown, max: number): value is string => typeof value === "string" && value.length <= max;
@@ -170,7 +171,10 @@ export function isEqualizerSignal(value: unknown): value is EqualizerSignal {
     case EqualizerSignalType.DeletePreset:
       return isStringWithin(value.name, NAME_MAX);
     case EqualizerSignalType.AiRequest:
-      return isStringWithin(value.prompt, TEXT_MAX);
+      return (
+        isStringWithin(value.prompt, TEXT_MAX) &&
+        (value.pageLanguage === undefined || value.pageLanguage === null || isStringWithin(value.pageLanguage, LANGUAGE_MAX))
+      );
     case EqualizerSignalType.AiConsent:
       return typeof value.send === "boolean";
     case EqualizerSignalType.ResetPreamp:
