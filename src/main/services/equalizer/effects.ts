@@ -99,8 +99,13 @@ export function reduceEqualizer(
       });
     }
   };
-  if (event.type === EqualizerEventType.SettingsChanged) next = { ...next, settings: event.settings };
-  else if (event.type === EqualizerEventType.AiResult) {
+  if (event.type === EqualizerEventType.SettingsChanged) {
+    next = { ...next, settings: event.settings };
+    if (next.ai.phase === EqualizerAiPhase.Running && event.settings.aiConsentAt === null) {
+      next = { ...next, ai: { phase: EqualizerAiPhase.Idle }, currentRequestId: null };
+      effects.push({ type: EqualizerEffectType.CancelAi });
+    }
+  } else if (event.type === EqualizerEventType.AiResult) {
     if (model.currentRequestId === null || event.requestId !== model.currentRequestId) return { model, effects };
     next = { ...next, currentRequestId: null };
     if (event.result.ok) {
@@ -121,7 +126,10 @@ export function reduceEqualizer(
     const settings = next.settings;
     switch (signal.type) {
       case EqualizerSignalType.SetEnabled:
-        if (settings.enabled !== signal.enabled) manual({ ...settings, enabled: signal.enabled });
+        if (settings.enabled !== signal.enabled) {
+          next = { ...next, settings: { ...settings, enabled: signal.enabled } };
+          save();
+        }
         break;
       case EqualizerSignalType.SetBand: {
         if (settings.values.bands[signal.index] === signal.db) break;

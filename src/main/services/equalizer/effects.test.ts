@@ -49,14 +49,15 @@ describe("equalizer transitions", () => {
 
   it("requires a key and consent and refuses a second request", () => {
     const initial = initialEqualizerModel(settings());
-    expect(reduceEqualizer(initial, signal({ type: EqualizerSignalType.AiRequest, prompt: "x" }), { ...context, hasKey: false }).model.ai.phase).toBe(
-      EqualizerAiPhase.NoKey
-    );
+    const noKey = reduceEqualizer(initial, signal({ type: EqualizerSignalType.AiRequest, prompt: "x" }), { ...context, hasKey: false });
+    expect(noKey.model.ai.phase).toBe(EqualizerAiPhase.NoKey);
+    expect(noKey.effects).not.toContainEqual(expect.objectContaining({ type: EqualizerEffectType.RequestAi }));
     const consent = reduceEqualizer(initial, signal({ type: EqualizerSignalType.AiRequest, prompt: "x" }), context);
     expect(consent.model.ai.phase).toBe(EqualizerAiPhase.Consent);
     expect(consent.effects).not.toContainEqual(expect.objectContaining({ type: EqualizerEffectType.RequestAi }));
     const declined = reduceEqualizer(consent.model, signal({ type: EqualizerSignalType.AiConsent, send: false }), context);
     expect(declined.effects).toEqual([{ type: EqualizerEffectType.SendState }]);
+    expect(declined.model.settings).toEqual(initial.settings);
     const running = reduceEqualizer(consent.model, signal({ type: EqualizerSignalType.AiConsent, send: true }), context);
     expect(running.effects).toContainEqual(expect.objectContaining({ type: EqualizerEffectType.RequestAi, prompt: "x" }));
     expect(reduceEqualizer(running.model, signal({ type: EqualizerSignalType.AiRequest, prompt: "again" }), context).effects).toEqual([]);
@@ -90,11 +91,55 @@ describe("equalizer transitions", () => {
     expect(started.effects).toContainEqual(expect.objectContaining({ type: EqualizerEffectType.RequestAi, prompt: "a".repeat(200) }));
     const changed = reduceEqualizer(
       started.model,
-      { type: EqualizerEventType.SettingsChanged, settings: { ...initial.settings, aiConsentAt: null } },
+      { type: EqualizerEventType.SettingsChanged, settings: { ...initial.settings, enabled: true } },
       context
     );
     expect(changed.model.currentRequestId).toBe(started.model.currentRequestId);
     expect(changed.model.ai.phase).toBe(EqualizerAiPhase.Running);
+    expect(changed.effects).toEqual([{ type: EqualizerEffectType.SendState }]);
+  });
+
+  it("cancels a running request when consent is revoked and ignores its result", () => {
+    const initial = initialEqualizerModel({ ...settings(), aiConsentAt: context.now });
+    const running = reduceEqualizer(initial, signal({ type: EqualizerSignalType.AiRequest, prompt: "test" }), context).model;
+    const updatedSettings = { ...running.settings, aiConsentAt: null };
+    const changed = reduceEqualizer(running, { type: EqualizerEventType.SettingsChanged, settings: updatedSettings }, context);
+    expect(changed.model.settings).toEqual(updatedSettings);
+    expect(changed.model.ai.phase).toBe(EqualizerAiPhase.Idle);
+    expect(changed.model.currentRequestId).toBeNull();
+    expect(changed.effects).toEqual([{ type: EqualizerEffectType.CancelAi }, { type: EqualizerEffectType.SendState }]);
+    const late = reduceEqualizer(
+      changed.model,
+      {
+        type: EqualizerEventType.AiResult,
+        requestId: running.currentRequestId!,
+        result: { ok: true, values: initial.settings.values, explanation: "late" }
+      },
+      context
+    );
+    expect(late).toEqual({ model: changed.model, effects: [] });
+  });
+
+  it("preserves the applied state and undo when toggling enabled", () => {
+    const initial = initialEqualizerModel({ ...settings(), aiConsentAt: context.now });
+    const running = reduceEqualizer(initial, signal({ type: EqualizerSignalType.AiRequest, prompt: "test" }), context).model;
+    const values = { ...initial.settings.values, bands: [3, ...Array(9).fill(0)] };
+    const applied = reduceEqualizer(
+      running,
+      { type: EqualizerEventType.AiResult, requestId: running.currentRequestId!, result: { ok: true, values, explanation: "ok" } },
+      context
+    ).model;
+    let model = applied;
+    for (const enabled of [true, false]) {
+      const toggled = reduceEqualizer(model, signal({ type: EqualizerSignalType.SetEnabled, enabled }), context);
+      expect(toggled.model.settings.enabled).toBe(enabled);
+      expect(toggled.model.settings.values).toEqual(values);
+      expect(toggled.model.ai).toEqual(applied.ai);
+      expect(toggled.model.undo).toEqual(initial.settings.values);
+      expect(toggled.effects).toEqual([{ type: EqualizerEffectType.SaveSettings }, { type: EqualizerEffectType.SendState }]);
+      model = toggled.model;
+    }
+    expect(reduceEqualizer(model, signal({ type: EqualizerSignalType.AiUndo }), context).model.settings.values).toEqual(initial.settings.values);
   });
 
   it("applies, undoes, rejects late results and preserves values on failure", () => {
