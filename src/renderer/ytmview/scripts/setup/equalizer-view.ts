@@ -4,6 +4,7 @@ import {
   EQUALIZER_BAND_MIN_DB,
   EQUALIZER_PREAMP_MAX_DB,
   EQUALIZER_PREAMP_MIN_DB,
+  EQUALIZER_PRESET_NAME_MAX,
   EQUALIZER_PROMPT_MAX,
   EQUALIZER_STEP_DB,
   EqualizerPresetKind,
@@ -13,7 +14,7 @@ import { BUNDLED_EQUALIZER_PRESETS, effectiveEqualizerPreamp } from "~shared/equ
 import { EqualizerAiPhase, EqualizerSignalType, type EqualizerSignal, type EqualizerViewState } from "~shared/equalizer/messages";
 import { GROOVING_LLM_TIMEOUT_MS, GROOVING_PROVIDER_LABELS } from "~shared/grooving";
 import { GROOVING_TEXT } from "./grooving-text";
-import { EQUALIZER_TEXT, equalizerLanguage } from "./equalizer-text";
+import { EQUALIZER_TEXT, equalizerLanguage, equalizerPageLanguage } from "./equalizer-text";
 import { getEqualizerAudio } from "./equalizer-audio";
 import { drawEqualizerCurve, startEqualizerSpectrum } from "./equalizer-spectrum";
 
@@ -23,6 +24,8 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   let prompt = "";
   let name = "";
   let pendingSave = false;
+  let renameFrom: string | null = null;
+  let renameTo = "";
   let dragging = false;
   let current: EqualizerViewState | null = null;
   let stopSpectrum: (() => void) | null = null;
@@ -118,7 +121,7 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
     nameInput.dataset.equalizerFocus = "name";
     nameInput.placeholder = text.name;
     nameInput.setAttribute("aria-label", text.name);
-    nameInput.maxLength = 200;
+    nameInput.maxLength = EQUALIZER_PRESET_NAME_MAX;
     nameInput.value = name;
     nameInput.addEventListener("input", () => {
       name = nameInput.value;
@@ -130,14 +133,41 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
     presets.append(nameInput, button(text.save, save));
     if (state.selectedPreset?.kind === EqualizerPresetKind.Saved) {
       const selectedName = state.selectedPreset.name;
-      presets.append(
-        button(text.rename, () => {
-          const to = window.prompt(text.name, selectedName);
-          if (to !== null) {
+      if (renameFrom === selectedName) {
+        const renameInput = el("input");
+        renameInput.type = "text";
+        renameInput.maxLength = EQUALIZER_PRESET_NAME_MAX;
+        renameInput.setAttribute("aria-label", text.name);
+        renameInput.dataset.equalizerFocus = "rename";
+        renameInput.value = renameTo;
+        renameInput.addEventListener("input", () => {
+          renameTo = renameInput.value;
+        });
+        presets.append(
+          renameInput,
+          button(text.confirmRename, () => {
+            const to = renameTo;
+            renameFrom = null;
             pendingSave = false;
             send({ type: EqualizerSignalType.RenamePreset, from: selectedName, to });
-          }
-        }),
+            if (current) render(current);
+          }),
+          button(text.no, () => {
+            renameFrom = null;
+            if (current) render(current);
+          })
+        );
+      } else {
+        presets.append(
+          button(text.rename, () => {
+            renameFrom = selectedName;
+            renameTo = selectedName;
+            if (current) render(current);
+            element.querySelector<HTMLInputElement>('[data-equalizer-focus="rename"]')?.focus();
+          })
+        );
+      }
+      presets.append(
         button(text.remove, () => {
           if (window.confirm(text.confirmDelete)) send({ type: EqualizerSignalType.DeletePreset, name: selectedName });
         })
@@ -216,21 +246,30 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
     promptInput.placeholder = text.prompt;
     promptInput.setAttribute("aria-label", text.prompt);
     promptInput.value = prompt;
+    promptInput.disabled = state.ai.phase === EqualizerAiPhase.Running;
+    const adjust = button(text.adjust, () => send({ type: EqualizerSignalType.AiRequest, prompt, pageLanguage: equalizerPageLanguage() }));
+    const updateAdjust = () => {
+      adjust.disabled = !prompt.trim();
+    };
+    updateAdjust();
     const remaining = el("span", text.remaining(EQUALIZER_PROMPT_MAX - prompt.length));
     promptInput.addEventListener("input", () => {
       prompt = promptInput.value;
       remaining.textContent = text.remaining(EQUALIZER_PROMPT_MAX - prompt.length);
+      updateAdjust();
     });
     ai.append(promptInput, remaining);
-    for (const example of text.examples)
-      ai.append(
-        button(example, () => {
-          prompt = example;
-          promptInput.value = example;
-          remaining.textContent = text.remaining(EQUALIZER_PROMPT_MAX - prompt.length);
-        })
-      );
-    if (state.ai.phase !== EqualizerAiPhase.Running) ai.append(button(text.adjust, () => send({ type: EqualizerSignalType.AiRequest, prompt })));
+    for (const example of text.examples) {
+      const exampleButton = button(example, () => {
+        prompt = example;
+        promptInput.value = example;
+        remaining.textContent = text.remaining(EQUALIZER_PROMPT_MAX - prompt.length);
+        updateAdjust();
+      });
+      exampleButton.disabled = state.ai.phase === EqualizerAiPhase.Running;
+      ai.append(exampleButton);
+    }
+    if (state.ai.phase !== EqualizerAiPhase.Running) ai.append(adjust);
     switch (state.ai.phase) {
       case EqualizerAiPhase.Running:
         ai.append(button(text.cancel, () => send({ type: EqualizerSignalType.AiCancel })));
