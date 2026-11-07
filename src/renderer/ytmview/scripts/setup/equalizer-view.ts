@@ -26,6 +26,7 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   let pendingSave = false;
   let renameFrom: string | null = null;
   let renameTo = "";
+  let pendingRename: string | null = null;
   let dragging = false;
   let current: EqualizerViewState | null = null;
   let stopSpectrum: (() => void) | null = null;
@@ -66,6 +67,12 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
   };
   function render(state: EqualizerViewState) {
     current = state;
+    const selectedName = state.selectedPreset?.kind === EqualizerPresetKind.Saved ? state.selectedPreset.name : null;
+    if (renameFrom !== null && ((pendingRename !== null && selectedName === pendingRename && !state.notice) || selectedName !== renameFrom)) {
+      renameFrom = null;
+      pendingRename = null;
+    }
+    if (state.notice) pendingRename = null;
     if (dragging) {
       updateSpectrum();
       return;
@@ -140,20 +147,34 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
         renameInput.setAttribute("aria-label", text.name);
         renameInput.dataset.equalizerFocus = "rename";
         renameInput.value = renameTo;
+        const confirmRename = button(text.confirmRename, () => {
+          if (!renameTo.trim()) return;
+          pendingRename = renameTo.trim();
+          pendingSave = false;
+          send({ type: EqualizerSignalType.RenamePreset, from: selectedName, to: renameTo });
+        });
+        confirmRename.disabled = !renameTo.trim();
         renameInput.addEventListener("input", () => {
           renameTo = renameInput.value;
+          confirmRename.disabled = !renameTo.trim();
+        });
+        renameInput.addEventListener("keydown", event => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            renameFrom = null;
+            pendingRename = null;
+            if (current) render(current);
+          } else if (event.key === "Enter") {
+            event.preventDefault();
+            confirmRename.click();
+          }
         });
         presets.append(
           renameInput,
-          button(text.confirmRename, () => {
-            const to = renameTo;
-            renameFrom = null;
-            pendingSave = false;
-            send({ type: EqualizerSignalType.RenamePreset, from: selectedName, to });
-            if (current) render(current);
-          }),
+          confirmRename,
           button(text.no, () => {
             renameFrom = null;
+            pendingRename = null;
             if (current) render(current);
           })
         );
@@ -162,6 +183,7 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
           button(text.rename, () => {
             renameFrom = selectedName;
             renameTo = selectedName;
+            pendingRename = null;
             if (current) render(current);
             element.querySelector<HTMLInputElement>('[data-equalizer-focus="rename"]')?.focus();
           })
@@ -246,10 +268,11 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
     promptInput.placeholder = text.prompt;
     promptInput.setAttribute("aria-label", text.prompt);
     promptInput.value = prompt;
-    promptInput.disabled = state.ai.phase === EqualizerAiPhase.Running;
+    const aiInputDisabled = state.ai.phase === EqualizerAiPhase.Running || state.ai.phase === EqualizerAiPhase.Consent;
+    promptInput.disabled = aiInputDisabled;
     const adjust = button(text.adjust, () => send({ type: EqualizerSignalType.AiRequest, prompt, pageLanguage: equalizerPageLanguage() }));
     const updateAdjust = () => {
-      adjust.disabled = !prompt.trim();
+      adjust.disabled = aiInputDisabled || !prompt.trim();
     };
     updateAdjust();
     const remaining = el("span", text.remaining(EQUALIZER_PROMPT_MAX - prompt.length));
@@ -266,7 +289,7 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
         remaining.textContent = text.remaining(EQUALIZER_PROMPT_MAX - prompt.length);
         updateAdjust();
       });
-      exampleButton.disabled = state.ai.phase === EqualizerAiPhase.Running;
+      exampleButton.disabled = aiInputDisabled;
       ai.append(exampleButton);
     }
     if (state.ai.phase !== EqualizerAiPhase.Running) ai.append(adjust);
