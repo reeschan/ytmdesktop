@@ -1528,8 +1528,10 @@ window.ytmd.handleUpdateDownloaded(() => {
             type="custom"
             name="This month"
           >
-            <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingUsageText }}</span>
-            <span v-if="equalizerUsageText" class="grooving-value tw:text-ytmd-text-muted">of which EQ: {{ equalizerUsageText }}</span>
+            <span class="grooving-usage">
+              <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingUsageText }}</span>
+              <span v-if="equalizerUsageText" class="grooving-value tw:text-ytmd-text-muted">of which EQ: {{ equalizerUsageText }}</span>
+            </span>
           </YTMDSetting>
         </div>
 
@@ -2098,6 +2100,16 @@ window.ytmd.handleUpdateDownloaded(() => {
 
 .grooving-value {
   margin-right: 8px;
+}
+
+/* The month's total and the EQ part of it stack, so the row's name keeps its line */
+.grooving-usage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .setting-select {
