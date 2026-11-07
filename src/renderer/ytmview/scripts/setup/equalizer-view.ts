@@ -89,13 +89,21 @@ export function createEqualizerView(send: (signal: EqualizerSignal) => void) {
     element.lang = language;
     const heading = el("div");
     heading.className = "ytmd-eq-row";
-    const toggleLabel = el("label", text.enabled);
-    const toggle = el("input");
-    toggle.type = "checkbox";
-    toggle.checked = state.enabled;
-    toggle.addEventListener("change", () => send({ type: EqualizerSignalType.SetEnabled, enabled: toggle.checked }));
-    toggleLabel.prepend(toggle);
-    heading.append(el("h2", text.title), toggleLabel);
+    const toggle = el("button");
+    toggle.type = "button";
+    toggle.className = "ytmd-eq-switch";
+    toggle.dataset.equalizerFocus = "enabled";
+    toggle.setAttribute("role", "switch");
+    toggle.setAttribute("aria-checked", String(state.enabled));
+    toggle.setAttribute("aria-label", text.title);
+    const track = el("span");
+    track.className = "ytmd-eq-switch-track";
+    const knob = el("span");
+    knob.className = "ytmd-eq-switch-knob";
+    track.append(knob);
+    toggle.append(track, el("span", state.enabled ? text.enabled : text.disabled));
+    toggle.addEventListener("click", () => send({ type: EqualizerSignalType.SetEnabled, enabled: !state.enabled }));
+    heading.append(el("h2", text.title), toggle);
 
     const presets = el("div");
     presets.className = "ytmd-eq-section";

@@ -20,6 +20,7 @@ export const EQUALIZER_TEXT = {
   en: {
     title: "Equalizer",
     enabled: "On",
+    disabled: "Off",
     preset: "Preset",
     custom: "Custom",
     modified: " · modified",
@@ -60,6 +61,7 @@ export const EQUALIZER_TEXT = {
   ja: {
     title: "イコライザ",
     enabled: "オン",
+    disabled: "オフ",
     preset: "プリセット",
     custom: "カスタム",
     modified: "・変更あり",
