@@ -2109,6 +2109,13 @@ window.ytmd.handleUpdateDownloaded(() => {
   cursor: pointer;
 }
 
+/* The drop-down list is drawn by the OS, which paints a see-through option background as white, so the options get the
+   theme's solid background */
+.setting-select option {
+  background-color: var(--ytmd-color-background);
+  color: var(--ytmd-color-text);
+}
+
 button {
   margin: 3px 3px 3px 4px;
   border-radius: 4px;
