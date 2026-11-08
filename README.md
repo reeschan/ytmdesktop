@@ -154,7 +154,7 @@ YouTube Music の画面下のプレイヤーバーの右端にある **EQ** の�
 
 本家 (v2.0.12、2026-09-08) から改変した内容を、日付とともに残します。版ごとの詳しい内容は [Releases](https://github.com/reeschan/ytmdesktop/releases) にあります。
 
-- **未リリース (2026-11-08)**: イコライザ (10 バンドとプリアンプ・プリセット・スペクトル・AI での調整) を足しました。背景動画の元に Spectrum を足し、Grooving の LLM の設定と通信を、イコライザと共通の部品に切り出しました。設定画面のドロップダウンの選択肢が読めない不具合を直しました。
+- **v2.6.0 (2026-11-08)**: イコライザ (10 バンドとプリアンプ・プリセット・スペクトル・AI での調整) を足しました。背景動画の元に Spectrum を足し、Grooving の LLM の設定と通信を、イコライザと共通の部品に切り出しました。設定画面のドロップダウンの選択肢が読めない不具合を直しました。
 - **v2.5.0 (2026-11-07)**: Jacket テーマを足しました。Grooving に「続けて流す」と「曲から始める」を足し、ミックスで選ばなかった曲をリストに入れないようにしました。本家の修正 (上の「本家の修正の取り込み」) を取り込みました。
 - **v2.4.0 (2026-11-05)**: Grooving の途中でほかのページに移っても、ページを読み込み直しても、回が続くようにしました。隠れているあいだは、サイドバーに進み具合を出します。
 - **v2.3.0 (2026-11-04)**: Grooving と曲の聞き取り (Shazam) を足しました。既定の見た目・ミニプレイヤーの動画・トレイのツールチップ・キーボード・前回の続き・更新・ウィンドウの位置を変え、多数の不具合を直しました。Electron 45.2.1 と TypeScript 7 に上げました。
@@ -345,7 +345,7 @@ Press the **EQ** button at the right end of the player bar at the bottom of YouT
 
 The changes made to upstream (v2.0.12, 2026-09-08), with their dates. Each version's details are on the [Releases](https://github.com/reeschan/ytmdesktop/releases) page.
 
-- **Unreleased (2026-11-08)**: added the equalizer (10 bands and a preamp, presets, the spectrum and Adjust with AI). Added Spectrum as a background video source, and moved Grooving's LLM settings and calls into parts shared with the equalizer. Fixed the unreadable options in the settings drop-down lists.
+- **v2.6.0 (2026-11-08)**: added the equalizer (10 bands and a preamp, presets, the spectrum and Adjust with AI). Added Spectrum as a background video source, and moved Grooving's LLM settings and calls into parts shared with the equalizer. Fixed the unreadable options in the settings drop-down lists.
 - **v2.5.0 (2026-11-07)**: added the Jacket theme. Added "Keep it going" and "Start from a song" to Grooving, and a mix no longer puts the tracks you did not pick into the list. Took in the upstream fixes (see "Upstream fixes" above).
 - **v2.4.0 (2026-11-05)**: a Grooving run now goes on when you move to another page or reload the page, and the side bar shows its progress while it is hidden.
 - **v2.3.0 (2026-11-04)**: added Grooving and song recognition (Shazam). Changed the default look, the miniplayer video, the tray tooltip, the keyboard shortcuts, continuing where you left off, updates and the window position, and fixed many bugs. Moved to Electron 45.2.1 and TypeScript 7.
