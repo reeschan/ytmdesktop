@@ -2,9 +2,12 @@ import {
   BackgroundVideoMessage,
   BackgroundVideoMotion,
   BackgroundVideoPlayback,
+  YtmBackgroundContent,
   YtmBackgroundReport,
   YtmBackgroundState
 } from "~shared/background-video";
+import { getEqualizerAudio } from "./equalizer-audio";
+import { startEqualizerSpectrum } from "./equalizer-spectrum";
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 // How many blur radii the canvas extends past each edge of the window
@@ -22,6 +25,8 @@ const MASK_Z_INDEX = "-2147483646";
 const VISIBLE_PLAYBACKS: BackgroundVideoPlayback[] = [BackgroundVideoPlayback.Playing, BackgroundVideoPlayback.Paused];
 const PLAYBACKS: unknown[] = Object.values(BackgroundVideoPlayback);
 const MOTIONS: unknown[] = Object.values(BackgroundVideoMotion);
+const CONTENTS: unknown[] = Object.values(YtmBackgroundContent);
+const SPECTRUM_REDUCED_MOTION_INTERVAL_MS = 1000;
 
 type Thumbnail = { url: string; width: number; height: number };
 
@@ -43,6 +48,7 @@ function getLoadedSong(): { videoId: string; artworkUrl: string | null } | null 
 // Nothing is shown until the first state arrives
 const INITIAL_STATE: YtmBackgroundState = {
   show: false,
+  content: YtmBackgroundContent.Video,
   playback: BackgroundVideoPlayback.NotShown,
   motion: BackgroundVideoMotion.Continuous,
   maskOpacity: 0,
@@ -77,6 +83,7 @@ function isBackgroundState(value: unknown): value is YtmBackgroundState {
   const state = value as Record<string, unknown>;
   return (
     typeof state.show === "boolean" &&
+    CONTENTS.includes(state.content) &&
     PLAYBACKS.includes(state.playback) &&
     MOTIONS.includes(state.motion) &&
     Number.isFinite(state.maskOpacity) &&
@@ -104,6 +111,7 @@ export function initBackgroundVideo() {
   let state = INITIAL_STATE;
   let video: HTMLVideoElement | null = null;
   let frameRequest: number | null = null;
+  let stopSpectrum: (() => void) | null = null;
   // Set when new content has no frame drawn from it yet
   let framePending = false;
   let lastReport: YtmBackgroundReport | null = null;
@@ -115,7 +123,8 @@ export function initBackgroundVideo() {
   const isVisible = () => state.show && VISIBLE_PLAYBACKS.includes(state.playback);
   const isDrawing = () => isVisible() && state.playback === BackgroundVideoPlayback.Playing;
   // Every frame is drawn only in continuous motion, a still frame is drawn on loading and pause events
-  const isDrawingEveryFrame = () => isDrawing() && state.motion === BackgroundVideoMotion.Continuous;
+  const isDrawingVideo = () => isDrawing() && state.content === YtmBackgroundContent.Video;
+  const isDrawingEveryFrame = () => isDrawingVideo() && state.motion === BackgroundVideoMotion.Continuous;
 
   // Covers the canvas like object-fit: cover
   function drawCover(source: CanvasImageSource, sourceWidth: number, sourceHeight: number) {
@@ -161,7 +170,7 @@ export function initBackgroundVideo() {
       if (artwork !== loading) return;
       loading.ready = true;
       sendReport();
-      if (video && isVisible()) drawFrame(video);
+      if (video && isVisible() && state.content === YtmBackgroundContent.Video) drawFrame(video);
     };
     image.onerror = () => {
       if (artwork === loading) artwork = null;
@@ -257,7 +266,15 @@ export function initBackgroundVideo() {
     const wasVisible = isVisible();
     const wasDrawing = isDrawing();
     const motionChanged = newState.motion !== state.motion;
+    const contentChanged = newState.content !== state.content;
     state = newState;
+
+    if (contentChanged || !isDrawing()) {
+      cancelFrame();
+      stopSpectrum?.();
+      stopSpectrum = null;
+    }
+    if (contentChanged) context.clearRect(0, 0, canvas.width, canvas.height);
 
     const visible = isVisible();
     const blur = Math.max(state.maskBlur, 0);
@@ -277,21 +294,29 @@ export function initBackgroundVideo() {
     if (!isDrawing()) {
       // Paused keeps the last frame, it is drawn again only when resizing cleared it
       cancelFrame();
-      if (resized && video) drawFrame(video);
+      if (resized && video && state.content === YtmBackgroundContent.Video) drawFrame(video);
       return;
     }
 
-    if (video && (!wasDrawing || resized || motionChanged)) drawFrame(video);
+    if (state.content === YtmBackgroundContent.Spectrum) {
+      if (!stopSpectrum) {
+        getEqualizerAudio().connect();
+        stopSpectrum = startEqualizerSpectrum(canvas, { reducedMotionIntervalMs: SPECTRUM_REDUCED_MOTION_INTERVAL_MS });
+      }
+      return;
+    }
+
+    if (video && (!wasDrawing || resized || motionChanged || contentChanged)) drawFrame(video);
     if (isDrawingEveryFrame()) requestFrame();
     else cancelFrame();
   }
 
   function onWindowResized() {
-    if (isVisible() && layoutCanvas() && video) drawFrame(video);
+    if (isVisible() && layoutCanvas() && video && state.content === YtmBackgroundContent.Video) drawFrame(video);
   }
 
   function drawPendingFrame() {
-    if (video && framePending && isDrawing()) drawFrame(video);
+    if (video && framePending && isDrawingVideo()) drawFrame(video);
   }
 
   function onVideoResized() {
@@ -308,7 +333,7 @@ export function initBackgroundVideo() {
   }
 
   function onVideoPaused() {
-    if (video && isDrawing()) drawFrame(video);
+    if (video && isDrawingVideo()) drawFrame(video);
   }
 
   const videoListeners: [keyof HTMLMediaElementEventMap, () => void][] = [
@@ -331,7 +356,7 @@ export function initBackgroundVideo() {
     framePending = true;
     if (video) {
       for (const [type, listener] of videoListeners) video.addEventListener(type, listener);
-      if (isDrawing()) {
+      if (isDrawingVideo()) {
         drawFrame(video);
         requestFrame();
       }

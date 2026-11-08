@@ -1,20 +1,6 @@
 // Grooving's LLM calls (search queries, pairs, lists) through the AI SDK with zod structured output.
 // Pure transport: never throws, never logs, and does not import electron, electron-log or the config store.
 // Only the failure reason leaves this module (never the raw error: APICallError carries the prompt with the listening history).
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import {
-  APICallError,
-  generateText,
-  JSONParseError,
-  LanguageModel,
-  NoObjectGeneratedError,
-  NoOutputGeneratedError,
-  Output,
-  RetryError,
-  TypeValidationError
-} from "ai";
 import { z } from "zod";
 import { groovingArtistLimit } from "~shared/grooving/answer";
 import {
@@ -26,124 +12,41 @@ import {
   GroovingCandidate,
   GroovingDirection,
   GroovingDisplayLanguage,
-  GroovingFailureReason,
   GroovingLanguage,
   GroovingList,
   GroovingMood,
   groovingMoodLabel,
   GroovingPair,
-  GroovingProvider,
   GroovingRoundRecord
 } from "~shared/grooving";
 import { GroovingReaction } from "~shared/grooving/continuation";
-import { GroovingLlmFailureKind } from "./effects";
+import type { LlmConfig } from "../llm/config";
+import { callStructuredLlm } from "../llm/transport";
+import type { LlmOptions, LlmPrompt, LlmResult, LlmUsage } from "../llm/transport";
 
-export type GroovingLlmConfig = { provider: GroovingProvider; apiKey: string; model: string };
-export type GroovingLlmUsage = { inputTokens: number; outputTokens: number };
-export type GroovingLlmResult<T> =
-  | { ok: true; value: T; usage: GroovingLlmUsage }
-  | { ok: false; kind: GroovingLlmFailureKind; reason: GroovingFailureReason; usage: GroovingLlmUsage };
-// signal stops the call midway (for example when the screen closes), model replaces the model made from the provider (for example a fake model for tests)
-export type GroovingLlmOptions = { signal?: AbortSignal; model?: LanguageModel };
+export type GroovingLlmConfig = LlmConfig;
+export type GroovingLlmUsage = LlmUsage;
+export type GroovingLlmResult<T> = LlmResult<T>;
+export type GroovingLlmOptions = LlmOptions;
 
 // The mood description is also the playlist's title. Asked for in the prompt and cut here (a longer one is still usable)
 const GROOVING_MOOD_DESCRIPTION_MAX = 40;
-
-// The official endpoints, set explicitly so that ANTHROPIC_BASE_URL / OPENAI_BASE_URL cannot send the key elsewhere.
-// Always a provider instance: a plain model id string would go to the AI SDK's default provider (the Vercel gateway)
-const PROVIDER_MODELS: Record<GroovingProvider, (apiKey: string, model: string) => LanguageModel> = {
-  [GroovingProvider.Gemini]: (apiKey, model) =>
-    createGoogleGenerativeAI({ apiKey, baseURL: "https://generativelanguage.googleapis.com/v1beta" })(model),
-  [GroovingProvider.Anthropic]: (apiKey, model) => createAnthropic({ apiKey, baseURL: "https://api.anthropic.com/v1" })(model),
-  [GroovingProvider.OpenAI]: (apiKey, model) => createOpenAI({ apiKey, baseURL: "https://api.openai.com/v1" })(model)
-};
 
 // Shape and required fields only. Counts, lengths and membership in the candidates are answer.ts's job
 const searchQueriesSchema = z.object({ queries: z.array(z.string()) });
 const pairSchema = z.object({ left: z.string(), right: z.string(), reason: z.string() });
 const listSchema = z.object({ videoIds: z.array(z.string()), moodDescription: z.string() });
 
-const NO_USAGE: GroovingLlmUsage = { inputTokens: 0, outputTokens: 0 };
+type GroovingPrompt = LlmPrompt;
 
-type GroovingPrompt = { system: string; prompt: string };
-
-function toUsage(usage: { inputTokens?: number; outputTokens?: number } | undefined): GroovingLlmUsage {
-  return { inputTokens: usage?.inputTokens ?? 0, outputTokens: usage?.outputTokens ?? 0 };
-}
-
-function unusable(usage: GroovingLlmUsage): GroovingLlmResult<never> {
-  return { ok: false, kind: GroovingLlmFailureKind.Unusable, reason: GroovingFailureReason.Unusable, usage };
-}
-
-function failed(reason: GroovingFailureReason, usage: GroovingLlmUsage): GroovingLlmResult<never> {
-  return { ok: false, kind: GroovingLlmFailureKind.Failed, reason, usage };
-}
-
-function isUnusableAnswer(error: unknown): boolean {
-  return (
-    NoObjectGeneratedError.isInstance(error) ||
-    NoOutputGeneratedError.isInstance(error) ||
-    JSONParseError.isInstance(error) ||
-    TypeValidationError.isInstance(error)
-  );
-}
-
-function classifyFailure(error: unknown): GroovingFailureReason {
-  const cause = RetryError.isInstance(error) ? error.lastError : error;
-  if (!APICallError.isInstance(cause)) return GroovingFailureReason.Network;
-  const status = cause.statusCode;
-  if (status === 401 || status === 403) return GroovingFailureReason.InvalidKey;
-  // Gemini answers a wrong key with 400 INVALID_ARGUMENT and API_KEY_INVALID in the body
-  if (status === 400 && (cause.responseBody ?? "").includes("API_KEY_INVALID")) return GroovingFailureReason.InvalidKey;
-  if (status === 404) return GroovingFailureReason.ModelNotFound;
-  if (status === 429) return GroovingFailureReason.RateLimited;
-  // Any other 4xx (for example Anthropic's 400 "credit balance is too low"): the provider refused the request, retrying does not help
-  if (status !== undefined && status >= 400 && status <= 499) return GroovingFailureReason.Rejected;
-  return GroovingFailureReason.Network;
-}
-
-// The one place that holds the timeout, the retry policy, the failure classes and the usage
-async function callGrooving<S, T>(
+function callGrooving<S, T>(
   config: GroovingLlmConfig,
   schema: z.ZodType<S>,
   prompt: GroovingPrompt,
   options: GroovingLlmOptions | undefined,
   finish: (answer: S) => T | null // null: the answer has the right shape but nothing usable in it
 ): Promise<GroovingLlmResult<T>> {
-  if (!options?.model && config.apiKey.trim() === "") return failed(GroovingFailureReason.InvalidKey, NO_USAGE);
-
-  // AbortController + setTimeout instead of AbortSignal.timeout so that fake timers drive it
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GROOVING_LLM_TIMEOUT_MS);
-  const callerSignal = options?.signal;
-  const onCallerAbort = () => controller.abort();
-  callerSignal?.addEventListener("abort", onCallerAbort, { once: true });
-  if (callerSignal?.aborted) controller.abort();
-
-  try {
-    const model = options?.model ?? PROVIDER_MODELS[config.provider](config.apiKey, config.model);
-    const result = await generateText({
-      model,
-      system: prompt.system,
-      prompt: prompt.prompt,
-      output: Output.object({ schema }),
-      // Retries belong to the flow (once for an unusable answer, the user's "retry" for failures).
-      // The SDK's own retries would wrap a 429 in a RetryError and stack waits inside the timeout
-      maxRetries: 0,
-      abortSignal: controller.signal
-    });
-    const usage = toUsage(result.totalUsage);
-    if (result.finishReason === "length" || result.finishReason === "content-filter") return unusable(usage);
-    const value = finish(result.output);
-    return value === null ? unusable(usage) : { ok: true, value, usage };
-  } catch (error) {
-    if (controller.signal.aborted) return failed(GroovingFailureReason.Network, NO_USAGE);
-    if (isUnusableAnswer(error)) return unusable(NoObjectGeneratedError.isInstance(error) ? toUsage(error.usage) : NO_USAGE);
-    return failed(classifyFailure(error), NO_USAGE);
-  } finally {
-    clearTimeout(timer);
-    callerSignal?.removeEventListener("abort", onCallerAbort);
-  }
+  return callStructuredLlm(config, schema, prompt, GROOVING_LLM_TIMEOUT_MS, options, finish);
 }
 
 // One line per field: a "|" or a line break in a title would break the line format or smuggle in instructions

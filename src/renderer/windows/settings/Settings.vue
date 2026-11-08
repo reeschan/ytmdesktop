@@ -24,7 +24,8 @@ import {
   GroovingConsentChoice,
   GroovingLanguage,
   GroovingProvider,
-  GroovingUsage
+  GroovingUsage,
+  GroovingUsageAmounts
 } from "~shared/grooving";
 import { groovingMonth } from "~shared/grooving/usage";
 import { SettingsTab } from "~shared/types";
@@ -61,6 +62,7 @@ const general: StoreSchema["general"] = await store.get("general");
 const appearance: StoreSchema["appearance"] = await store.get("appearance");
 const playback: StoreSchema["playback"] = await store.get("playback");
 const integrations: StoreSchema["integrations"] = await store.get("integrations");
+const equalizer: StoreSchema["equalizer"] = await store.get("equalizer");
 const shortcuts: StoreSchema["shortcuts"] = await store.get("shortcuts");
 const lastFM: StoreSchema["lastfm"] = await store.get("lastfm");
 
@@ -104,7 +106,8 @@ const themeItemNames: Record<ThemeItem, string> = {
 
 const backgroundVideoSourceOptions: Record<BackgroundVideoSource, string> = {
   [BackgroundVideoSource.Playing]: "Playing video",
-  [BackgroundVideoSource.File]: "Video file"
+  [BackgroundVideoSource.File]: "Video file",
+  [BackgroundVideoSource.Spectrum]: "Spectrum"
 };
 
 const continueWhereYouLeftOff = ref<boolean>(playback.continueWhereYouLeftOff);
@@ -152,6 +155,7 @@ const GROOVING_LANGUAGE_LABELS: Record<GroovingLanguage, string> = {
 };
 const groovingLanguage = ref<GroovingLanguage>(integrations.groovingLanguage ?? GroovingLanguage.Auto);
 const groovingConsent = ref<GroovingConsent | null>(integrations.groovingConsent ?? null);
+const equalizerConsent = ref<string | null>(equalizer?.aiConsentAt ?? null);
 const groovingUsage = ref<GroovingUsage | null>(integrations.groovingUsage ?? null);
 
 const shortcutPlayPause = ref<string>(shortcuts.playPause);
@@ -214,6 +218,7 @@ store.onDidAnyChange(async newState => {
   // The Grooving API key and model inputs are not synced back here, for the same reason as the Shazam API key
   groovingLanguage.value = newState.integrations.groovingLanguage ?? GroovingLanguage.Auto;
   groovingConsent.value = newState.integrations.groovingConsent ?? null;
+  equalizerConsent.value = newState.equalizer?.aiConsentAt ?? null;
   groovingUsage.value = newState.integrations.groovingUsage ?? null;
 
   shortcutPlayPause.value = newState.shortcuts.playPause;
@@ -604,6 +609,18 @@ function resetGroovingConsent() {
   store.set("integrations.groovingConsent", null);
 }
 
+function resetEqualizerConsent() {
+  equalizerConsent.value = null;
+  store.set("equalizer.aiConsentAt", null);
+}
+
+const equalizerConsentText = computed(() => {
+  const consent = equalizerConsent.value;
+  if (!consent) return "Not answered yet";
+  const date = new Date(consent);
+  return `Consented: ${Number.isNaN(date.getTime()) ? consent : date.toLocaleString()}`;
+});
+
 const groovingConsentText = computed(() => {
   switch (groovingConsent.value?.choice) {
     case GroovingConsentChoice.ShareHistory:
@@ -617,19 +634,26 @@ const groovingConsentText = computed(() => {
 
 // Usage saved in an earlier month counts as 0 for this month.
 // Tokens of models not in the price table have no cost, so the cost is unknown when all tokens are unpriced, and a lower bound when some are
-const groovingUsageText = computed(() => {
-  const usage = groovingUsage.value;
-  const thisMonth = usage && usage.month === groovingMonth() ? usage : null;
-  const inputTokens = thisMonth?.inputTokens ?? 0;
-  const outputTokens = thisMonth?.outputTokens ?? 0;
-  const estimatedUsd = thisMonth?.estimatedUsd ?? 0;
+function formatUsage(usage: GroovingUsageAmounts | null): string {
+  const inputTokens = usage?.inputTokens ?? 0;
+  const outputTokens = usage?.outputTokens ?? 0;
+  const estimatedUsd = usage?.estimatedUsd ?? 0;
   // Missing in usage saved by an older version
-  const unpricedTokens = thisMonth?.unpricedTokens ?? 0;
+  const unpricedTokens = usage?.unpricedTokens ?? 0;
   const totalTokens = inputTokens + outputTokens;
   const tokensText = `${inputTokens.toLocaleString("en-US")} input / ${outputTokens.toLocaleString("en-US")} output tokens`;
   if (unpricedTokens === 0) return `${tokensText}, about $${estimatedUsd.toFixed(4)}`;
   if (totalTokens > 0 && unpricedTokens >= totalTokens) return `${tokensText}, cost unknown`;
   return `${tokensText}, about $${estimatedUsd.toFixed(4)} + unknown`;
+}
+
+const groovingUsageText = computed(() => {
+  const usage = groovingUsage.value;
+  return formatUsage(usage && usage.month === groovingMonth() ? usage : null);
+});
+const equalizerUsageText = computed(() => {
+  const usage = groovingUsage.value;
+  return usage && usage.month === groovingMonth() && usage.equalizer ? formatUsage(usage.equalizer) : null;
 });
 
 function groovingKeySavePending(): boolean {
@@ -1489,9 +1513,25 @@ window.ytmd.handleUpdateDownloaded(() => {
           </YTMDSetting>
           <YTMDSetting
             type="custom"
+            name="EQ AI adjustment consent"
+          >
+            <span class="grooving-value tw:text-ytmd-text-muted">{{ equalizerConsentText }}</span>
+            <button
+              v-if="equalizerConsent !== null"
+              class="tw:bg-ytmd-surface tw:text-ytmd-text"
+              @click="resetEqualizerConsent"
+            >
+              Reset
+            </button>
+          </YTMDSetting>
+          <YTMDSetting
+            type="custom"
             name="This month"
           >
-            <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingUsageText }}</span>
+            <span class="grooving-usage">
+              <span class="grooving-value tw:text-ytmd-text-muted">{{ groovingUsageText }}</span>
+              <span v-if="equalizerUsageText" class="grooving-value tw:text-ytmd-text-muted">of which EQ: {{ equalizerUsageText }}</span>
+            </span>
           </YTMDSetting>
         </div>
 
@@ -2062,6 +2102,16 @@ window.ytmd.handleUpdateDownloaded(() => {
   margin-right: 8px;
 }
 
+/* The month's total and the EQ part of it stack, so the row's name keeps its line */
+.grooving-usage {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .setting-select {
   width: 216px;
   padding: 8px;
@@ -2069,6 +2119,13 @@ window.ytmd.handleUpdateDownloaded(() => {
   border-width: 1px;
   border-style: solid;
   cursor: pointer;
+}
+
+/* The drop-down list is drawn by the OS, which paints a see-through option background as white, so the options get the
+   theme's solid background */
+.setting-select option {
+  background-color: var(--ytmd-color-background);
+  color: var(--ytmd-color-text);
 }
 
 button {

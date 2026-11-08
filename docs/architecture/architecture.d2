@@ -49,7 +49,7 @@ app: "YTMDesktop (Electron)" {
     icon: https://icons.terrastruct.com/essentials%2F220-layers.svg
     direction: down
 
-    ytm: "YouTube Music view\nvideo behind the page · Grooving screen" {
+    ytm: "YouTube Music view\nvideo / spectrum behind the page · Grooving · EQ panel + Web Audio" {
       class: svc
       icon: https://cdn.simpleicons.org/youtubemusic
     }
@@ -99,6 +99,10 @@ app: "YTMDesktop (Electron)" {
     grooving: "Grooving\nLLM picks · continuation · call cap" {
       class: svc
       icon: https://icons.terrastruct.com/essentials%2F078-magic%20wand.svg
+    }
+    equalizer: "Equalizer\n10 bands · presets · AI tuning" {
+      class: svc
+      icon: https://icons.terrastruct.com/essentials%2F178-controls.svg
     }
     integrations: "Integrations\nDiscord · Custom CSS · Companion · Last.fm" {
       class: svc
@@ -169,3 +173,7 @@ app.main.config <-> app.main.grooving: API key (encrypted) / usage
 app.main.grooving -> external.llm: tracks + answers (HTTPS)
 app.main.player -> app.main.grooving: reactions · seed song
 app.main.songrec -> app.main.grooving: recognized song (seed) {style.stroke-dash: 4}
+app.window.ytm <-> app.main.equalizer: signals / EQ state (IPC)
+app.main.config <-> app.main.equalizer: EQ settings · API key (encrypted) / usage
+app.main.equalizer -> external.llm: words + EQ values (HTTPS)
+app.main.player -> app.main.equalizer: playing song {style.stroke-dash: 4}

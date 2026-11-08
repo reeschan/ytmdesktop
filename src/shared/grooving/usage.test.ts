@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { GroovingUsage } from "./index";
-import { addGroovingUsage, estimateGroovingUsd, GROOVING_PRICES_AS_OF, GROOVING_PRICES_USD_PER_MTOK, groovingMonth } from "./usage";
+import {
+  addGroovingUsage,
+  estimateGroovingUsd,
+  GROOVING_PRICES_AS_OF,
+  GROOVING_PRICES_USD_PER_MTOK,
+  GroovingUsageFeature,
+  groovingMonth
+} from "./usage";
 
 describe("GROOVING_PRICES_USD_PER_MTOK", () => {
   it("has the three default models and a date", () => {
@@ -134,6 +141,49 @@ describe("addGroovingUsage", () => {
       unpricedTokens: 550
     });
     expect(addGroovingUsage(old, { month: "2026-11", inputTokens: 500, outputTokens: 50, estimatedUsd: 0.2 }).unpricedTokens).toBe(0);
+  });
+});
+
+describe("addGroovingUsage feature breakdown", () => {
+  const old = { month: "2026-11", inputTokens: 100, outputTokens: 20, estimatedUsd: 1, unpricedTokens: 0 };
+  const equalizer = { inputTokens: 30, outputTokens: 10, estimatedUsd: 0.5, unpricedTokens: 0 };
+
+  it("adds equalizer usage to old totals and a new breakdown", () => {
+    expect(
+      addGroovingUsage(old, { month: old.month, inputTokens: 30, outputTokens: 10, estimatedUsd: 0.5, feature: GroovingUsageFeature.Equalizer })
+    ).toEqual({
+      month: old.month,
+      inputTokens: 130,
+      outputTokens: 30,
+      estimatedUsd: 1.5,
+      unpricedTokens: 0,
+      equalizer
+    });
+  });
+
+  it("preserves the breakdown for grooving usage, including the default feature", () => {
+    const current = { ...old, equalizer };
+    const add = { month: old.month, inputTokens: 10, outputTokens: 5, estimatedUsd: 0.25 };
+    expect(addGroovingUsage(current, add).equalizer).toEqual(equalizer);
+    expect(addGroovingUsage(current, { ...add, feature: GroovingUsageFeature.Grooving }).equalizer).toEqual(equalizer);
+  });
+
+  it("resets the breakdown when the month changes", () => {
+    const current = { ...old, equalizer };
+    expect(addGroovingUsage(current, { month: "2026-12", inputTokens: 2, outputTokens: 1, estimatedUsd: 0.1 }).equalizer).toBeUndefined();
+    expect(
+      addGroovingUsage(current, { month: "2026-12", inputTokens: 2, outputTokens: 1, estimatedUsd: 0.1, feature: GroovingUsageFeature.Equalizer })
+        .equalizer
+    ).toEqual({ inputTokens: 2, outputTokens: 1, estimatedUsd: 0.1, unpricedTokens: 0 });
+  });
+
+  it("adds unknown-cost equalizer tokens to both unpriced totals", () => {
+    const result = addGroovingUsage(
+      { ...old, equalizer },
+      { month: old.month, inputTokens: 7, outputTokens: 3, estimatedUsd: null, feature: GroovingUsageFeature.Equalizer }
+    );
+    expect(result.unpricedTokens).toBe(10);
+    expect(result.equalizer).toEqual({ inputTokens: 37, outputTokens: 13, estimatedUsd: 0.5, unpricedTokens: 10 });
   });
 });
 

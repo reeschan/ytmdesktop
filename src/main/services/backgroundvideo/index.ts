@@ -14,6 +14,7 @@ import {
   decideBackgroundVideo,
   WindowVisibility,
   YtmBackground,
+  YtmBackgroundContent,
   YtmBackgroundReport,
   YtmBackgroundState
 } from "~shared/background-video";
@@ -126,7 +127,11 @@ export default class BackgroundVideoManager extends Service {
   private electronWindow: BaseWindow | null = null;
   private ytmView: AppView | null = null;
 
-  private decision: BackgroundVideoDecision = { video: BackgroundVideoPlayback.NotShown, ytmBackground: YtmBackground.Theme, motion: BackgroundVideoMotion.Continuous };
+  private decision: BackgroundVideoDecision = {
+    video: BackgroundVideoPlayback.NotShown,
+    ytmBackground: YtmBackground.Theme,
+    motion: BackgroundVideoMotion.Continuous
+  };
   private source: BackgroundVideoSource = BackgroundVideoSource.Playing;
   private fullscreen = false;
   // Last report of the YTM view, the video is unavailable until a loaded document reports it
@@ -408,11 +413,12 @@ export default class BackgroundVideoManager extends Service {
   }
 
   /**
-   * State of the background drawn inside the YTM view, which shows only the playing video
+   * State of the background drawn inside the YTM view
    */
   private getYTMState(): YtmBackgroundState {
     return {
-      show: this.source === BackgroundVideoSource.Playing && this.decision.video !== BackgroundVideoPlayback.NotShown,
+      show: this.source !== BackgroundVideoSource.File && this.decision.video !== BackgroundVideoPlayback.NotShown,
+      content: this.source === BackgroundVideoSource.Spectrum ? YtmBackgroundContent.Spectrum : YtmBackgroundContent.Video,
       playback: this.decision.video,
       motion: this.decision.motion,
       ...this.getMask()

@@ -1,11 +1,9 @@
-import { safeStorage } from "electron";
 import log from "electron-log";
 import { DependencyConstructor } from "~shared/types";
 import { MemoryStoreSchema } from "~shared/store/schema";
 import {
   GROOVING_BLEND_GENRE_LIMIT,
   GROOVING_BLEND_MOOD_LIMIT,
-  GROOVING_DEFAULT_MODELS,
   GROOVING_LANGUAGE_NAMES,
   GROOVING_LLM_CALL_LIMIT,
   GROOVING_LLM_CALL_WINDOW_MS,
@@ -70,6 +68,7 @@ import StateManager from "../statemanager";
 import ProtectedAPIManager from "../protectedapimanager";
 import YTMViewManager from "../ytmviewmanager";
 import { AppView } from "../windowmanager/appview";
+import { hasLlmKey, readLlmConfig, readLlmModel, readLlmProvider, safeStorageAvailable } from "../llm/config";
 import {
   continuationRequest,
   failedLlm,
@@ -371,43 +370,26 @@ export default class Grooving extends Service {
 
   //#region Settings
   private readProvider(): GroovingProvider {
-    const provider = this.getDependency(ConfigStore).get("integrations.groovingProvider");
-    return Object.values(GroovingProvider).find(value => value === provider) ?? GroovingProvider.Gemini;
+    return readLlmProvider(this.getDependency(ConfigStore));
   }
 
   private readModel(provider: GroovingProvider): string {
-    const model = this.getDependency(ConfigStore).get("integrations.groovingModels")?.[provider];
-    return typeof model === "string" && model.trim() !== "" ? model.trim() : GROOVING_DEFAULT_MODELS[provider];
-  }
-
-  private readEncryptedKey(provider: GroovingProvider): string | null {
-    const encrypted = this.getDependency(ConfigStore).get("integrations.groovingApiKeys")?.[provider];
-    return typeof encrypted === "string" && encrypted !== "" ? encrypted : null;
+    return readLlmModel(this.getDependency(ConfigStore), provider);
   }
 
   private safeStorageAvailable(): boolean {
-    return this.getDependency(MemoryStore<MemoryStoreSchema>).get("safeStorageAvailable") === true;
+    return safeStorageAvailable(this.getDependency(MemoryStore<MemoryStoreSchema>));
   }
 
   private hasKey(): boolean {
-    return this.safeStorageAvailable() && this.readEncryptedKey(this.readProvider()) !== null;
+    return hasLlmKey(this.getDependency(ConfigStore), this.getDependency(MemoryStore<MemoryStoreSchema>));
   }
 
   /**
    * Decrypts the key just before an LLM call. The plain key lives only in the returned config of that call
    */
   private async readLlmConfig(): Promise<GroovingLlmConfig | null> {
-    const provider = this.readProvider();
-    const encrypted = this.readEncryptedKey(provider);
-    if (encrypted === null || !this.safeStorageAvailable()) return null;
-
-    try {
-      const apiKey = (await safeStorage.decryptStringAsync(Buffer.from(encrypted, "hex"))).result;
-      return apiKey === "" ? null : { provider, apiKey, model: this.readModel(provider) };
-    } catch {
-      log.error("Grooving could not decrypt the API key");
-      return null;
-    }
+    return readLlmConfig(this.getDependency(ConfigStore), this.getDependency(MemoryStore<MemoryStoreSchema>));
   }
   //#endregion
 

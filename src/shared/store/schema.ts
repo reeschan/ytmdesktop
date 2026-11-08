@@ -1,4 +1,5 @@
 import { BackgroundVideoSource } from "~shared/background-video";
+import type { EqualizerSettings } from "~shared/equalizer";
 import { GroovingConsent, GroovingLanguage, GroovingProvider, GroovingUsage } from "~shared/grooving";
 import { SongRecognitionInputDevice, SongRecognitionSourceSetting } from "~shared/song-recognition";
 import { BundledTheme } from "~shared/theme";
@@ -17,6 +18,7 @@ export const ThemeSelection = {
 export type ThemeSelection = (typeof ThemeSelection)[keyof typeof ThemeSelection];
 
 export type StoreSchema = {
+  equalizer: EqualizerSettings;
   metadata: {
     version: 1;
     appVersion: string;

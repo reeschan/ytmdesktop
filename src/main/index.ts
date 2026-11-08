@@ -47,6 +47,7 @@ import { MemoryStoreSchema, TrayIconStyle } from "~shared/store/schema";
 import ProtocolManager from "./services/protocolmanager";
 import PlayerStateStore from "./services/playerstatestore";
 import ProtectedAPIManager from "./services/protectedapimanager";
+import Equalizer from "./services/equalizer";
 import Grooving from "./services/grooving";
 import { PlayerState, VideoType } from "~shared/playerstatestore/types";
 import { ensureBoundsAreVisible } from "./services/windowmanager/bounds";
@@ -95,6 +96,7 @@ serviceCollection.addServices([
   TaskbarManager,
   ProtocolManager,
   Grooving,
+  Equalizer,
   // This will always go last as it depends on every service since it's an optional system and integrations can perform work with any service
   IntegrationManager
 ]);

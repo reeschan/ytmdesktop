@@ -59,6 +59,7 @@ const ALL_INPUTS: BackgroundVideoInput[] = BOOLEANS.flatMap(enabled =>
 );
 
 function hasPicture(input: BackgroundVideoInput): boolean {
+  if (input.source === BackgroundVideoSource.Spectrum) return !input.reducedMotion;
   return input.source === BackgroundVideoSource.Playing ? input.videoAvailable : input.fileFound;
 }
 
@@ -81,8 +82,8 @@ describe("decideBackgroundVideo", () => {
     expect(ALL_FILE_INPUTS).toHaveLength(12);
     expect(FILE_CASES.map(([input]) => input)).toEqual(expect.arrayContaining(ALL_FILE_INPUTS));
     expect(FILE_CASES).toHaveLength(12);
-    expect(ALL_INPUTS).toHaveLength(96);
-    expect(new Set(ALL_INPUTS.map(input => JSON.stringify(input))).size).toBe(96);
+    expect(ALL_INPUTS).toHaveLength(144);
+    expect(new Set(ALL_INPUTS.map(input => JSON.stringify(input))).size).toBe(144);
   });
 
   it.each(FILE_CASES)("returns the expected decision for a video file with normal motion for %o", (input, expected) => {
@@ -138,6 +139,31 @@ describe("decideBackgroundVideo", () => {
   });
 
   describe("source", () => {
+    it.each([
+      [true, false, BackgroundVideoPlayback.Playing, YtmBackground.Transparent, BackgroundVideoMotion.Continuous],
+      [false, false, BackgroundVideoPlayback.NotShown, YtmBackground.Theme, BackgroundVideoMotion.Continuous],
+      [true, true, BackgroundVideoPlayback.NotShown, YtmBackground.Theme, BackgroundVideoMotion.Still]
+    ])("decides spectrum visibility for enabled=%s and reducedMotion=%s", (enabled, reducedMotion, video, ytmBackground, motion) => {
+      expect(
+        decideBackgroundVideo({
+          enabled,
+          reducedMotion,
+          source: BackgroundVideoSource.Spectrum,
+          videoAvailable: false,
+          fileFound: false,
+          window: WindowVisibility.Visible
+        })
+      ).toEqual({ video, ytmBackground, motion });
+    });
+
+    it("decides spectrum independently of picture availability for every window", () => {
+      for (const input of ALL_INPUTS.filter(input => input.source === BackgroundVideoSource.Spectrum)) {
+        const decision = decideBackgroundVideo(input);
+        expect(isShown(decision), JSON.stringify(input)).toBe(input.enabled && !input.reducedMotion);
+        expect(decideBackgroundVideo({ ...input, videoAvailable: !input.videoAvailable, fileFound: !input.fileFound })).toEqual(decision);
+      }
+    });
+
     it("decides from whether the playing video is available, whatever the file, when the source is the playing video", () => {
       for (const input of ALL_INPUTS.filter(input => input.source === BackgroundVideoSource.Playing)) {
         const decision = decideBackgroundVideo(input);
@@ -158,8 +184,6 @@ describe("decideBackgroundVideo", () => {
   });
 
   it("is still while motion is reduced and continuous otherwise", () => {
-    expectForAll(
-      (input, decision) => decision.motion === (input.reducedMotion ? BackgroundVideoMotion.Still : BackgroundVideoMotion.Continuous)
-    );
+    expectForAll((input, decision) => decision.motion === (input.reducedMotion ? BackgroundVideoMotion.Still : BackgroundVideoMotion.Continuous));
   });
 });

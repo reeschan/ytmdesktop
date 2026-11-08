@@ -176,7 +176,8 @@ export type GroovingList = { videoIds: string[]; moodDescription: string };
 
 // month: YYYY-MM. Values saved before unpricedTokens was added do not have it
 // unpricedTokens: input and output tokens of models not in the price table, in all
-export type GroovingUsage = { month: string; inputTokens: number; outputTokens: number; estimatedUsd: number; unpricedTokens: number };
+export type GroovingUsageAmounts = { inputTokens: number; outputTokens: number; estimatedUsd: number; unpricedTokens: number };
+export type GroovingUsage = GroovingUsageAmounts & { month: string; equalizer?: GroovingUsageAmounts };
 
 export const GroovingStep = {
   Collect: "collect",
